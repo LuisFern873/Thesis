@@ -12,7 +12,7 @@ dataset:
   name: tumor
 
 model:
-  name: convnext
+  name: mamba
 
   # Whether to use torchvision integrated model weights.
   # Has no effect if model is lenet5, 2nn or fedavgcnn
