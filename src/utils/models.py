@@ -1,6 +1,9 @@
-import timm # DeiT Tiny
-from vision_mamba import Vim # Vision Mamba
-from transformers import ConvNextV2Model, ConvNextV2Config # ConvNext V2
+
+# For custom models! :)
+
+import timm
+from mamba_ssm import Mamba
+from transformers import ConvNextV2Model, ConvNextV2Config
 
 from collections import OrderedDict
 from functools import partial
@@ -543,33 +546,24 @@ class DeiTTinyMNIST(DecoupledModel):
         self.base = model
         self.classifier = nn.Linear(model.embed_dim, NUM_CLASSES[dataset])
         
-
-# Vision Mamba
-# https://arxiv.org/pdf/2401.09417
-# https://github.com/kyegomez/VisionMamba
-# It is not pretrained model...
-
-class VimModel(DecoupledModel):
+class VisionMambaModel(DecoupledModel):
     def __init__(self, dataset: str, pretrained: bool):
-        super(VimModel, self).__init__()
+        super().__init__()
 
-        image_size = DATA_SHAPE[dataset][1]
-        in_channels = INPUT_CHANNELS[dataset]
-        num_classes = NUM_CLASSES[dataset]
-
-        self.base = Vim(
-            dim=256,             # embedding dimension
-            dt_rank=32,          # rank for dynamic routing
-            dim_inner=256,       # inner dimension for MLP
-            d_state=256,         # state dimension for Mamba
-            num_classes=num_classes,
-            image_size=image_size,
+        self.base = Mamba(
+            img_size=224,              # O ajusta al tamaño esperado por tus imágenes
             patch_size=16,
-            channels=in_channels,
-            dropout=0.1,
+            in_chans=3,                # Cambia a 1 si el dataset es en escala de grises
+            embed_dim=512,
             depth=12,
+            num_classes=0              # 0 porque usaremos un classifier externo
         )
-        self.classifier = nn.Identity()
+
+        # Clasificador simple posterior a Mamba
+        self.classifier = nn.Sequential(
+            nn.LayerNorm(512),        # Suponiendo que el embed_dim es 512
+            nn.Linear(512, NUM_CLASSES[dataset])
+        )
 
 class ConvNeXtV2Decoupled(DecoupledModel):
     def __init__(self, dataset: str, pretrained: bool = True):
@@ -652,6 +646,6 @@ MODELS = {
     "convnet": ConvNet,
     "deit": DeiTTiny,
     "deitmnist": DeiTTinyMNIST,
-    "vim": VimModel,
+    "mamba": VisionMambaModel,
     "convnext": ConvNeXtV2Decoupled,
 }
