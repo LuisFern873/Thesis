@@ -36,7 +36,7 @@ data/tiny_imagenet
 data/cinic10
 data/domain
 data/domain/raw
-data/tumor
+# data/tumor
 experiments
 docs
 
