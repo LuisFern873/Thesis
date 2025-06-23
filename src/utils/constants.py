@@ -154,6 +154,7 @@ DATA_SHAPE = {
     "tiny_imagenet": (3, 64, 64),
     "synthetic": _get_synthetic_args().get("dimension", 0),
     "domain": (3, *(_get_domainnet_args().get("image_size", (0, 0)))),
+    "tumor": (3, 224, 224),
 }
 
 NUM_CLASSES = {
@@ -174,6 +175,7 @@ NUM_CLASSES = {
     "tiny_imagenet": 200,
     "synthetic": _get_synthetic_args().get("class_num", 0),
     "domain": _get_domainnet_args().get("class_num", 0),
+    "tumor": 4,
 }
 
 

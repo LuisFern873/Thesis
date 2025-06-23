@@ -34,7 +34,15 @@ data/svhn
 data/usps
 data/tiny_imagenet
 data/cinic10
+data/domain
 data/domain/raw
+data/tumor
+experiments
+docs
+
+venv
+requirements.txt
+
 
 # data files
 *.npy

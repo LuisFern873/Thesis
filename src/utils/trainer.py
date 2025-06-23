@@ -41,7 +41,14 @@ class FLbenchTrainer:
         client_packages = OrderedDict()
         for client_id in self.server.selected_clients:
             server_package = self.server.package(client_id)
-            client_package = self.worker.train(server_package)
+            client_package = self.worker.train(server_package) # it gives eval_results
+
+            # What is worker?
+            # self.worker = client_cls(**init_args)
+            
+            # FedAvgServer:
+            #       client_cls = FedAvgClient
+
             client_packages[client_id] = client_package
 
             if self.server.verbose:

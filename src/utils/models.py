@@ -1,3 +1,7 @@
+import timm # DeiT Tiny
+from vision_mamba import Vim # Vision Mamba
+from transformers import ConvNextV2Model, ConvNextV2Config # ConvNext V2
+
 from collections import OrderedDict
 from functools import partial
 from typing import Optional
@@ -59,6 +63,7 @@ class DecoupledModel(nn.Module):
                         )
 
     def forward(self, x: Tensor) -> Tensor:
+        # print(f"x.shape: {x.shape}") # torch.Size([64, 3, 224, 224])
         return self.classifier(self.base(x))
 
     def get_last_features(self, x: Tensor, detach=True) -> Tensor:
@@ -381,6 +386,8 @@ class MobileNet(DecoupledModel):
         return super().forward(x)
 
 
+# EfficientNet-B7
+
 class EfficientNet(DecoupledModel):
     archs = {
         "0": (models.efficientnet_b0, models.EfficientNet_B0_Weights.DEFAULT),
@@ -395,6 +402,9 @@ class EfficientNet(DecoupledModel):
 
     def __init__(self, version, dataset, pretrained):
         super().__init__()
+
+        print("pretrained =", pretrained)
+
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
         efficientnet: models.EfficientNet = self.archs[version][0](
             weights=self.archs[version][1] if pretrained else None
@@ -464,22 +474,147 @@ class VGG(DecoupledModel):
         return super().forward(x)
 
 
-# NOTE: You can build your custom model here.
-# What you only need to do is define the architecture in __init__().
-# Don't need to consider anything else, which are handled by DecoupledModel well already.
-# Run `python *.py -m custom` to use your custom model.
-class CustomModel(DecoupledModel):
-    def __init__(self, dataset):
+"""
+Model Architecture. In Section 5, we adopt a convolutional neural network (ConvNet) that follows 
+the same architecture as reported in [37]. The encoder of this model consists of three convolutional layers, 
+each followed by a ReLU activation function and average pooling. To facilitate comparison with FedBN, 
+batch normalization is incorporated into the model. A fully-connected layer serves as the classifier and is 
+attached on top of the encoder.
+"""
+
+class ConvNet(DecoupledModel):
+    def __init__(self, dataset: str, pretrained):
         super().__init__()
-        # You need to define:
-        # 1. self.base (the feature extractor part)
-        # 2. self.classifier (normally the final fully connected layer)
-        # The default forwarding process is: out = self.classifier(self.base(input))
-        pass
+
+        self.base = nn.Sequential(
+            OrderedDict(
+                conv1=nn.Conv2d(INPUT_CHANNELS[dataset], 64, kernel_size=3, padding=1),
+                norm1=nn.BatchNorm2d(64),
+                activation1=nn.ReLU(),
+                pool1=nn.AvgPool2d(2),
+
+                conv2=nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                norm2=nn.BatchNorm2d(128),
+                activation2=nn.ReLU(),
+                pool2=nn.AvgPool2d(2),
+
+                conv3=nn.Conv2d(128, 256, kernel_size=3, padding=1),
+                norm3=nn.BatchNorm2d(256),
+                activation3=nn.ReLU(),
+                pool3=nn.AvgPool2d(2),
+
+                flatten=nn.Flatten(),
+            )
+        )
+
+        self.classifier = nn.Linear(256 * 8 * 8, NUM_CLASSES[dataset])
+
+class DeiTTiny(DecoupledModel):
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+        model = timm.create_model('deit_tiny_patch16_224', pretrained=pretrained)
+
+        self.base = model
+        self.base.head = nn.Identity()
+
+        self.classifier = nn.Linear(model.embed_dim, NUM_CLASSES[dataset])
+
+class DeiTTinyMNIST(DecoupledModel):
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+        model = timm.create_model('deit_tiny_patch16_224', pretrained=pretrained)
+
+        model.patch_embed.proj = nn.Conv2d(
+            in_channels=1,
+            out_channels=model.embed_dim,
+            kernel_size=16,
+            stride=16
+        )
+
+        model.patch_embed.img_size = (28, 28)
+        model.patch_embed.grid_size = (1, 1)
+        model.patch_embed.num_patches = 1
+        
+        model.pos_embed = nn.Parameter(torch.zeros(1, 1 + 1, model.embed_dim))
+        nn.init.trunc_normal_(model.pos_embed, std=0.02)
+
+        model.head = nn.Identity()
+
+        self.base = model
+        self.classifier = nn.Linear(model.embed_dim, NUM_CLASSES[dataset])
+        
+
+# Vision Mamba
+# https://arxiv.org/pdf/2401.09417
+# https://github.com/kyegomez/VisionMamba
+# It is not pretrained model...
+
+class VimModel(DecoupledModel):
+    def __init__(self, dataset: str, pretrained: bool):
+        super(VimModel, self).__init__()
+
+        image_size = DATA_SHAPE[dataset][1]
+        in_channels = INPUT_CHANNELS[dataset]
+        num_classes = NUM_CLASSES[dataset]
+
+        self.base = Vim(
+            dim=256,             # embedding dimension
+            dt_rank=32,          # rank for dynamic routing
+            dim_inner=256,       # inner dimension for MLP
+            d_state=256,         # state dimension for Mamba
+            num_classes=num_classes,
+            image_size=image_size,
+            patch_size=16,
+            channels=in_channels,
+            dropout=0.1,
+            depth=12,
+        )
+        self.classifier = nn.Identity()
+
+class ConvNeXtV2Decoupled(DecoupledModel):
+    def __init__(self, dataset: str, pretrained: bool = True):
+        super().__init__()
+        model_name = "convnextv2-tiny-1k-224"
+        if pretrained:
+            self.base_model = ConvNextV2Model.from_pretrained(model_name)
+            config = self.base_model.config
+        else:
+            config = ConvNextV2Config()
+            self.base_model = ConvNextV2Model(config)
+        self.base = self.base_model
+        hidden_size = config.hidden_sizes[-1]
+
+        self.classifier = nn.Linear(hidden_size, NUM_CLASSES[dataset])
+
+
+    def forward(self, x):
+        outputs = self.base(pixel_values=x)
+        pooled = outputs.pooler_output
+        return self.classifier(pooled)
+
+    def get_last_features(self, x, detach=True):
+        func = (lambda t: t.detach().clone()) if detach else (lambda t: t)
+        try:
+            pooled = self.base(pixel_values=x).pooler_output
+        except RuntimeError:
+            if x.shape[1] == 1:
+                x = x.repeat(1, 3, 1, 1)
+                pooled = self.base(pixel_values=x).pooler_output
+            else:
+                raise
+        return func(pooled)
+
+    def get_all_features(self, x):
+        raise NotImplementedError(
+            "Para extraer características internas usa 'output_hidden_states=True' y accede a outputs.hidden_states"
+        )
+
+
+
+
 
 
 MODELS = {
-    "custom": CustomModel,
     "lenet5": LeNet5,
     "avgcnn": FedAvgCNN,
     "alex": AlexNet,
@@ -514,4 +649,9 @@ MODELS = {
     "vgg13": partial(VGG, version="13"),
     "vgg16": partial(VGG, version="16"),
     "vgg19": partial(VGG, version="19"),
+    "convnet": ConvNet,
+    "deit": DeiTTiny,
+    "deitmnist": DeiTTinyMNIST,
+    "vim": VimModel,
+    "convnext": ConvNeXtV2Decoupled,
 }

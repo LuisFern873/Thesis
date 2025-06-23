@@ -632,6 +632,60 @@ class DomainNet(BaseDataset):
         return data, targets
 
 
+class BrainTumorDataset(BaseDataset):
+    def __init__(
+        self,
+        root,
+        args=None,
+        test_data_transform=None,
+        test_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
+        if not isinstance(root, Path):
+            root = Path(root)
+        if not os.path.isdir(root / "raw"):
+            raise RuntimeError("Primero descarga y prepara los datos en `raw/`.")
+
+        targets_path = root / "targets.pt"
+        metadata_path = root / "metadata.json"
+        filename_list_path = root / "filename_list.pkl"
+        if not (targets_path.exists() and metadata_path.exists() and filename_list_path.exists()):
+            raise RuntimeError("Corre `preprocess.py` antes de usar este dataset.")
+
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+        with open(filename_list_path, "rb") as f:
+            self.filename_list = pickle.load(f)
+
+        self.root = root
+        self.pre_transform = transforms.Compose([
+            transforms.Resize((metadata["image_size"], metadata["image_size"])),
+            transforms.ToTensor(),
+        ])
+        self.classes = list(range(len(metadata["classes"])))
+        self.targets = torch.load(targets_path)
+
+        super().__init__(
+            data=torch.empty(1, 1, 1, 1),  # dummy
+            targets=self.targets,
+            classes=self.classes,
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
+
+    def __getitem__(self, index):
+        img_path = self.root / self.filename_list[index]
+        img = Image.open(img_path).convert("RGB")
+        img = self.pre_transform(img)
+        label = int(self.targets[index])
+        return img, label
+
+    def __len__(self):
+        return len(self.filename_list)
+
 DATASETS: Dict[str, Type[BaseDataset]] = {
     "cifar10": CIFAR10,
     "cifar100": CIFAR100,
@@ -649,5 +703,6 @@ DATASETS: Dict[str, Type[BaseDataset]] = {
     "usps": USPS,
     "tiny_imagenet": TinyImagenet,
     "cinic10": CINIC10,
-    "domain": DomainNet,
+    "domain": DomainNet, 
+    "tumor": BrainTumorDataset,
 }

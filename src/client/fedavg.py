@@ -205,6 +205,7 @@ class FedAvgClient:
     def fit(self):
         self.model.train()
         self.dataset.train()
+        
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
                 # When the current batch size is 1, the batchNorm2d modules in the model would raise error.
@@ -213,7 +214,10 @@ class FedAvgClient:
                     continue
 
                 x, y = x.to(self.device), y.to(self.device)
+                # model = ConvNeXtV2
                 logit = self.model(x)
+                # print("logit:", logit)
+                
                 loss = self.criterion(logit, y)
                 self.optimizer.zero_grad()
                 loss.backward()

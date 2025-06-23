@@ -547,7 +547,9 @@ def plot_distribution(client_num: int, label_counts: np.ndarray, save_path: str)
     for y, cnts in enumerate(label_counts):
         ax.barh(client_ids, width=cnts, label=y, left=left)
         left += cnts
-    ax.set_yticks([])
+    ax.set_yticks(client_ids)
+    ax.set_ylabel("Client index")
+    ax.set_xlabel("Quantity")
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
     ax.legend(bbox_to_anchor=(1.2, 1))

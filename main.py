@@ -20,11 +20,14 @@ def main(config: DictConfig):
     method_name = config.method.lower()
 
     try:
+        # Example: <module 'src.server.fedavg' from '...'>
         fl_method_server_module = importlib.import_module(f"src.server.{method_name}")
     except:
         raise ImportError(f"Can't import `src.server.{method_name}`.")
 
     module_attributes = inspect.getmembers(fl_method_server_module)
+
+    # Example: <class 'src.server.fedavg.FedAvgServer'>
     server_class = [
         attribute
         for attribute in module_attributes

@@ -86,6 +86,7 @@ class FedAvgServer:
                 self.data_partition = pickle.load(f)
         except:
             raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
+        # data_partition["separation"][split] is a list of client indices
         self.train_clients: List[int] = self.data_partition["separation"]["train"]
         self.test_clients: List[int] = self.data_partition["separation"]["test"]
         self.val_clients: List[int] = self.data_partition["separation"]["val"]
@@ -225,6 +226,8 @@ class FedAvgServer:
             TypeError: If `external_model_weights_path` is not a valid `.pt` file.
         """
         if model is None:
+            # print(MODELS)
+            # print("MODELS[self.args.model.name] = ", MODELS[self.args.model.name])
             self.model: DecoupledModel = MODELS[self.args.model.name](
                 dataset=self.args.dataset.name,
                 pretrained=self.args.model.use_torchvision_pretrained_weights,
@@ -379,26 +382,33 @@ class FedAvgServer:
                 `test_data_transform`: The transform for testing data.
                 `test_target_transform`: The transform for testing targets.
         """
+        size = 224
         test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
                     DATA_MEAN[self.args.dataset.name], DATA_STD[self.args.dataset.name]
-                )
+                ),
+                transforms.Resize((size,size))
             ]
             if self.args.dataset.name in DATA_MEAN
             and self.args.dataset.name in DATA_STD
-            else []
+            else [
+                transforms.Resize((size,size))
+            ]
         )
         test_target_transform = transforms.Compose([])
         train_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
                     DATA_MEAN[self.args.dataset.name], DATA_STD[self.args.dataset.name]
-                )
+                ),
+                transforms.Resize((size,size))
             ]
             if self.args.dataset.name in DATA_MEAN
             and self.args.dataset.name in DATA_STD
-            else []
+            else [
+                transforms.Resize((size,size))
+            ]
         )
         train_target_transform = transforms.Compose([])
         return dict(
@@ -566,6 +576,7 @@ class FedAvgServer:
         self.testing = False
 
     def test_global_model(self):
+        # print("test_global_model")
         """The function for testing FL method's output (a single global model
         or personalized client models)."""
         # Has client personal model parameters, centralized evaluation for the global model is not available.
@@ -754,12 +765,25 @@ class FedAvgServer:
                             ),
                         )
                     elif self.args.common.monitor == "tensorboard":
-                        self.tensorboard.add_scalar(
+
+                        scalar_dict = {}
+                        for client_id in self.selected_clients:
+                            metrics = self.client_metrics[client_id][self.current_epoch][stage][split]
+                            scalar_dict[f"clients/client{client_id}"] = metrics.accuracy
+
+                        self.tensorboard.add_scalars(
                             f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
-                            aggregated.accuracy,
+                            scalar_dict,
                             self.current_epoch,
-                            new_style=True,
+                            # new_style=True,
                         )
+                        
+                        # self.tensorboard.add_scalar(
+                        #     f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
+                        #     aggregated.accuracy,
+                        #     self.current_epoch,
+                        #     new_style=True,
+                        # )
 
             # log server side evaluation results
             if (
@@ -792,7 +816,7 @@ class FedAvgServer:
                             "after"
                         ][split].accuracy,
                         self.current_epoch + 1,
-                        new_style=True,
+                        # new_style=True,
                     )
 
     def show_max_metrics(self):
