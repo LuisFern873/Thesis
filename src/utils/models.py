@@ -2,7 +2,7 @@
 # For custom models! :)
 
 import timm
-from mamba_ssm import Mamba
+from vim.models_mamba import VisionMamba  
 from transformers import ConvNextV2Model, ConvNextV2Config
 
 from collections import OrderedDict
@@ -545,25 +545,6 @@ class DeiTTinyMNIST(DecoupledModel):
 
         self.base = model
         self.classifier = nn.Linear(model.embed_dim, NUM_CLASSES[dataset])
-        
-class VisionMambaModel(DecoupledModel):
-    def __init__(self, dataset: str, pretrained: bool):
-        super().__init__()
-
-        self.base = Mamba(
-            img_size=224,              # O ajusta al tamaño esperado por tus imágenes
-            patch_size=16,
-            in_chans=3,                # Cambia a 1 si el dataset es en escala de grises
-            embed_dim=512,
-            depth=12,
-            num_classes=0              # 0 porque usaremos un classifier externo
-        )
-
-        # Clasificador simple posterior a Mamba
-        self.classifier = nn.Sequential(
-            nn.LayerNorm(512),        # Suponiendo que el embed_dim es 512
-            nn.Linear(512, NUM_CLASSES[dataset])
-        )
 
 class ConvNeXtV2Decoupled(DecoupledModel):
     def __init__(self, dataset: str, pretrained: bool = True):
@@ -602,6 +583,53 @@ class ConvNeXtV2Decoupled(DecoupledModel):
         raise NotImplementedError(
             "Para extraer características internas usa 'output_hidden_states=True' y accede a outputs.hidden_states"
         )
+    
+
+
+
+  
+class VisionMambaModel(DecoupledModel):  
+    def __init__(self, dataset: str, pretrained: bool, model_size: str = "tiny"):  
+        super(VisionMambaModel, self).__init__()  
+          
+        # Configuración según el tamaño del modelo  
+        model_configs = {  
+            "tiny": {"embed_dim": 192, "depth": 24},  
+            "small": {"embed_dim": 384, "depth": 24},   
+            "base": {"embed_dim": 768, "depth": 24}  
+        }  
+          
+        config = model_configs[model_size]  
+          
+        # backbone Vision Mamba  
+        self.base = VisionMamba(  
+            img_size=224,  
+            patch_size=16,  
+            depth=config["depth"],  
+            embed_dim=config["embed_dim"],  
+            channels=INPUT_CHANNELS[dataset],  
+            num_classes=0,  # Sin clasificador interno  
+            if_cls_token=True,  
+            use_middle_cls_token=True,  
+            final_pool_type='mean',  
+            if_abs_pos_embed=True,  
+            bimamba_type="v2"  
+        )  
+          
+        # Clasificador separado  
+        self.classifier = nn.Linear(config["embed_dim"], NUM_CLASSES[dataset])  
+          
+        if pretrained:  
+            self._load_pretrained_weights(model_size)  
+      
+    def _load_pretrained_weights(self, model_size: str):  
+        # Cargar pesos preentrenados si están disponibles  
+        # Los modelos están disponibles en HuggingFace según README.md  
+        pass
+
+
+
+
 
 
 
