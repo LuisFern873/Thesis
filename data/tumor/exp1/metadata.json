@@ -1,0 +1,12 @@
+{
+  "classes": [
+    "glioma",
+    "meningioma",
+    "notumor",
+    "pituitary"
+  ],
+  "image_size": 224,
+  "train_len": 5712,
+  "test_len": 1311,
+  "seed": 42
+}

@@ -49,7 +49,7 @@ requirements.txt
 *.pkl
 
 # output files
-*.csv
-*.json
-*.png
-*.pt
+# *.csv
+# *.json
+# *.png
+# *.pt

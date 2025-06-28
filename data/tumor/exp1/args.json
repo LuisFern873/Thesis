@@ -1,0 +1,10 @@
+{
+    "client_num": 20,
+    "test_ratio": 0.25,
+    "val_ratio": 0.0,
+    "seed": 42,
+    "split": "sample",
+    "IID_ratio": 0.0,
+    "monitor_window_name_suffix": "tumor-20clients-0%IID-4classes-seed42",
+    "classes_per_client": 4
+}
