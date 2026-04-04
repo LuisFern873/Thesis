@@ -1,6 +1,4 @@
 
-# For custom models! :)
-
 import timm
 from vim.models_mamba import VisionMamba  
 from transformers import ConvNextV2Model, ConvNextV2Config
