@@ -60,7 +60,7 @@ DEFAULTS = {
     },
     "common": {
         "seed": 42,
-        "join_ratio": 0.1,
+        "join_ratio": 0.5,
         "global_epoch": 100,
         "local_epoch": 5,
         "batch_size": 32,
@@ -114,6 +114,7 @@ INPUT_CHANNELS = {
     "usps": 1,
     "tiny_imagenet": 3,
     "domain": 3,
+    "tumor": 3,
 }
 
 
@@ -196,6 +197,7 @@ DATA_MEAN = {
     "tiny_imagenet": [122.5119, 114.2915, 101.388],
     "cinic10": [0.47889522, 0.47227842, 0.43047404],
     "domain": [0.485, 0.456, 0.406],
+    "tumor": [0.485, 0.456, 0.406],
 }
 
 
@@ -216,6 +218,7 @@ DATA_STD = {
     "tiny_imagenet": [58.7048, 57.7551, 57.6717],
     "cinic10": [0.24205776, 0.23828046, 0.25874835],
     "domain": [0.229, 0.224, 0.225],
+    "tumor": [0.229, 0.224, 0.225],
 }
 
 OPTIMIZERS = {

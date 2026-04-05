@@ -14,8 +14,7 @@ config/*
 out
 multirun
 
-# datasets
-
+# datasets (raw data — do NOT commit)
 data/cifar10
 data/cifar100
 data/mnist
@@ -35,21 +34,25 @@ data/usps
 data/tiny_imagenet
 data/cinic10
 data/domain
-data/domain/raw
-# data/tumor
-experiments
+data/tumor/raw
+
+# partition and data binary files (generated, not source)
+data/tumor/alpha_*/
+data/tumor/iid/
+data/tumor/non-iid/
+data/tumor/exp*/
+data/tumor/*.pkl
+data/tumor/*.pt
+data/tumor/partition_md5.txt
+data/tumor/all_stats.json
+data/tumor/args.json
+
+# experiment results CSV (generated)
+experiments/*.csv
 docs
 
 venv
 requirements.txt
 
-
-# data files
+# large binary data files
 *.npy
-*.pkl
-
-# output files
-# *.csv
-# *.json
-# *.png
-# *.pt

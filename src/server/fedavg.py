@@ -383,34 +383,43 @@ class FedAvgServer:
                 `test_target_transform`: The transform for testing targets.
         """
         size = 224
-        test_data_transform = transforms.Compose(
-            [
-                transforms.Normalize(
-                    DATA_MEAN[self.args.dataset.name], DATA_STD[self.args.dataset.name]
-                ),
-                transforms.Resize((size,size))
-            ]
-            if self.args.dataset.name in DATA_MEAN
+
+        # Test transform: deterministic (no augmentation)
+        test_transform_list = [transforms.Resize((size, size))]
+        if (
+            self.args.dataset.name in DATA_MEAN
             and self.args.dataset.name in DATA_STD
-            else [
-                transforms.Resize((size,size))
-            ]
-        )
+        ):
+            test_transform_list.insert(
+                0,
+                transforms.Normalize(
+                    DATA_MEAN[self.args.dataset.name],
+                    DATA_STD[self.args.dataset.name],
+                ),
+            )
+        test_data_transform = transforms.Compose(test_transform_list)
         test_target_transform = transforms.Compose([])
-        train_data_transform = transforms.Compose(
-            [
-                transforms.Normalize(
-                    DATA_MEAN[self.args.dataset.name], DATA_STD[self.args.dataset.name]
-                ),
-                transforms.Resize((size,size))
-            ]
-            if self.args.dataset.name in DATA_MEAN
+
+        # Train transform: includes augmentation for regularisation
+        train_transform_list = [
+            transforms.Resize((size, size)),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=10),
+        ]
+        if (
+            self.args.dataset.name in DATA_MEAN
             and self.args.dataset.name in DATA_STD
-            else [
-                transforms.Resize((size,size))
-            ]
-        )
+        ):
+            train_transform_list.insert(
+                0,
+                transforms.Normalize(
+                    DATA_MEAN[self.args.dataset.name],
+                    DATA_STD[self.args.dataset.name],
+                ),
+            )
+        train_data_transform = transforms.Compose(train_transform_list)
         train_target_transform = transforms.Compose([])
+
         return dict(
             train_data_transform=train_data_transform,
             train_target_transform=train_target_transform,
@@ -750,6 +759,30 @@ class FedAvgServer:
 
                     self.aggregated_client_metrics[stage][split].append(aggregated)
 
+                    # ── Compute per-client fairness metrics ───────────────
+                    client_accuracies = []
+                    client_f1_scores = []
+                    for i in self.selected_clients:
+                        client_m = self.client_metrics[i][self.current_epoch][stage][split]
+                        if client_m.size > 0:
+                            client_accuracies.append(client_m.accuracy)
+                            client_f1_scores.append(client_m.macro_f1)
+
+                    fairness_stats = {}
+                    if len(client_accuracies) > 0:
+                        acc_arr = np.array(client_accuracies)
+                        f1_arr = np.array(client_f1_scores)
+                        fairness_stats = {
+                            "accuracy_std": float(np.std(acc_arr)),
+                            "accuracy_worst10pct": float(
+                                np.percentile(acc_arr, 10)
+                            ),
+                            "macro_f1_std": float(np.std(f1_arr)),
+                            "macro_f1_worst10pct": float(
+                                np.percentile(f1_arr, 10)
+                            ),
+                        }
+
                     if self.args.common.monitor == "visdom":
                         self.viz.line(
                             [aggregated.accuracy],
@@ -765,7 +798,7 @@ class FedAvgServer:
                             ),
                         )
                     elif self.args.common.monitor == "tensorboard":
-
+                        # Per-client accuracy scalars
                         scalar_dict = {}
                         for client_id in self.selected_clients:
                             metrics = self.client_metrics[client_id][self.current_epoch][stage][split]
@@ -775,15 +808,49 @@ class FedAvgServer:
                             f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
                             scalar_dict,
                             self.current_epoch,
-                            # new_style=True,
                         )
-                        
-                        # self.tensorboard.add_scalar(
-                        #     f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
-                        #     aggregated.accuracy,
-                        #     self.current_epoch,
-                        #     new_style=True,
-                        # )
+
+                        # Aggregated Macro F1
+                        self.tensorboard.add_scalar(
+                            f"MacroF1-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
+                            aggregated.macro_f1,
+                            self.current_epoch,
+                        )
+
+                        # Fairness metrics
+                        if fairness_stats:
+                            self.tensorboard.add_scalar(
+                                f"Fairness-AccStd-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
+                                fairness_stats["accuracy_std"],
+                                self.current_epoch,
+                            )
+                            self.tensorboard.add_scalar(
+                                f"Fairness-AccWorst10-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
+                                fairness_stats["accuracy_worst10pct"],
+                                self.current_epoch,
+                            )
+                            self.tensorboard.add_scalar(
+                                f"Fairness-F1Std-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
+                                fairness_stats["macro_f1_std"],
+                                self.current_epoch,
+                            )
+                            self.tensorboard.add_scalar(
+                                f"Fairness-F1Worst10-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
+                                fairness_stats["macro_f1_worst10pct"],
+                                self.current_epoch,
+                            )
+
+                            # Per-client Macro F1 scalars
+                            f1_scalar_dict = {}
+                            for client_id in self.selected_clients:
+                                client_m = self.client_metrics[client_id][self.current_epoch][stage][split]
+                                if client_m.size > 0:
+                                    f1_scalar_dict[f"clients/client{client_id}"] = client_m.macro_f1
+                            self.tensorboard.add_scalars(
+                                f"MacroF1-PerClient-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
+                                f1_scalar_dict,
+                                self.current_epoch,
+                            )
 
             # log server side evaluation results
             if (
@@ -791,13 +858,10 @@ class FedAvgServer:
                 and self.current_epoch + 1 in self.test_results
                 and "centralized" in self.test_results[self.current_epoch + 1]
             ):
+                centralized_metrics = self.test_results[self.current_epoch + 1]["centralized"]["after"][split]
                 if self.args.common.monitor == "visdom":
                     self.viz.line(
-                        [
-                            self.test_results[self.current_epoch + 1]["centralized"][
-                                "after"
-                            ][split].accuracy
-                        ],
+                        [centralized_metrics.accuracy],
                         [self.current_epoch + 1],
                         win=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
                         update="append",
@@ -812,11 +876,14 @@ class FedAvgServer:
                 elif self.args.common.monitor == "tensorboard":
                     self.tensorboard.add_scalar(
                         f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
-                        self.test_results[self.current_epoch + 1]["centralized"][
-                            "after"
-                        ][split].accuracy,
+                        centralized_metrics.accuracy,
                         self.current_epoch + 1,
-                        # new_style=True,
+                    )
+                    # Centralized Macro F1
+                    self.tensorboard.add_scalar(
+                        f"MacroF1-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
+                        centralized_metrics.macro_f1,
+                        self.current_epoch + 1,
                     )
 
     def show_max_metrics(self):
@@ -939,10 +1006,9 @@ class FedAvgServer:
                 if len(self.aggregated_client_metrics[stage][split]) > 0:
                     for metric in [
                         "accuracy",
-                        # "micro_precision",
-                        # "macro_precision",
-                        # "micro_recall",
-                        # "macro_recall",
+                        "macro_f1",
+                        "macro_precision",
+                        "macro_recall",
                     ]:
                         stats = [
                             getattr(metrics, metric)

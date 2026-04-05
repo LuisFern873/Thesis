@@ -68,6 +68,20 @@ class Metrics:
         return score * 100
 
     @property
+    def macro_f1(self):
+        score = self._calculate(metrics.f1_score, average="macro", zero_division=0)
+        return score * 100
+
+    @property
+    def weighted_f1(self):
+        score = self._calculate(metrics.f1_score, average="weighted", zero_division=0)
+        return score * 100
+
+    @property
+    def per_class_f1(self):
+        return self._calculate(metrics.f1_score, average=None, zero_division=0) * 100
+
+    @property
     def corrects(self):
         return self._calculate(metrics.accuracy_score, normalize=False)
 
