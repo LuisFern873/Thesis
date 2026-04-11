@@ -1,0 +1,95 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Understanding Architecture-Driven Client Drift in Federated Medical Imaging: A Comparative Study of Convolutional and State-Space Models}
+
+\author{\IEEEauthorblockN{1\textsuperscript{st} Luis Fernando Méndez Lázaro}
+\IEEEauthorblockA{\textit{Faculty of Computing} \\
+\textit{Universidad de Ingeniería y Tecnología (UTEC)}\\
+Lima, Perú \\
+luis.mendez@utec.edu.pe}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Victor Flores Benites}
+\IEEEauthorblockA{\textit{Faculty of Computing} \\
+\textit{Universidad de Ingeniería y Tecnología (UTEC)}\\
+Lima, Perú \\
+vflores@utec.edu.pe}
+}
+
+\maketitle
+
+\begin{abstract}
+Federated Learning (FL) enables collaborative model training across decentralized clinical institutions without sharing raw patient data, effectively complying with strict privacy regulations. However, FL faces significant challenges when dealing with heterogeneous (non-IID) data distributions typical in real-world medical settings. While Convolutional Neural Networks (CNNs) carry strong local inductive biases, recent advances in State-Space Models (e.g., Vision Mamba) offer promising alternatives through sequence-based global context modeling. Rather than a pure performance benchmark, this proposal investigates how the distinct inductive biases of CNNs and State-Space Models modulate \textit{client drift} and \textit{aggregation interference}—phenomena unique to the federated optimization process. By evaluating on real-world medical datasets (Brain Tumor MRI and MedMNIST), this research systematically measures per-layer weight divergence and gradient contradictions during training with FedAvg and FedProx across 100 communication rounds. Furthermore, it controls for non-IID normalization artifacts by comparing BatchNorm and LayerNorm dynamics. The findings will provide crucial empirical insights into how architectural components interact with federated optimization, guiding the deployment of reliable diagnostic models in decentralized healthcare environments.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Federated Learning, Data Heterogeneity, Client Drift, Convolutional Neural Networks, State-Space Models, Medical Imaging
+\end{IEEEkeywords}
+
+\section{Introduction}
+Privacy laws such as HIPAA and GDPR strictly limit data sharing in healthcare. Federated Learning (FL) addresses this by training algorithms locally on hospital data and aggregating the model updates on a central server. A critical challenge in FL is the inherent heterogeneity of medical data across institutions, featuring both feature and label skew. The significant performance drop of FL under these non-IID conditions necessitates robust model architectures. 
+
+While much research has focused on novel aggregation algorithms to mitigate heterogeneity, there is a lack of deep understanding of how the federated optimization process interacts with modern vision architectures. During local training on non-IID data, client models diverge from the global consensus (client drift), and subsequent averaging of discordant updates can destroy learned features (aggregation interference). This research aims to systematically investigate how established Convolutional Neural Networks (CNNs) and emerging State-Space Models (Vision Mamba) experience these FL-specific phenomena differently. The expected contributions include an empirical analysis of per-layer architectural susceptibility to client drift, an examination of normalization artifacts (BatchNorm vs. LayerNorm) under heterogeneity, and practical guidelines for architecture selection in clinical FL deployments.
+
+\section{Related Work}
+Recent studies highlight the profound interplay between neural architecture and performance in Federated Learning (FL). While much of the literature centers on mitigating data heterogeneity via novel aggregation strategies \cite{b1}, focus has increasingly shifted toward understanding how specific architectures process non-IID data. For instance, Xu et al. \cite{b2} systematically demonstrated that architectural components inherently dictate model resilience to heterogeneous distributions, showing that global-context models can outperform Convolutional Neural Networks (CNNs) in specific FL setups. 
+
+Central to understanding this structural divergence is the phenomenon of \textit{client drift}. Studies like FedLap \cite{b3} and L-DAWA \cite{b4} have moved beyond holistic evaluations to measure weight divergence at the individual layer level, validating that different layers drift at distinct rates under statistical heterogeneity. Simultaneously, research tracking inter-client gradient similarity \cite{b5} confirms that analyzing gradient alignment provides critical mechanistic insights into aggregation interference.
+
+Furthermore, applying State-Space Models (SSMs), particularly Vision Mamba \cite{b6}, to FL environments is a rapidly emerging area. Recent works have validated Mamba's efficacy in decentralized, privacy-sensitive applications, including image classification \cite{b7} and multimodal disease prediction. These studies highlight Mamba's superior communication efficiency and adaptability to decentralized data. However, there remains a critical gap: no prior work has conducted a layer-granular decomposition of client drift and aggregation interference explicitly comparing CNNs against Vision Mamba under controlled non-IID medical protocols. This study directly bridges that gap.
+
+\section{Research Problem}
+\textbf{Definition:} How do the distinct inductive biases of Convolutional Neural Networks (EfficientNet) and State-Space Models (Vision Mamba) modulate client drift and aggregation interference in Federated Learning under varying degrees of medical data heterogeneity?
+
+\textbf{Research Questions:}
+\begin{enumerate}
+    \item How does the magnitude and distribution of client drift (measured via per-layer weight divergence) differ between CNNs and State-Space Models under non-IID data partitions?
+    \item Which specific architectural components (e.g., convolutional layers vs. SSM recurrence parameters) are most susceptible to destructive averaging (aggregation interference) during federated synchronization?
+    \item To what extent does the convergence stability of EfficientNet under high heterogeneity rely on its use of Batch Normalization, and how does it compare to Vision Mamba's LayerNorm when controlled?
+\end{enumerate}
+
+\textbf{Hypothesis:} Vision Mamba's global context modeling will exhibit different per-layer drift patterns compared to the localized filters of EfficientNet. Furthermore, a significant portion of EfficientNet's degradation under high heterogeneity is expected to stem from BatchNorm statistic divergence rather than the convolutional inductive bias itself.
+
+\section{Methodology}
+The study will employ a Deep Learning experimental framework simulating cross-silo FL scenarios. The datasets will include the Brain Tumor MRI Dataset and MedMNIST, with controlled non-IID splits using Dirichlet distributions ($\alpha \in \{0.1, 0.5, 1.0\}$) for label skew. The selected models for the comparative study are EfficientNet-B0 (CNN) and Vim-tiny (State-Space Model). 
+
+The FL pipeline entails standardized local training parameters across clients (optimizer, learning rate, batch size, local epochs) to isolate architectural effects. Two primary aggregation methods will be tested: FedAvg (baseline) and FedProx (heterogeneity-robust). To quantify the FL-specific phenomena, the methodology introduces specific tracking metrics: \textit{Client Drift} (measured as the $L_2$ distance of weights pre-aggregation per layer type) and \textit{Aggregation Interference} (measured via gradient cosine similarity across clients). Furthermore, a control experiment replacing EfficientNet's BatchNorm with GroupNorm or LayerNorm will be conducted to isolate normalization artifacts. The models will be evaluated over 100 communication rounds with three independent random seeds to capture long-term convergence stability and client-level fairness.
+
+\section{Research Plan}
+The project will be executed in the following tentative phases:
+\begin{itemize}
+    \item \textbf{Phase 1 (Weeks 1-2):} Experimental setup standardization, integration of MedMNIST, and code modifications to track per-layer $L_2$ weight divergence, gradient cosine similarity, and BN/LN layers.
+    \item \textbf{Phase 2 (Weeks 3-5):} Execution of the scaled experimental space (100 rounds, 3 seeds, 3 $\alpha$ values) for EfficientNet, Vim, and the EfficientNet-GroupNorm variant using FedAvg and FedProx.
+    \item \textbf{Phase 3 (Weeks 6-8):} Deep quantitative and qualitative analysis of results, focusing on layer-wise client drift decomposition, aggregation interference, and normalization divergence.
+    \item \textbf{Phase 4 (Weeks 9-11):} Drafting the discussion section, contrasting findings with existing literature, and formulating practical architectural guidelines for FL deployments.
+    \item \textbf{Phase 5 (Weeks 12-13):} Final review, document formatting for publication, and thesis defense preparation.
+\end{itemize}
+
+\section{Expected Impact}
+\textbf{Scientific:} The study provides much-needed empirical evidence and theoretical discussion on how distinct vision architectures process heterogeneous decentralized data, contributing to both FL algorithm design and neural architecture research.
+
+\textbf{Applied:} Offers pragmatic guidelines for technical teams in hospitals and ML engineers regarding which model architectures to deploy based on the specific network and data distribution characteristics of their federated consortium.
+
+\textbf{Ethical:} By critically addressing client-level fairness, the research ensures that models do not severely underperform for institutions with minority data distributions, thus mitigating bias in decentralized diagnostic tools.
+
+\begin{thebibliography}{00}
+\bibitem{b1} Y. Himeur et al., ``Federated learning for computer vision,'' arXiv preprint arXiv:2308.13558, 2023.
+\bibitem{b2} X. Xu et al., ``FedConv: Understanding and improving convolution in federated learning,'' arXiv preprint, 2023.
+\bibitem{b3} P. Charteros et al., ``FedLap: Layer-wise partial aggregation in federated learning,'' IEEE INFOCOM, 2023.
+\bibitem{b4} Y. Rehman et al., ``L-DAWA: Layer-wise divergence aware weight aggregation in federated self-supervised learning,'' ICCV, 2023.
+\bibitem{b5} C. Palihawadana et al., ``FedSim: Similarity guided model aggregation for federated learning,'' arXiv preprint, 2021.
+\bibitem{b6} L. Zhu et al., ``Vision Mamba: Efficient visual representation learning with bidirectional state space model,'' arXiv preprint, 2024.
+\bibitem{b7} C. Wu, ``Mamba-Based Federated Learning for Privacy-Preserving Machine Learning,'' IEEE 6th International Conf. on Civil Aviation Safety and Information Technology, 2024.
+\end{thebibliography}
+
+\end{document}

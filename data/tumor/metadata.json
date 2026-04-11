@@ -6,7 +6,7 @@
     "pituitary"
   ],
   "image_size": 224,
-  "train_len": 5712,
-  "test_len": 1311,
+  "train_len": 5600,
+  "test_len": 1600,
   "seed": 42
 }

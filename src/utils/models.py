@@ -1,6 +1,6 @@
 
 import timm
-from vim.models_mamba import VisionMamba  
+# from vim.models_mamba import VisionMamba  
 from transformers import ConvNextV2Model, ConvNextV2Config
 
 from collections import OrderedDict
@@ -586,68 +586,68 @@ class ConvNeXtV2Decoupled(DecoupledModel):
 
 
   
-class VisionMambaModel(DecoupledModel):
-    """Vision Mamba (Vim) backbone for federated learning.
+# class VisionMambaModel(DecoupledModel):
+#     """Vision Mamba (Vim) backbone for federated learning.
 
-    Weight Initialization Strategy:
-        For the thesis benchmark, ALL architectures (EfficientNet, DeiT, VisionMamba)
-        use random initialization (pretrained=False) to ensure a fair comparison of
-        architectural inductive biases under federated learning. This isolates the
-        effect of architecture from the effect of pretraining data.
+#     Weight Initialization Strategy:
+#         For the thesis benchmark, ALL architectures (EfficientNet, DeiT, VisionMamba)
+#         use random initialization (pretrained=False) to ensure a fair comparison of
+#         architectural inductive biases under federated learning. This isolates the
+#         effect of architecture from the effect of pretraining data.
 
-        VisionMamba pretrained weights are not distributed via torchvision.
-        If pretrained=True is requested, a warning is logged and the model
-        falls back to random initialization.
-    """
+#         VisionMamba pretrained weights are not distributed via torchvision.
+#         If pretrained=True is requested, a warning is logged and the model
+#         falls back to random initialization.
+#     """
 
-    def __init__(self, dataset: str, pretrained: bool, model_size: str = "tiny"):
-        super(VisionMambaModel, self).__init__()
+#     def __init__(self, dataset: str, pretrained: bool, model_size: str = "tiny"):
+#         super(VisionMambaModel, self).__init__()
 
-        model_configs = {
-            "tiny": {"embed_dim": 192, "depth": 24},
-            "small": {"embed_dim": 384, "depth": 24},
-            "base": {"embed_dim": 768, "depth": 24},
-        }
+#         model_configs = {
+#             "tiny": {"embed_dim": 192, "depth": 24},
+#             "small": {"embed_dim": 384, "depth": 24},
+#             "base": {"embed_dim": 768, "depth": 24},
+#         }
 
-        config = model_configs[model_size]
+#         config = model_configs[model_size]
 
-        # backbone Vision Mamba
-        self.base = VisionMamba(
-            img_size=224,
-            patch_size=16,
-            depth=config["depth"],
-            embed_dim=config["embed_dim"],
-            channels=INPUT_CHANNELS[dataset],
-            num_classes=0,  # No internal classifier
-            if_cls_token=True,
-            use_middle_cls_token=True,
-            final_pool_type='mean',
-            if_abs_pos_embed=True,
-            bimamba_type="v2",
-        )
+#         # backbone Vision Mamba
+#         self.base = VisionMamba(
+#             img_size=224,
+#             patch_size=16,
+#             depth=config["depth"],
+#             embed_dim=config["embed_dim"],
+#             channels=INPUT_CHANNELS[dataset],
+#             num_classes=0,  # No internal classifier
+#             if_cls_token=True,
+#             use_middle_cls_token=True,
+#             final_pool_type='mean',
+#             if_abs_pos_embed=True,
+#             bimamba_type="v2",
+#         )
 
-        # Decoupled classifier
-        self.classifier = nn.Linear(config["embed_dim"], NUM_CLASSES[dataset])
+#         # Decoupled classifier
+#         self.classifier = nn.Linear(config["embed_dim"], NUM_CLASSES[dataset])
 
-        if pretrained:
-            self._load_pretrained_weights(model_size)
+#         if pretrained:
+#             self._load_pretrained_weights(model_size)
 
-    def _load_pretrained_weights(self, model_size: str):
-        """Attempt to load pretrained weights for VisionMamba.
+#     def _load_pretrained_weights(self, model_size: str):
+#         """Attempt to load pretrained weights for VisionMamba.
 
-        NOTE: VisionMamba pretrained weights are not distributed via standard
-        channels (torchvision/timm). For the thesis benchmark, random initialization
-        is used for all architectures to ensure fair comparison.
-        """
-        import warnings
-        warnings.warn(
-            f"VisionMamba pretrained weights for '{model_size}' are not available. "
-            f"Using random initialization instead. For the thesis benchmark, "
-            f"set use_torchvision_pretrained_weights=false for all architectures "
-            f"to ensure a fair comparison of inductive biases.",
-            UserWarning,
-            stacklevel=2,
-        )
+#         NOTE: VisionMamba pretrained weights are not distributed via standard
+#         channels (torchvision/timm). For the thesis benchmark, random initialization
+#         is used for all architectures to ensure fair comparison.
+#         """
+#         import warnings
+#         warnings.warn(
+#             f"VisionMamba pretrained weights for '{model_size}' are not available. "
+#             f"Using random initialization instead. For the thesis benchmark, "
+#             f"set use_torchvision_pretrained_weights=false for all architectures "
+#             f"to ensure a fair comparison of inductive biases.",
+#             UserWarning,
+#             stacklevel=2,
+#         )
 
 
 
@@ -696,6 +696,6 @@ MODELS = {
     "convnet": ConvNet,
     "deit": DeiTTiny,
     "deitmnist": DeiTTinyMNIST,
-    "mamba": VisionMambaModel,
+    # "mamba": VisionMambaModel,
     "convnext": ConvNeXtV2Decoupled,
 }

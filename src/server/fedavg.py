@@ -72,15 +72,23 @@ class FedAvgServer:
         fix_random_seed(self.args.common.seed, use_cuda=self.device.type == "cuda")
 
         self.output_dir = Path(HydraConfig.get().runtime.output_dir)
+
+        partition_dir_name = getattr(self.args.dataset, "partition_dir", None)
+        base_dir = FLBENCH_ROOT / "data" / self.args.dataset.name
+        if partition_dir_name is not None and partition_dir_name != "null":
+            config_dir = base_dir / partition_dir_name
+        else:
+            config_dir = base_dir
+
         with open(
-            FLBENCH_ROOT / "data" / self.args.dataset.name / "args.json", "r"
+            config_dir / "args.json", "r"
         ) as f:
             self.args.dataset.update(DictConfig(json.load(f)))
 
         # get client party info
         try:
             partition_path = (
-                FLBENCH_ROOT / "data" / self.args.dataset.name / "partition.pkl"
+                config_dir / "partition.pkl"
             )
             with open(partition_path, "rb") as f:
                 self.data_partition = pickle.load(f)
@@ -341,9 +349,16 @@ class FedAvgServer:
         list[dict[str, list[int]]]: A list of client-side data indexes, where each element is a dictionary,
         Contains the keys "train", "val", and "test" for a list of data indexes for each partition.
         """
+        partition_dir_name = getattr(self.args.dataset, "partition_dir", None)
+        base_dir = FLBENCH_ROOT / "data" / self.args.dataset.name
+        if partition_dir_name is not None and partition_dir_name != "null":
+            config_dir = base_dir / partition_dir_name
+        else:
+            config_dir = base_dir
+
         try:
             partition_path = (
-                FLBENCH_ROOT / "data" / self.args.dataset.name / "partition.pkl"
+                config_dir / "partition.pkl"
             )
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)

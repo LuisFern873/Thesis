@@ -56,3 +56,6 @@ requirements.txt
 
 # large binary data files
 *.npy
+
+# vim
+Vim

@@ -1,0 +1,249 @@
+Benchmarking Vision Models in Federated Learning 
+under data heterogeneity for Medical Image Classiﬁcation
+Luis Fernando Méndez Lázaro
+Advisor: Victor Flores Benites
+Thesis for Bachelor’s Degree in Computer Science
+
+Content
+1. Introduction 
+2. Framework
+4. Methodology 
+5. Preliminary results
+3. Related work 6. References
+1.
+Introduction
+Figure 1: Traditional Federated Learning framework. (1) Model initialization; (2) Local model training 
+and upload; (3) Global model aggregation and update. 1
+Problem and Hypothesis
+Problem
+● Federated Learning (FL) struggles with data heterogeneity (non-IID data).
+● Unknown how modern vision models behave under these conditions in medical imaging.
+● Lack of benchmarks limits model selection for real deployments.
+Hypothesis
+● DeiT and Mamba will outperform CNNs under skewed FL. 
+● Their global context modeling helps deal with client heterogeneity.
+2
+Motivation
+Computational Motivation
+● FL performance drops under non-IID (skewed) conditions. 
+● Need to compare new vision architectures (DeiT, Mamba, ConvNeXt) vs CNNs in FL.
+● Benchmarks help identify robustness to feature/label skew in medical images.
+Practical Motivation
+● Privacy laws (HIPAA/GDPR) prevent data sharing in healthcare.
+● Medical data is naturally heterogeneous across institutions.
+● Goal: Find models that stay reliable in real-world federated hospital settings. 
+3
+2.
+Framework
+2.1.
+Federated Learning
+Figure 2: Traditional FL framework. 4
+2.2.
+Data heterogeneity
+Figura 3: Illustration of feature distribution skew in data heterogeneity.
+5
+Figura 4: Illustration of label distribution skew in data heterogeneity.
+6
+2.3.
+Vision models
+EfﬁcientNet-B0
+Figure 5: Architecture of the EfﬁcientNetB0 Base Model used for Brain MRI Analysis.
+7
+Data-efﬁcient Image Transformer (DeiT)
+Figure 6: DeiT architecture illustrating the use of class and distillation tokens for self-attention and subsequent loss calculations.
+8
+ConvNeXt V1, V2
+Figure 7: Comparison of ConvNeXt V1 and V2 blocks, highlighting the addition of Global Response Normalization 
+(GRN) in V2 and the removal of LayerScale from V1.
+9
+Figure 8: Overview of the Vision Mamba (ViM) architecture, detailing its patch embedding process and the internal structure of the Vision 
+Mamba Encoder with forward and backward SSMs.
+Vision Mamba
+10
+2.4.
+Federated methods
+Federated Methods
+Traditional FL Methods
+● FedAvg: Baseline method; highlights performance drop under data heterogeneity. 
+● FedProx: Adds regularization to handle client drift in non-IID data. 
+● MOON: Uses contrastive learning to align representations and reduce heterogeneity impact.
+FL Domain Generalization Methods
+● FedSR: Enhances generalization by improving local feature representations.
+● ADCOL: Uses contrastive learning to boost global and local consistency.
+● FedIIR: Combines representation learning and reweighting to adapt to non-IID clients.
+11
+3.
+Related works
+Related works
+● Rethinking Architecture Design for Tackling Data Heterogeneity in Federated Learning (2023): It 
+emphasizes how model architecture can impact FL performance under non-IID settings, directly aligning 
+with my goal of benchmarking.
+● Label-Efﬁcient Self-Supervised Federated Learning for Tackling Data Heterogeneity in Medical Imaging 
+(2023): This work addresses both label scarcity and data heterogeneity—two major challenges in medical 
+imaging FL
+● Integrated approach of federated learning with transfer learning for classiﬁcation and diagnosis of brain 
+tumor (2024): Combines FL with transfer learning to improve classiﬁcation performance on medical images.
+● Distributed Federated Learning-Based Deep Learning Model for Privacy MRI Brain Tumor Detection 
+(2024): Demonstrates a privacy-preserving FL approach tailored for MRI data.
+12
+Related works
+Figura 9: Rethinking Architecture Design for Tackling Data Heterogeneity in Federated Learning (2023). Prediction test accuracy on highly 
+heterogeneous data partitions (Split-3) of CIFAR-10 dataset versus model size. Vision Transformers (ViTs and Swin Transformers) 
+signiﬁcantly outperform CNNs (ResNets and EfﬁcientNets) on highly heterogeneous data partitions. 
+13
+Related works
+Figura 10:  Distributed Federated Learning-Based Deep Learning Model for Privacy MRI Brain Tumor Detection (2024). The mechanism 
+diagram of the proposed federated learning-based method.
+14
+4.
+Methodology
+Methodology
+Figure 11: Overview of the thesis pipeline: datasets are prepared, models are selected, and cross-silo Federated Learning is simulated 
+under feature and label skew. Models are trained for 100 rounds and evaluated on a centralized test set.
+15
+5.
+Preliminary results
+Implementation details
+Cloud Infrastructure
+Deployed experiments on an AWS EC2 g4dn.xlarge instance:
+● GPU: NVIDIA Tesla T4 (16 GB VRAM)
+● CUDA Version: 12.9
+● Driver Version: 575.57.08
+● Instance Specs: 4 vCPUs, 16 GiB RAM
+● OS: Ubuntu 20.04 (base Conda environment)
+Benchmark Framework
+Utilized FL-Bench:
+● A standardized benchmark suite for evaluating Federated 
+Learning (FL) algorithms.
+● Supports various non-IID data partitioning strategies, 
+aggregation methods, and datasets.
+Figure 12: PNY NVIDIA Tesla T4 Datacenter Card 16GB 
+GDDR6 PCI Express 3.0 x16, Single Slot, Passive Cooling.
+16
+Vision models
+Model name Implementation Pretrained weights Number of parameters
+Efficient Net B0 torchvision.models.efficient
+net_b0
+EfficientNet_B0_Weights.DEFA
+ULT 5 288 548
+DeiT-tiny timm.create_model('deit_tiny
+_patch16_224')
+deit_tiny_patch16_224.fb_in1
+k 5 000 000
+ConvNeXt-tiny torchvision.models.convnext_
+tiny
+ConvNeXt_Tiny_Weights.DEFAUL
+T 28 589 128
+Vim-tiny
+vim_tiny_patch16_224_bimamba
+v2_final_pool_mean_abs_pos_e
+mbed_with_midclstok_div2
+Vim-tiny-midclstok 7 000 000
+Table 1: vision models selected for federated learning training. Each model is listed with its implementation source, pretrained weights (all 
+on ImageNet-1k), and number of parameters. The selection includes convolutional architectures (EfﬁcientNet, ConvNeXt), 
+transformer-based models (DeiT), and a state-space model (Vim-tiny), which is based on Vision Mamba, a recent alternative to transformers 
+for visual tasks.
+17
+Evaluation metrics
+● Accuracy
+● Precision
+● Recall (Sensitivity)
+● F1 Score
+18
+
+CIFAR-10 Dataset
+Figure 13: 60000 32x32 colour images in 10 classes, with 6000 images per class. There are 50000 training images and 10000 test images.
+https://www.cs.toronto.edu/~kriz/cifar.html 
+19
+CIFAR 10 IID partition
+Table 14: Data distribution of the CIFAR-10 dataset among 10 clients. Each horizontal bar represents a client, and the different colored 
+segments indicate the number of samples per class. The partition is balanced in size but non-IID in class composition.
+20
+21
+Key Observations:
+1. ConvNeXt-Tiny achieved the highest accuracy (~98.5%) with fast and stable convergence, making it the most 
+effective in this setting.
+2. EfﬁcientNetB0 showed competitive performance (~96.5%) but with more ﬂuctuation, especially in early 
+rounds.
+3. DeiT-Tiny had the lowest performance (~95%) but remained stable, suggesting robustness, albeit with 
+slower learning.
+22
+Brain Tumor MRI Dataset
+Figure 15: Brain Tumor MRI Dataset samples (Kaggle, Masoud Nickparvar). Collection of 7023 T1-weighted human brain MRI images (512×512px).
+https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset 
+23
+Brain Tumor MRI Dataset IID and Non-IID partitions
+Figure 16: The image shows the IID (left) and Non-IID (right) data partitions of a Brain Tumor MRI Dataset across multiple clients, 
+illustrating balanced and unbalanced class distributions, respectively.
+24
+25
+26
+Key Observations
+Model Performance Hierarchy
+● EfﬁcientNetB0 demonstrates superior and most stable performance across both datasets
+● DeiT-tiny shows strong performance but with higher variance
+● Vim-tiny and ConvNeXt-tiny exhibit lower overall accuracy
+Dataset-Speciﬁc Patterns
+● IID Dataset: All models show steady convergence with EfﬁcientNetB0 reaching ~97% accuracy
+● Non-IID Dataset: Higher volatility and instability, particularly affecting transformer-based models (DeiT-tiny, 
+Vim-tiny)
+27
+Brain Tumor MRI Dataset Non-IID partition
+Figure 17: illustrates a non-IID (independent and identically distributed) partition of a Brain Tumor MRI Dataset, showing the quantity 
+distribution of four categories (0, 1, 2, 3) across four different clients.
+28
+29
+30
+Key Observations
+Client Performance Disparity
+● Clients 1, 2, 3: Achieve consistently high accuracy (90-98%) with stable convergence
+● Client 0: Shows severe instability and poor performance (20-85% range)
+Convergence Patterns
+● Stable Clients: Smooth upward trajectory reaching plateau around round 20-30
+● Unstable Client: Extreme volatility with frequent dramatic drops (e.g., rounds 15, 40, 95)
+31
+DomainNet Dataset
+Figure 18: DomainNet Dataset samples. https://ai.bu.edu/M3SDA/ 
+32
+DomainNet partition
+Figure 19: displays a "DomainNet partition" across six clients, with the left chart showing the total number of samples per client (each 
+dominated by a single category), and the right chart detailing the distribution of ten different categories within each client's sample.
+33
+34
+Key Observations
+Model Performance Ranking
+● DeiT-tiny: Best overall performance, reaching ~78% accuracy with steady improvement
+● ConvNeXt-tiny: Second best, ~70% accuracy with moderate stability
+● EfﬁcientNetB0: Moderate performance (~65%) but shows catastrophic failure at round 16-17
+● Vim-tiny: Consistently poorest performance, stagnating around 10-18%
+Training Stability
+● DeiT-tiny: Most stable with consistent upward trend
+● ConvNeXt-tiny: Relatively stable with minor ﬂuctuations
+● EfﬁcientNetB0: Dramatic collapse at round 16-17, recovering by round 18
+● Vim-tiny: Persistently unstable and low-performing
+35
+Future experiments
+● Comprehensive FL Algorithm Evaluation
+● Systematic Feature and label Skew Analysis
+● Medical Dataset Evaluation
+● Client Heterogeneity Analysis
+● Scalability Experiments
+35
+6.
+References
+1. Y. Himeur, I. Varlamis, H. Kheddar, A. Amira, S. Atalla, Y. Singh, F. Bensaali, and W. Mansoor, “Federated learning 
+for computer vision,” arXiv preprint arXiv:2308.13558, 2023
+2. C. Chen, T. Liao, X. Deng, Z. Wu, S. Huang, and Z. Zheng, “Advances in robust federated learning: Heterogeneity 
+considerations,” arXiv preprint arXiv:2405.09839, 2024.
+3. M. Tan and Q. V. Le, “Efﬁcientnet: Rethinking model scaling for convolutional neural networks,” in Proceedings 
+of the International Conference on Machine Learning (ICML). PMLR, 2019, pp. 6105–6114.
+4. Yan, R., et al. "Label-Efﬁcient Self-Supervised Federated Learning for Tackling Data Heterogeneity in Medical 
+Imaging. arXiv 2023." arXiv preprint arXiv:2205.08576.
+5. Albalawi, E., TR, M., Thakur, A., Kumar, V. V., Gupta, M., Khan, S. B., & Almusharraf, A. (2024). Integrated approach 
+of federated learning with transfer learning for classiﬁcation and diagnosis of brain tumor. BMC medical 
+imaging, 24(1), 110.
+6. Zhou, L., M. Wang, and N. Zhou. "Distributed federated learning-based deep learning model for privacy mri 
+brain tumor detection. arXiv 2024." arXiv preprint arXiv:2404.10026.
+36
+GRACIAS
+Victor <3
