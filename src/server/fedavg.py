@@ -214,7 +214,11 @@ class FedAvgServer:
                     self.testset,
                     self.valset,
                 ) = initialize_data_loaders(
-                    self.dataset, self.client_data_indices, self.args.common.batch_size
+                    self.dataset,
+                    self.client_data_indices,
+                    self.args.common.batch_size,
+                    num_workers=self.args.common.dataloader_num_workers,
+                    pin_memory=self.args.common.use_cuda,
                 )
 
     def init_model(

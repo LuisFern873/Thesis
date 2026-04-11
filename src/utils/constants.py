@@ -93,6 +93,7 @@ DEFAULTS = {
         "save_learning_curve_plot": True,
         "save_metrics": True,
         "delete_useless_run": True,
+        "dataloader_num_workers": 0,
     },
 }
 
