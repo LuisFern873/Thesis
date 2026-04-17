@@ -17,7 +17,7 @@ class MODE(Enum):
 
 DEFAULTS = {
     "method": "fedavg",
-    "dataset": {"name": "mnist"},
+    "dataset": {"name": "mnist", "partition_dir": None},
     "model": {
         "name": "lenet5",
         "use_torchvision_pretrained_weights": True,

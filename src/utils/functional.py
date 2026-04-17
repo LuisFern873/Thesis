@@ -138,17 +138,16 @@ def parse_args(
     final_args = DictConfig(DEFAULTS)
 
     def _merge_configs(defaults: DictConfig, config: DictConfig) -> DictConfig:
-        merged = DictConfig({})
-        for key, default_value in defaults.items():
-            if key in config:
-                if isinstance(default_value, DictConfig) and isinstance(
-                    config[key], DictConfig
-                ):
-                    merged[key] = _merge_configs(default_value, config[key])
-                else:
-                    merged[key] = config[key]
+        merged = DictConfig(defaults)
+        for key, value in config.items():
+            if (
+                key in merged
+                and isinstance(merged[key], DictConfig)
+                and isinstance(value, DictConfig)
+            ):
+                merged[key] = _merge_configs(merged[key], value)
             else:
-                merged[key] = default_value
+                merged[key] = value
         return merged
 
     final_args = _merge_configs(final_args, config)

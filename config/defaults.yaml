@@ -15,7 +15,7 @@ dataset:
   partition_dir: alpha_1.0
 
 model:
-  name: mamba
+  name: efficient0
 
   # Whether to use torchvision integrated model weights.
   # Has no effect if model is lenet5, 2nn or fedavgcnn
