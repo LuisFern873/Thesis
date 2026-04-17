@@ -12,13 +12,13 @@ from tqdm import tqdm
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 RAW_DIR = CURRENT_DIR / "raw"
-TRAIN_DIR = RAW_DIR / "training"
-TEST_DIR = RAW_DIR / "testing"
+TRAIN_DIR = RAW_DIR / "Training"
+TEST_DIR = RAW_DIR / "Testing"
 OUTPUT_DIR = CURRENT_DIR
 
 if __name__ == "__main__":
     if not TRAIN_DIR.exists() or not TEST_DIR.exists():
-        raise RuntimeError("El dataset debe estar en `raw/training/` y `raw/testing/`.")
+        raise RuntimeError("El dataset debe estar en `raw/Training/` y `raw/Testing/`.")
 
     image_size = int(input("Tamaño de imagen (por defecto 64): ") or 64)
     ratio = float(input("Proporción de datos por clase (por defecto 1.0): ") or 1.0)

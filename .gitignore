@@ -37,8 +37,8 @@ data/domain
 data/tumor/raw
 
 # partition and data binary files (generated, not source)
-data/tumor/alpha_*/
-data/tumor/iid/
+# data/tumor/alpha_*/
+# data/tumor/iid/
 data/tumor/non-iid/
 data/tumor/exp*/
 data/tumor/*.pkl
