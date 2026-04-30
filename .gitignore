@@ -49,7 +49,14 @@ data/tumor/args.json
 
 # experiment results CSV (generated)
 experiments/*.csv
-docs
+
+docs/artifacts
+docs/sources
+docs/summaries
+docs/papers
+docs/IEEEtran.cls
+docs/main.tex
+docs/references.bib
 
 venv
 requirements.txt
@@ -59,3 +66,5 @@ requirements.txt
 
 # vim
 Vim
+
+CLAUDE.md
