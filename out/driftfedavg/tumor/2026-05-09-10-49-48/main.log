@@ -1,0 +1,396 @@
+==================== DriftFedAvg ====================                                                                                                       
+Experiment Arguments:                                                                                                                                       
+{
+│   'method': 'driftfedavg',
+│   'dataset': {
+│   │   'name': 'tumor',
+│   │   'partition_dir': 'iid',
+│   │   'client_num': 10,
+│   │   'test_ratio': 0.25,
+│   │   'val_ratio': 0.0,
+│   │   'seed': 42,
+│   │   'split': 'sample',
+│   │   'IID_ratio': 1.0,
+│   │   'monitor_window_name_suffix': 'tumor-10clients-100%IID-seed42'
+│   },
+│   'model': {
+│   │   'name': 'vit_tiny',
+│   │   'use_torchvision_pretrained_weights': False,
+│   │   'external_model_weights_path': None
+│   },
+│   'lr_scheduler': {
+│   │   'T_max': 100,
+│   │   'eta_min': 1e-05,
+│   │   'last_epoch': -1,
+│   │   'name': 'cosine'
+│   },
+│   'optimizer': {
+│   │   'lr': 0.01,
+│   │   'dampening': 0,
+│   │   'weight_decay': 0.0001,
+│   │   'momentum': 0.9,
+│   │   'nesterov': False,
+│   │   'name': 'sgd'
+│   },
+│   'mode': 'parallel',
+│   'parallel': {
+│   │   'ray_cluster_addr': None,
+│   │   'num_cpus': 64.0,
+│   │   'num_gpus': 1.0,
+│   │   'num_workers': 4
+│   },
+│   'common': {
+│   │   'seed': 42,
+│   │   'join_ratio': 1.0,
+│   │   'global_epoch': 20,
+│   │   'local_epoch': 5,
+│   │   'batch_size': 32,
+│   │   'reset_optimizer_on_global_epoch': True,
+│   │   'straggler_ratio': 0,
+│   │   'straggler_min_local_epoch': 0,
+│   │   'buffers': 'global',
+│   │   'client_side_evaluation': True,
+│   │   'test': {
+│   │   │   'client': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'finetune_epoch': 0,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True
+│   │   │   },
+│   │   │   'server': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True,
+│   │   │   │   'model_in_train_mode': False
+│   │   │   }
+│   │   },
+│   │   'verbose_gap': 10,
+│   │   'monitor': 'tensorboard',
+│   │   'use_cuda': True,
+│   │   'save_log': True,
+│   │   'save_model': False,
+│   │   'save_learning_curve_plot': True,
+│   │   'save_metrics': True,
+│   │   'delete_useless_run': True,
+│   │   'dataloader_num_workers': 2
+│   }
+}
+---------------------------- TRAINING EPOCH: 10 ----------------------------                                                                                
+client [7]  (testset)   loss: 0.5869 -> 0.7401  accuracy: 80.57% -> 72.57%                                                                                  
+client [6]  (testset)   loss: 0.7848 -> 0.8186  accuracy: 71.43% -> 69.14%                                                                                  
+client [9]  (testset)   loss: 0.7077 -> 0.6485  accuracy: 72.57% -> 78.86%                                                                                  
+client [1]  (testset)   loss: 0.4885 -> 0.6159  accuracy: 82.29% -> 77.71%                                                                                  
+client [2]  (testset)   loss: 0.6420 -> 0.7364  accuracy: 77.71% -> 75.43%                                                                                  
+client [8]  (testset)   loss: 0.5389 -> 0.5757  accuracy: 79.43% -> 78.29%                                                                                  
+client [4]  (testset)   loss: 0.7289 -> 0.8125  accuracy: 70.29% -> 68.00%                                                                                  
+client [5]  (testset)   loss: 0.6669 -> 0.9678  accuracy: 71.43% -> 64.57%                                                                                  
+client [3]  (testset)   loss: 0.6444 -> 0.7663  accuracy: 74.86% -> 66.86%                                                                                  
+client [0]  (testset)   loss: 0.7560 -> 0.7682  accuracy: 70.86% -> 68.57%                                                                                  
+---------------------------- TRAINING EPOCH: 20 ----------------------------                                                                                
+client [1]  (testset)   loss: 0.3012 -> 0.3639  accuracy: 92.57% -> 86.86%                                                                                  
+client [0]  (testset)   loss: 0.6592 -> 0.6958  accuracy: 75.43% -> 77.71%                                                                                  
+client [8]  (testset)   loss: 0.3817 -> 0.3930  accuracy: 86.29% -> 85.71%                                                                                  
+client [3]  (testset)   loss: 0.4182 -> 0.4140  accuracy: 84.00% -> 85.14%                                                                                  
+client [6]  (testset)   loss: 0.6324 -> 0.6163  accuracy: 78.86% -> 81.14%                                                                                  
+client [2]  (testset)   loss: 0.5703 -> 0.5162  accuracy: 80.00% -> 78.86%                                                                                  
+client [5]  (testset)   loss: 0.4785 -> 0.5103  accuracy: 81.14% -> 82.29%                                                                                  
+client [4]  (testset)   loss: 0.4964 -> 0.5415  accuracy: 82.86% -> 82.29%                                                                                  
+client [7]  (testset)   loss: 0.4437 -> 0.4575  accuracy: 83.43% -> 82.86%                                                                                  
+client [9]  (testset)   loss: 0.5310 -> 0.4879  accuracy: 85.14% -> 83.43%                                                                                  
+DriftFedAvg's average time taken by each global epoch: 2 min 5.41 sec.                                                                                      
+DriftFedAvg's total running time: 0 h 45 m 45 s.                                                                                                            
+==================== DriftFedAvg Experiment Results: ====================                                                                                   
+Display format: (before local fine-tuning) -> (after local fine-tuning)                                                                                     
+ So if finetune_epoch = 0, x.xx% -> 0.00% is normal.                                                                                                        
+ Centralized testing ONLY happens after model aggregation, so the stats between '->' are the same.                                                          
+{                                                                                                                                                           
+    "1": {                                                                                                                                                  
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "1.2527 -> 1.2527",                                                                                                                 
+                "accuracy": "38.97% -> 38.97%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "1.2527 -> 0.0000",                                                                                                                 
+                "accuracy": "38.97% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "2": {                                                                                                                                                  
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "1.1135 -> 1.1135",                                                                                                                 
+                "accuracy": "50.06% -> 50.06%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "1.1135 -> 0.0000",                                                                                                                 
+                "accuracy": "50.06% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "3": {                                                                                                                                                  
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.9819 -> 0.9819",                                                                                                                 
+                "accuracy": "62.57% -> 62.57%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.9819 -> 0.0000",                                                                                                                 
+                "accuracy": "62.57% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "4": {                                                                                                                                                  
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.9107 -> 0.9107",                                                                                                                 
+                "accuracy": "63.89% -> 63.89%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.9107 -> 0.0000",                                                                                                                 
+                "accuracy": "63.89% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "5": {                                                                                                                                                  
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.8438 -> 0.8438",                                                                                                                 
+                "accuracy": "67.83% -> 67.83%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.8438 -> 0.0000",                                                                                                                 
+                "accuracy": "67.83% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "6": {                                                                                                                                                  
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.7664 -> 0.7664",                                                                                                                 
+                "accuracy": "70.63% -> 70.63%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.7664 -> 0.0000",                                                                                                                 
+                "accuracy": "70.63% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "7": {                                                                                                                                                  
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.7655 -> 0.7655",                                                                                                                 
+                "accuracy": "68.80% -> 68.80%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.7655 -> 0.0000",                                                                                                                 
+                "accuracy": "68.80% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "8": {                                                                                                                                                  
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.6859 -> 0.6859",                                                                                                                 
+                "accuracy": "74.23% -> 74.23%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.6859 -> 0.0000",                                                                                                                 
+                "accuracy": "74.23% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "9": {                                                                                                                                                  
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.6545 -> 0.6545",                                                                                                                 
+                "accuracy": "75.14% -> 75.14%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.6545 -> 0.0000",                                                                                                                 
+                "accuracy": "75.14% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "10": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.6409 -> 0.6409",                                                                                                                 
+                "accuracy": "76.57% -> 76.57%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.6409 -> 0.0000",                                                                                                                 
+                "accuracy": "76.57% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "11": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.6214 -> 0.6214",                                                                                                                 
+                "accuracy": "76.40% -> 76.40%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.6214 -> 0.0000",                                                                                                                 
+                "accuracy": "76.40% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "12": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5793 -> 0.5793",                                                                                                                 
+                "accuracy": "78.86% -> 78.86%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5793 -> 0.0000",                                                                                                                 
+                "accuracy": "78.86% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "13": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5631 -> 0.5631",                                                                                                                 
+                "accuracy": "78.63% -> 78.63%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5631 -> 0.0000",                                                                                                                 
+                "accuracy": "78.63% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "14": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5393 -> 0.5393",                                                                                                                 
+                "accuracy": "80.40% -> 80.40%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5393 -> 0.0000",                                                                                                                 
+                "accuracy": "80.40% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "15": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5389 -> 0.5389",                                                                                                                 
+                "accuracy": "80.46% -> 80.46%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5389 -> 0.0000",                                                                                                                 
+                "accuracy": "80.46% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "16": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5123 -> 0.5123",                                                                                                                 
+                "accuracy": "82.23% -> 82.23%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5123 -> 0.0000",                                                                                                                 
+                "accuracy": "82.23% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "17": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5105 -> 0.5105",                                                                                                                 
+                "accuracy": "82.80% -> 82.80%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.5105 -> 0.0000",                                                                                                                 
+                "accuracy": "82.80% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "18": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.4994 -> 0.4994",                                                                                                                 
+                "accuracy": "82.63% -> 82.63%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.4994 -> 0.0000",                                                                                                                 
+                "accuracy": "82.63% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "19": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.4913 -> 0.4913",                                                                                                                 
+                "accuracy": "82.97% -> 82.97%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.4913 -> 0.0000",                                                                                                                 
+                "accuracy": "82.97% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    },                                                                                                                                                      
+    "20": {                                                                                                                                                 
+        "centralized": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.4700 -> 0.4700",                                                                                                                 
+                "accuracy": "83.43% -> 83.43%"                                                                                                              
+            }                                                                                                                                               
+        },                                                                                                                                                  
+        "all_clients": {                                                                                                                                    
+            "test": {                                                                                                                                       
+                "loss": "0.4700 -> 0.0000",                                                                                                                 
+                "accuracy": "83.43% -> 0.00%"                                                                                                               
+            }                                                                                                                                               
+        }                                                                                                                                                   
+    }                                                                                                                                                       
+}                                                                                                                                                           
+==================== DriftFedAvg Max Accuracy ====================                                                                                          
+all_clients:                                                                                                                                                
+(test) before fine-tuning: 83.43% at epoch 20                                                                                                               
+(test) after fine-tuning: 0.00% at epoch 1                                                                                                                  
+centralized:                                                                                                                                                
+(test) before fine-tuning: 83.43% at epoch 20                                                                                                               
+(test) after fine-tuning: 83.43% at epoch 20                                                                                                                

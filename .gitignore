@@ -12,7 +12,7 @@ config/*
 .vscode
 
 # logs
-out
+# out
 multirun
 
 # datasets (raw data — do NOT commit)
