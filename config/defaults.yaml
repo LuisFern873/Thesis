@@ -12,7 +12,7 @@ dataset:
   name: tumor
   # Specify the subfolder name of your partition (e.g. 'alpha_0.5' for tumor).
   # If null, it will default to loading from the root of the dataset folder.
-  partition_dir: alpha_1.0
+  partition_dir: iid
 
 model:
   name: efficient0

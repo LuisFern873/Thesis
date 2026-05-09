@@ -1,0 +1,27 @@
+# config/drift_fedavg.yaml
+defaults:
+  - defaults
+  - _self_
+
+method: driftfedavg
+
+common:
+  join_ratio: 1.0 # 100% participation for drift analysis
+  monitor: tensorboard
+  test:
+    server:
+      interval: 1
+      test: true
+
+optimizer:
+  momentum: 0.9
+  weight_decay: 1.0e-4
+
+lr_scheduler:
+  name: cosine
+  T_max: 100
+  eta_min: 1.0e-5
+
+model:
+  name: vit_tiny
+  use_torchvision_pretrained_weights: false

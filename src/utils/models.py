@@ -16,6 +16,27 @@ from torch import Tensor
 from src.utils.constants import DATA_SHAPE, INPUT_CHANNELS, NUM_CLASSES
 
 
+def replace_batchnorm(model, norm_type="group", num_groups=32):
+    """
+    Recursively replace all BatchNorm2d layers with GroupNorm or LayerNorm.
+    norm_type: "group" | "layer"
+    """
+    for name, module in model.named_children():
+        if isinstance(module, nn.BatchNorm2d):
+            num_features = module.num_features
+            if norm_type == "group":
+                new_norm = nn.GroupNorm(
+                    num_groups=min(num_groups, num_features),
+                    num_channels=num_features
+                )
+            elif norm_type == "layer":
+                new_norm = nn.GroupNorm(1, num_features)  # GN with 1 group == LN for 2D
+            setattr(model, name, new_norm)
+        else:
+            replace_batchnorm(module, norm_type, num_groups)
+    return model
+
+
 class DecoupledModel(nn.Module):
     def __init__(self):
         super(DecoupledModel, self).__init__()
@@ -510,6 +531,43 @@ class ConvNet(DecoupledModel):
 
         self.classifier = nn.Linear(256 * 8 * 8, NUM_CLASSES[dataset])
 
+
+class ViTTiny(DecoupledModel):
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+        model = timm.create_model("vit_tiny_patch16_224", pretrained=pretrained)
+
+        self.base = model
+        self.base.head = nn.Identity()
+
+        self.classifier = nn.Linear(model.embed_dim, NUM_CLASSES[dataset])
+
+
+class EfficientNetB0_GN(DecoupledModel):
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+        # Load weights if pretrained
+        weights = models.EfficientNet_B0_Weights.DEFAULT if pretrained else None
+        model = models.efficientnet_b0(weights=weights)
+        model = replace_batchnorm(model, norm_type="group", num_groups=32)
+        
+        self.base = model
+        self.classifier = nn.Linear(model.classifier[1].in_features, NUM_CLASSES[dataset])
+        self.base.classifier[1] = nn.Identity()
+
+
+class EfficientNetB0_LN(DecoupledModel):
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+        # Load weights if pretrained
+        weights = models.EfficientNet_B0_Weights.DEFAULT if pretrained else None
+        model = models.efficientnet_b0(weights=weights)
+        model = replace_batchnorm(model, norm_type="layer")
+        
+        self.base = model
+        self.classifier = nn.Linear(model.classifier[1].in_features, NUM_CLASSES[dataset])
+        self.base.classifier[1] = nn.Identity()
+
 class DeiTTiny(DecoupledModel):
     def __init__(self, dataset: str, pretrained: bool):
         super().__init__()
@@ -586,6 +644,47 @@ class ConvNeXtV2Decoupled(DecoupledModel):
 
 
   
+class VimTiny(DecoupledModel):
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+        try:
+            from mamba_ssm.models.vim import VisionMamba
+        except ImportError:
+            try:
+                from vision_mamba import VisionMamba
+            except ImportError:
+                raise ImportError(
+                    "Vim-tiny requires 'mamba_ssm' or 'vision-mamba'. "
+                    "Please install it with 'pip install vision-mamba' or follow the repo instructions."
+                )
+
+        self.base = VisionMamba(
+            patch_size=16, 
+            embed_dim=192, 
+            depth=12,
+            num_classes=0, 
+            img_size=224,
+            channels=INPUT_CHANNELS[dataset],
+            if_cls_token=True,
+            use_middle_cls_token=True,
+            final_pool_type='mean',
+            if_abs_pos_embed=True,
+            bimamba_type="v2",
+        )
+        
+        self.classifier = nn.Linear(192, NUM_CLASSES[dataset])
+
+    def forward(self, x):
+        features = self.base(x)
+        if isinstance(features, dict):
+            features = features["logits"]
+        return self.classifier(features)
+
+    def get_last_features(self, x, detach=True):
+        func = (lambda t: t.detach().clone()) if detach else (lambda t: t)
+        return func(self.base(x))
+
+# The following was replaced by VimTiny
 # class VisionMambaModel(DecoupledModel):
 #     """Vision Mamba (Vim) backbone for federated learning.
 
@@ -698,4 +797,8 @@ MODELS = {
     "deitmnist": DeiTTinyMNIST,
     # "mamba": VisionMambaModel,
     "convnext": ConvNeXtV2Decoupled,
+    "vit_tiny": ViTTiny,
+    "vim_tiny": VimTiny,
+    "efficient0_gn": EfficientNetB0_GN,
+    "efficient0_ln": EfficientNetB0_LN,
 }

@@ -5,6 +5,7 @@ __pycache__
 # configs
 config/*
 !config/defaults.yaml
+!config/driftfedavg.yaml
 
 # IDE configurations
 .idea
@@ -59,7 +60,7 @@ docs/main.tex
 docs/references.bib
 
 venv
-requirements.txt
+# requirements.txt
 
 # large binary data files
 *.npy
