@@ -115,7 +115,7 @@ INPUT_CHANNELS = {
     "usps": 1,
     "tiny_imagenet": 3,
     "domain": 3,
-    "tumor": 3,
+    "brain_tumor": 3,
 }
 
 
@@ -156,7 +156,7 @@ DATA_SHAPE = {
     "tiny_imagenet": (3, 64, 64),
     "synthetic": _get_synthetic_args().get("dimension", 0),
     "domain": (3, *(_get_domainnet_args().get("image_size", (0, 0)))),
-    "tumor": (3, 224, 224),
+    "brain_tumor": (3, 224, 224),
 }
 
 NUM_CLASSES = {
@@ -177,7 +177,7 @@ NUM_CLASSES = {
     "tiny_imagenet": 200,
     "synthetic": _get_synthetic_args().get("class_num", 0),
     "domain": _get_domainnet_args().get("class_num", 0),
-    "tumor": 4,
+    "brain_tumor": 4,
 }
 
 
@@ -198,7 +198,7 @@ DATA_MEAN = {
     "tiny_imagenet": [122.5119, 114.2915, 101.388],
     "cinic10": [0.47889522, 0.47227842, 0.43047404],
     "domain": [0.485, 0.456, 0.406],
-    "tumor": [0.485, 0.456, 0.406],
+    "brain_tumor": [0.485, 0.456, 0.406],
 }
 
 
@@ -219,7 +219,7 @@ DATA_STD = {
     "tiny_imagenet": [58.7048, 57.7551, 57.6717],
     "cinic10": [0.24205776, 0.23828046, 0.25874835],
     "domain": [0.229, 0.224, 0.225],
-    "tumor": [0.229, 0.224, 0.225],
+    "brain_tumor": [0.229, 0.224, 0.225],
 }
 
 OPTIMIZERS = {

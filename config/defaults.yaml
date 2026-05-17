@@ -8,9 +8,9 @@ method: fedavg
 dataset:
   # [mnist, cifar10, cifar100, emnist, fmnist, femnist, medmnist,
   # medmnistA, medmnistC, covid19, celeba, synthetic, svhn,
-  # tiny_imagenet, cinic10, domain]
-  name: tumor
-  # Specify the subfolder name of your partition (e.g. 'alpha_0.5' for tumor).
+  # tiny_imagenet, cinic10, domain, brain_tumor]
+  name: brain_tumor
+  # Specify the subfolder name of your partition (e.g. 'alpha_0.5' for brain_tumor).
   # If null, it will default to loading from the root of the dataset folder.
   partition_dir: iid
 

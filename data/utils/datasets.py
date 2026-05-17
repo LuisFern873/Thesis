@@ -704,5 +704,5 @@ DATASETS: Dict[str, Type[BaseDataset]] = {
     "tiny_imagenet": TinyImagenet,
     "cinic10": CINIC10,
     "domain": DomainNet, 
-    "tumor": BrainTumorDataset,
+    "brain_tumor": BrainTumorDataset,
 }

@@ -68,12 +68,15 @@ For each class c in {0, ..., C-1}:
     where N_c = total samples of class c
 ```
 
-**α values to test:**
-| α | Heterogeneity level | Description |
-|---|---|---|
-| 0.1 | **High** | Extreme skew; most clients see 1–2 classes |
-| 0.5 | **Medium** | Moderate skew; realistic federated scenario |
-| 1.0 | **Low** | Mild skew; approaching uniform |
+**α values to test (Dirichlet Label Distribution Skew):**
+| α | Heterogeneity level | Hellinger Distance (HD)* | Description |
+|---|---|---|---|
+| 1000 | **IID (Baseline)** | ~0.0 | Uniform distribution; completely IID |
+| 1.0 | **Low** | ~0.5 | Mild skew; approaching uniform |
+| 0.3 | **High** | ~0.75 | High skew; highly non-IID partition |
+| 0.03 | **Extreme** | ~0.9 | Extreme skew; most clients see 1-2 classes |
+
+*> Note: The mapping between α and HD is based on Jimenez et al. (2025).*
 
 **Partitioning constraints:**
 - Each client must receive a **minimum of 10 samples** per assigned class. If a client receives fewer, redistribute using a minimum-guarantee rebalancing step.
@@ -83,14 +86,16 @@ For each class c in {0, ..., C-1}:
 **FL-bench command:**
 ```bash
 # Brain Tumor MRI (requires custom dataset integration)
-python generate_data.py -d brain_tumor -a 0.1 -cn 10 --seed 42
-python generate_data.py -d brain_tumor -a 0.5 -cn 10 --seed 42
+python generate_data.py -d brain_tumor -a 1000 -cn 10 --seed 42
 python generate_data.py -d brain_tumor -a 1.0 -cn 10 --seed 42
+python generate_data.py -d brain_tumor -a 0.3 -cn 10 --seed 42
+python generate_data.py -d brain_tumor -a 0.03 -cn 10 --seed 42
 
 # CIFAR-10
-python generate_data.py -d cifar10 -a 0.1 -cn 10 --seed 42
-python generate_data.py -d cifar10 -a 0.5 -cn 10 --seed 42
+python generate_data.py -d cifar10 -a 1000 -cn 10 --seed 42
 python generate_data.py -d cifar10 -a 1.0 -cn 10 --seed 42
+python generate_data.py -d cifar10 -a 0.3 -cn 10 --seed 42
+python generate_data.py -d cifar10 -a 0.03 -cn 10 --seed 42
 ```
 
 ### 1.3 Heterogeneity Quantification
@@ -590,9 +595,9 @@ Work through this list in order. Do not proceed to the next item until the curre
 - [ ] **1.2** Integrate Brain Tumor MRI into FL-bench: subclass `BaseDataset` in `data/utils/datasets.py`, add to `DATASETS` dict
 - [ ] **1.3** Verify CIFAR-10 auto-download works: `python -c "from torchvision.datasets import CIFAR10; CIFAR10('data/', download=True)"`
 - [ ] **1.4** Write `compute_partition_stats()` function in `data/utils/partition_utils.py`
-- [ ] **1.5** Generate all CIFAR-10 partitions (3 α values × 3 seeds = 9 files):
+- [ ] **1.5** Generate all CIFAR-10 partitions (4 α values × 3 seeds = 12 files):
   ```bash
-  for ALPHA in 0.1 0.5 1.0; do
+  for ALPHA in 1000 1.0 0.3 0.03; do
     for SEED in 42 123 456; do
       python generate_data.py -d cifar10 -a $ALPHA -cn 10 --seed $SEED
     done
@@ -667,8 +672,8 @@ Work through this list in order. Do not proceed to the next item until the curre
 ### PHASE 6 — Experiment Runner
 
 - [ ] **6.1** Create `run_experiments.sh` iterating over all cells:
-  - 2 datasets × 3 α values × 5 model variants × 2 algorithms × 3 seeds = **180 runs**
-- [ ] **6.2** Add DRYRUN mode: `DRYRUN=1 bash run_experiments.sh 2>&1 | head -50` and verify all 180 commands are printed correctly
+  - 2 datasets × 4 α values × 5 model variants × 2 algorithms × 3 seeds = **192 runs**
+- [ ] **6.2** Add DRYRUN mode: `DRYRUN=1 bash run_experiments.sh 2>&1 | head -50` and verify all 192 commands are printed correctly
 - [ ] **6.3** Add skip logic: if `logs/runs/{run_name}/metrics.csv` already exists and has 100 rows, skip the run (enables resuming after interruption)
 - [ ] **6.4** Add a progress log: `echo "$(date) — Starting: $run_name" >> logs/run_progress.log`
 - [ ] **6.5** Run the first 5 cells manually (not via the script) to verify end-to-end correctness before launching the full matrix
@@ -678,10 +683,10 @@ Work through this list in order. Do not proceed to the next item until the curre
 ### PHASE 7 — Full Experiment Execution
 
 - [ ] **7.1** Run CIFAR-10 experiments first (faster iteration): `bash run_experiments.sh --dataset cifar10`
-- [ ] **7.2** After CIFAR-10 completes, verify all 90 run directories exist and each `metrics.csv` has exactly 100 rows
+- [ ] **7.2** After CIFAR-10 completes, verify all 96 run directories exist and each `metrics.csv` has exactly 100 rows
 - [ ] **7.3** Run a quick sanity check on results: `python scripts/sanity_check.py` (to be written — see 8.2)
 - [ ] **7.4** Run Brain Tumor MRI experiments: `bash run_experiments.sh --dataset brain_tumor`
-- [ ] **7.5** After all 180 runs complete, verify no `metrics.csv` files are missing or truncated
+- [ ] **7.5** After all 192 runs complete, verify no `metrics.csv` files are missing or truncated
 
 ---
 
@@ -689,12 +694,12 @@ Work through this list in order. Do not proceed to the next item until the curre
 
 - [ ] **8.1** Write `scripts/aggregate_results.py` that reads all `metrics.csv` files and produces `logs/summary/all_results.csv`
 - [ ] **8.2** Write `scripts/sanity_check.py` that flags runs where: final accuracy < 0.1 (likely crashed), drift_norm = 0.0 for all rounds (metric not logging), or accuracy std across seeds > 0.05
-- [ ] **8.3** Produce **Figure 1:** Accuracy vs. round for all 5 models × 2 datasets × α=0.1, 0.5, 1.0 (6 subplots × 2 datasets = 12 panels). Use mean ± std shading.
-- [ ] **8.4** Produce **Figure 2:** Per-layer drift (norm, feature, head) vs. round for all 5 models at α=0.1 on both datasets. 3 subplots (one per layer group).
-- [ ] **8.5** Produce **Figure 3:** Gradient cosine similarity vs. round for all 3 base architectures at α=0.1. 3 subplots (one per layer group).
+- [ ] **8.3** Produce **Figure 1:** Accuracy vs. round for all 5 models × 2 datasets × α=1.0, 0.3, 0.03 (6 subplots × 2 datasets = 12 panels). Use mean ± std shading.
+- [ ] **8.4** Produce **Figure 2:** Per-layer drift (norm, feature, head) vs. round for all 5 models at α=0.03 on both datasets. 3 subplots (one per layer group).
+- [ ] **8.5** Produce **Figure 3:** Gradient cosine similarity vs. round for all 3 base architectures at α=0.03. 3 subplots (one per layer group).
 - [ ] **8.6** Produce **Figure 4 (Ablation 1):** Bar chart of drift@round100 and accuracy@round100 for EfficientNet-BN vs. GN vs. LN at each α level.
 - [ ] **8.7** Produce **Figure 5:** Fairness gap (max-min per-client accuracy) vs. α, one line per model.
-- [ ] **8.8** Compute statistical significance (Wilcoxon test) for EfficientNet-BN vs. ViT-Tiny accuracy at α=0.1 across 3 seeds. Document p-value.
+- [ ] **8.8** Compute statistical significance (Wilcoxon test) for EfficientNet-BN vs. ViT-Tiny accuracy at α=0.03 across 3 seeds. Document p-value.
 - [ ] **8.9** Fill in the primary comparison table from Section 5.5 with all results.
 - [ ] **8.10** Write a findings summary document `results/findings.md` with one paragraph per research sub-question, directly referencing the figures and table.
 
@@ -706,25 +711,25 @@ Work through this list in order. Do not proceed to the next item until the curre
 - [ ] **9.2** Confirm `requirements_locked.txt` and `environment.txt` are committed
 - [ ] **9.3** Confirm all 5 model variants pass the forward-pass shape test (re-run after any model changes)
 - [ ] **9.4** Confirm that the three EfficientNet normalization variants produce **different** drift profiles (if BN, GN, and LN all show identical drift, the ablation instrumentation is broken)
-- [ ] **9.5** Run `DRYRUN=1 bash run_experiments.sh` one final time and confirm the 180 expected run names match the 180 `metrics.csv` files in `logs/runs/`
+- [ ] **9.5** Run `DRYRUN=1 bash run_experiments.sh` one final time and confirm the 192 expected run names match the 192 `metrics.csv` files in `logs/runs/`
 
 ---
 
 ## Quick Reference: Experiment Matrix
 
-| # | Dataset | α | Model | Algorithm | Seeds | Total runs |
+| # | Dataset | α / Setup | Model | Algorithm | Seeds | Total runs |
 |---|---|---|---|---|---|---|
-| 1–3 | CIFAR-10 | 0.1 | EfficientNet-BN | FedAvg | 42,123,456 | 3 |
-| 4–6 | CIFAR-10 | 0.1 | EfficientNet-BN | FedProx | 42,123,456 | 3 |
-| 7–9 | CIFAR-10 | 0.1 | EfficientNet-GN | FedAvg | 42,123,456 | 3 |
-| 10–12 | CIFAR-10 | 0.1 | EfficientNet-LN | FedAvg | 42,123,456 | 3 |
-| 13–15 | CIFAR-10 | 0.1 | ViT-Tiny | FedAvg | 42,123,456 | 3 |
-| 16–18 | CIFAR-10 | 0.1 | ViT-Tiny | FedProx | 42,123,456 | 3 |
-| 19–21 | CIFAR-10 | 0.1 | Vim-tiny | FedAvg | 42,123,456 | 3 |
-| 22–24 | CIFAR-10 | 0.1 | Vim-tiny | FedProx | 42,123,456 | 3 |
-| ... | *(repeat for α=0.5, 1.0)* | | | | | 48 more |
-| ... | *(repeat all for Brain Tumor MRI)* | | | | | 90 more |
-| **Total** | | | | | | **180** |
+| 1–3 | CIFAR-10 | α=0.03 | EfficientNet-BN | FedAvg | 42,123,456 | 3 |
+| 4–6 | CIFAR-10 | α=0.03 | EfficientNet-BN | FedProx | 42,123,456 | 3 |
+| 7–9 | CIFAR-10 | α=0.03 | EfficientNet-GN | FedAvg | 42,123,456 | 3 |
+| 10–12 | CIFAR-10 | α=0.03 | EfficientNet-LN | FedAvg | 42,123,456 | 3 |
+| 13–15 | CIFAR-10 | α=0.03 | ViT-Tiny | FedAvg | 42,123,456 | 3 |
+| 16–18 | CIFAR-10 | α=0.03 | ViT-Tiny | FedProx | 42,123,456 | 3 |
+| 19–21 | CIFAR-10 | α=0.03 | Vim-tiny | FedAvg | 42,123,456 | 3 |
+| 22–24 | CIFAR-10 | α=0.03 | Vim-tiny | FedProx | 42,123,456 | 3 |
+| ... | *(repeat for α=0.3, 1.0, 1000)* | | | | | 72 more |
+| ... | *(repeat applicable settings for Brain Tumor MRI)* | | | | | 96 more |
+| **Total** | | | | | | **192** |
 
 > Note: EfficientNet-GN and EfficientNet-LN are run under FedAvg only for the normalization ablation (Ablation 1). If resources allow, run FedProx for these variants too. The Brain Tumor MRI smoke test (item 4.7) should use `num_classes=4`.
 

@@ -35,18 +35,18 @@ data/usps
 data/tiny_imagenet
 data/cinic10
 data/domain
-data/tumor/raw
+data/brain_tumor/raw
 
 # partition and data binary files (generated, not source)
-# data/tumor/alpha_*/
-# data/tumor/iid/
-data/tumor/non-iid/
-data/tumor/exp*/
-data/tumor/*.pkl
-data/tumor/*.pt
-data/tumor/partition_md5.txt
-data/tumor/all_stats.json
-data/tumor/args.json
+# data/brain_tumor/alpha_*/
+# data/brain_tumor/iid/
+data/brain_tumor/non-iid/
+data/brain_tumor/exp*/
+data/brain_tumor/*.pkl
+data/brain_tumor/*.pt
+data/brain_tumor/partition_md5.txt
+data/brain_tumor/all_stats.json
+data/brain_tumor/args.json
 
 # experiment results CSV (generated)
 experiments/*.csv

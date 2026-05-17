@@ -1,11 +1,11 @@
 {
     "client_num": 10,
-    "test_ratio": 0.2,
+    "test_ratio": 0.25,
     "val_ratio": 0.0,
     "seed": 42,
     "split": "sample",
     "IID_ratio": 0.0,
-    "monitor_window_name_suffix": "tumor-10clients-0%IID-Dir(1.0)-seed42",
-    "alpha": 1.0,
+    "monitor_window_name_suffix": "brain_tumor-10clients-0%IID-Dir(1000.0)-seed42",
+    "alpha": 1000.0,
     "min_samples_per_client": 10
 }
