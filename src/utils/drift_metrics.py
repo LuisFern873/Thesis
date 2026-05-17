@@ -7,9 +7,9 @@ def classify_layer(name: str, module: nn.Module) -> str:
     """Return the layer group for a named module."""
     if "classifier" in name or "head" in name:
         return "head"
-    elif isinstance(module, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
+    elif isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d, nn.LayerNorm, nn.GroupNorm)):
         return "norm"
-    elif isinstance(module, (nn.Conv2d, nn.Linear)):
+    elif isinstance(module, (nn.Conv2d, nn.Conv1d, nn.Linear)):
         return "feature"
     return "other"  # pooling, activation, etc. — excluded from drift metrics
 

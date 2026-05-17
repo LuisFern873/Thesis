@@ -495,43 +495,6 @@ class VGG(DecoupledModel):
             x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
         return super().forward(x)
 
-
-"""
-Model Architecture. In Section 5, we adopt a convolutional neural network (ConvNet) that follows 
-the same architecture as reported in [37]. The encoder of this model consists of three convolutional layers, 
-each followed by a ReLU activation function and average pooling. To facilitate comparison with FedBN, 
-batch normalization is incorporated into the model. A fully-connected layer serves as the classifier and is 
-attached on top of the encoder.
-"""
-
-class ConvNet(DecoupledModel):
-    def __init__(self, dataset: str, pretrained):
-        super().__init__()
-
-        self.base = nn.Sequential(
-            OrderedDict(
-                conv1=nn.Conv2d(INPUT_CHANNELS[dataset], 64, kernel_size=3, padding=1),
-                norm1=nn.BatchNorm2d(64),
-                activation1=nn.ReLU(),
-                pool1=nn.AvgPool2d(2),
-
-                conv2=nn.Conv2d(64, 128, kernel_size=3, padding=1),
-                norm2=nn.BatchNorm2d(128),
-                activation2=nn.ReLU(),
-                pool2=nn.AvgPool2d(2),
-
-                conv3=nn.Conv2d(128, 256, kernel_size=3, padding=1),
-                norm3=nn.BatchNorm2d(256),
-                activation3=nn.ReLU(),
-                pool3=nn.AvgPool2d(2),
-
-                flatten=nn.Flatten(),
-            )
-        )
-
-        self.classifier = nn.Linear(256 * 8 * 8, NUM_CLASSES[dataset])
-
-
 class ViTTiny(DecoupledModel):
     def __init__(self, dataset: str, pretrained: bool):
         super().__init__()
@@ -568,82 +531,6 @@ class EfficientNetB0_LN(DecoupledModel):
         self.classifier = nn.Linear(model.classifier[1].in_features, NUM_CLASSES[dataset])
         self.base.classifier[1] = nn.Identity()
 
-class DeiTTiny(DecoupledModel):
-    def __init__(self, dataset: str, pretrained: bool):
-        super().__init__()
-        model = timm.create_model('deit_tiny_patch16_224', pretrained=pretrained)
-
-        self.base = model
-        self.base.head = nn.Identity()
-
-        self.classifier = nn.Linear(model.embed_dim, NUM_CLASSES[dataset])
-
-class DeiTTinyMNIST(DecoupledModel):
-    def __init__(self, dataset: str, pretrained: bool):
-        super().__init__()
-        model = timm.create_model('deit_tiny_patch16_224', pretrained=pretrained)
-
-        model.patch_embed.proj = nn.Conv2d(
-            in_channels=1,
-            out_channels=model.embed_dim,
-            kernel_size=16,
-            stride=16
-        )
-
-        model.patch_embed.img_size = (28, 28)
-        model.patch_embed.grid_size = (1, 1)
-        model.patch_embed.num_patches = 1
-        
-        model.pos_embed = nn.Parameter(torch.zeros(1, 1 + 1, model.embed_dim))
-        nn.init.trunc_normal_(model.pos_embed, std=0.02)
-
-        model.head = nn.Identity()
-
-        self.base = model
-        self.classifier = nn.Linear(model.embed_dim, NUM_CLASSES[dataset])
-
-class ConvNeXtV2Decoupled(DecoupledModel):
-    def __init__(self, dataset: str, pretrained: bool = True):
-        super().__init__()
-        model_name = "convnextv2-tiny-1k-224"
-        if pretrained:
-            self.base_model = ConvNextV2Model.from_pretrained(model_name)
-            config = self.base_model.config
-        else:
-            config = ConvNextV2Config()
-            self.base_model = ConvNextV2Model(config)
-        self.base = self.base_model
-        hidden_size = config.hidden_sizes[-1]
-
-        self.classifier = nn.Linear(hidden_size, NUM_CLASSES[dataset])
-
-
-    def forward(self, x):
-        outputs = self.base(pixel_values=x)
-        pooled = outputs.pooler_output
-        return self.classifier(pooled)
-
-    def get_last_features(self, x, detach=True):
-        func = (lambda t: t.detach().clone()) if detach else (lambda t: t)
-        try:
-            pooled = self.base(pixel_values=x).pooler_output
-        except RuntimeError:
-            if x.shape[1] == 1:
-                x = x.repeat(1, 3, 1, 1)
-                pooled = self.base(pixel_values=x).pooler_output
-            else:
-                raise
-        return func(pooled)
-
-    def get_all_features(self, x):
-        raise NotImplementedError(
-            "Para extraer características internas usa 'output_hidden_states=True' y accede a outputs.hidden_states"
-        )
-    
-
-
-
-  
 class VimTiny(DecoupledModel):
     def __init__(self, dataset: str, pretrained: bool):
         super().__init__()
@@ -651,12 +538,15 @@ class VimTiny(DecoupledModel):
             from mamba_ssm.models.vim import VisionMamba
         except ImportError:
             try:
-                from vision_mamba import VisionMamba
+                from vim.models_mamba import VisionMamba
             except ImportError:
-                raise ImportError(
-                    "Vim-tiny requires 'mamba_ssm' or 'vision-mamba'. "
-                    "Please install it with 'pip install vision-mamba' or follow the repo instructions."
-                )
+                try:
+                    from models_mamba import VisionMamba
+                except ImportError:
+                    raise ImportError(
+                        "Vim-tiny requires 'mamba_ssm' or the official 'Vim' repo. "
+                        "Please clone https://github.com/hustvl/Vim and add it to your PYTHONPATH."
+                    )
 
         self.base = VisionMamba(
             patch_size=16, 
@@ -683,78 +573,6 @@ class VimTiny(DecoupledModel):
     def get_last_features(self, x, detach=True):
         func = (lambda t: t.detach().clone()) if detach else (lambda t: t)
         return func(self.base(x))
-
-# The following was replaced by VimTiny
-# class VisionMambaModel(DecoupledModel):
-#     """Vision Mamba (Vim) backbone for federated learning.
-
-#     Weight Initialization Strategy:
-#         For the thesis benchmark, ALL architectures (EfficientNet, DeiT, VisionMamba)
-#         use random initialization (pretrained=False) to ensure a fair comparison of
-#         architectural inductive biases under federated learning. This isolates the
-#         effect of architecture from the effect of pretraining data.
-
-#         VisionMamba pretrained weights are not distributed via torchvision.
-#         If pretrained=True is requested, a warning is logged and the model
-#         falls back to random initialization.
-#     """
-
-#     def __init__(self, dataset: str, pretrained: bool, model_size: str = "tiny"):
-#         super(VisionMambaModel, self).__init__()
-
-#         model_configs = {
-#             "tiny": {"embed_dim": 192, "depth": 24},
-#             "small": {"embed_dim": 384, "depth": 24},
-#             "base": {"embed_dim": 768, "depth": 24},
-#         }
-
-#         config = model_configs[model_size]
-
-#         # backbone Vision Mamba
-#         self.base = VisionMamba(
-#             img_size=224,
-#             patch_size=16,
-#             depth=config["depth"],
-#             embed_dim=config["embed_dim"],
-#             channels=INPUT_CHANNELS[dataset],
-#             num_classes=0,  # No internal classifier
-#             if_cls_token=True,
-#             use_middle_cls_token=True,
-#             final_pool_type='mean',
-#             if_abs_pos_embed=True,
-#             bimamba_type="v2",
-#         )
-
-#         # Decoupled classifier
-#         self.classifier = nn.Linear(config["embed_dim"], NUM_CLASSES[dataset])
-
-#         if pretrained:
-#             self._load_pretrained_weights(model_size)
-
-#     def _load_pretrained_weights(self, model_size: str):
-#         """Attempt to load pretrained weights for VisionMamba.
-
-#         NOTE: VisionMamba pretrained weights are not distributed via standard
-#         channels (torchvision/timm). For the thesis benchmark, random initialization
-#         is used for all architectures to ensure fair comparison.
-#         """
-#         import warnings
-#         warnings.warn(
-#             f"VisionMamba pretrained weights for '{model_size}' are not available. "
-#             f"Using random initialization instead. For the thesis benchmark, "
-#             f"set use_torchvision_pretrained_weights=false for all architectures "
-#             f"to ensure a fair comparison of inductive biases.",
-#             UserWarning,
-#             stacklevel=2,
-#         )
-
-
-
-
-
-
-
-
 
 
 MODELS = {
@@ -792,11 +610,6 @@ MODELS = {
     "vgg13": partial(VGG, version="13"),
     "vgg16": partial(VGG, version="16"),
     "vgg19": partial(VGG, version="19"),
-    "convnet": ConvNet,
-    "deit": DeiTTiny,
-    "deitmnist": DeiTTinyMNIST,
-    # "mamba": VisionMambaModel,
-    "convnext": ConvNeXtV2Decoupled,
     "vit_tiny": ViTTiny,
     "vim_tiny": VimTiny,
     "efficient0_gn": EfficientNetB0_GN,

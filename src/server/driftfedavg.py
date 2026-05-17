@@ -37,7 +37,7 @@ class DriftFedAvgServer(FedAvgServer):
             self.param_taxonomy[name] = classify_layer(name, module)
 
         # Prepare CSV logging
-        self.metrics_file = self.output_dir / "metrics.csv"
+        self.metrics_file = self.output_dir / "drift_metrics.csv"
         self.init_metrics_csv()
 
     def init_metrics_csv(self):
