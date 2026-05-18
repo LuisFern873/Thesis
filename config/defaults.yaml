@@ -9,10 +9,10 @@ dataset:
   # [mnist, cifar10, cifar100, emnist, fmnist, femnist, medmnist,
   # medmnistA, medmnistC, covid19, celeba, synthetic, svhn,
   # tiny_imagenet, cinic10, domain, brain_tumor]
-  name: brain_tumor
+  name: cifar10
   # Specify the subfolder name of your partition (e.g. 'alpha_0.5' for brain_tumor).
   # If null, it will default to loading from the root of the dataset folder.
-  partition_dir: iid
+  partition_dir: partitions/alpha_0.03/seed_42
 
 model:
   name: efficient0
@@ -80,7 +80,7 @@ parallel:
 common:
   seed: 42 # Random seed of the run.
   join_ratio: 0.5 # Ratio for (client each round) / (client num in total).
-  global_epoch: 20 # Number of global epochs, also called communication round.
+  global_epoch: 40 # Number of global epochs, also called communication round.
   local_epoch: 5 # Number if epochs of client local training.
   batch_size: 32 # Data batch size for client local training.
   dataloader_num_workers: 2 # Number of PyTorch DataLoader worker processes per client.

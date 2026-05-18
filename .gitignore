@@ -16,7 +16,8 @@ config/*
 multirun
 
 # datasets (raw data — do NOT commit)
-data/cifar10
+data/cifar10/cifar-10-batches-py
+data/cifar10/cifar-10-python.tar.gz
 data/cifar100
 data/mnist
 data/emnist
@@ -69,3 +70,4 @@ venv
 Vim
 
 CLAUDE.md
+.kiro

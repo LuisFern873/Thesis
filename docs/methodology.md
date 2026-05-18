@@ -81,7 +81,7 @@ For each class c in {0, ..., C-1}:
 **Partitioning constraints:**
 - Each client must receive a **minimum of 10 samples** per assigned class. If a client receives fewer, redistribute using a minimum-guarantee rebalancing step.
 - The **test set is not partitioned**: all clients and the server evaluate on the same global test set to measure generalization.
-- Partition indices are **saved to disk** as `data/partitions/{dataset}_alpha{α}_seed{seed}.pkl` to guarantee identical data splits across all runs.
+- Partition indices and metadata are **saved to disk** in `data/{dataset}/partitions/alpha_{α}/seed_{seed}/` to guarantee identical data splits across all runs.
 
 **FL-bench command:**
 ```bash
@@ -102,20 +102,26 @@ python generate_data.py -d cifar10 -a 0.03 -cn 10 --seed 42
 For each generated partition, compute and log the **actual** heterogeneity level to verify it matches the intended `α`:
 ```python
 def compute_partition_stats(partition_dict, num_classes):
-    """Log label distribution per client and Earth Mover's Distance from uniform."""
+    """Log label distribution per client and Hellinger Distance from uniform."""
     stats = {}
+    uniform_dist = np.ones(num_classes) / num_classes
     for client_id, indices in partition_dict.items():
         labels = [dataset[i][1] for i in indices]
         dist = np.bincount(labels, minlength=num_classes) / len(labels)
+        
+        # Calculate Hellinger Distance from uniform distribution
+        hd = np.sqrt(np.sum((np.sqrt(dist) - np.sqrt(uniform_dist)) ** 2)) / np.sqrt(2)
+        
         stats[client_id] = {
             "n_samples": len(indices),
             "label_distribution": dist.tolist(),
             "dominant_class": int(np.argmax(dist)),
-            "entropy": float(-np.sum(dist * np.log(dist + 1e-9)))
+            "entropy": float(-np.sum(dist * np.log(dist + 1e-9))),
+            "hellinger_distance": float(hd)
         }
     return stats
 ```
-Save these stats to `logs/partition_stats/{dataset}_alpha{α}_seed{seed}.json`.
+These statistics are automatically saved as `all_stats.json` alongside the `partition.pkl` file in the specific seed's directory.
 
 ---
 
@@ -229,7 +235,7 @@ def classify_layer(name: str, module: nn.Module) -> str:
 | Algorithm | FedAvg, FedProx | FedAvg is the baseline; FedProx adds proximal regularization |
 | Number of clients (K) | 10 | Cross-silo simulation; all clients participate every round |
 | Client participation ratio | 1.0 (100%) | Full participation eliminates sampling noise from drift analysis |
-| Communication rounds (T) | 100 | Sufficient to observe convergence plateau and round-wise drift evolution |
+| Communication rounds (T) | 40 | Sufficient to observe convergence plateau and round-wise drift evolution |
 | Local epochs (E) | 5 | Standard non-IID setting; enough local steps to accumulate drift |
 | Local batch size (B) | 32 | Fixed across all clients and models |
 | FedProx μ | 0.01 | Start with 0.01; ablate with 0.001 and 0.1 in secondary experiments |
@@ -246,7 +252,7 @@ optimizer:
 
 lr_scheduler:
   name: CosineAnnealingLR
-  T_max: 100          # matches total rounds
+  T_max: 40          # matches total rounds
   eta_min: 1.0e-5
 ```
 
@@ -431,7 +437,7 @@ def convergence_round(accuracy_history: List[float], threshold: float) -> int:
     for t in range(len(accuracy_history) - 4):
         if all(a >= threshold for a in accuracy_history[t:t+5]):
             return t
-    return -1  # did not converge within 100 rounds
+    return -1  # did not converge within 40 rounds
 ```
 
 ### 5.3 Fairness Metric
@@ -448,10 +454,10 @@ Also report the **standard deviation** across clients as a secondary fairness in
 All metrics are aggregated over 3 seeds:
 ```python
 final_result = {
-    "acc_mean":   np.mean([r["accuracy@round100"] for r in seed_results]),
-    "acc_std":    np.std( [r["accuracy@round100"] for r in seed_results]),
+    "acc_mean":   np.mean([r["accuracy@round40"] for r in seed_results]),
+    "acc_std":    np.std( [r["accuracy@round40"] for r in seed_results]),
     "conv_mean":  np.mean([r["convergence_round"]  for r in seed_results]),
-    "fair_mean":  np.mean([r["fairness_gap@round100"] for r in seed_results]),
+    "fair_mean":  np.mean([r["fairness_gap@round40"] for r in seed_results]),
 }
 ```
 
@@ -459,7 +465,7 @@ Report as `mean ± std` in all tables. Flag any run where accuracy std > 0.03 as
 
 ### 5.5 Primary Comparison Table Structure
 
-| Model | α | Dataset | Acc@100 ± std | Conv. Round | Drift-norm (mean) | Interference (mean) | Fairness Gap |
+| Model | α | Dataset | Acc@40 ± std | Conv. Round | Drift-norm (mean) | Interference (mean) | Fairness Gap |
 |---|---|---|---|---|---|---|---|
 | EfficientNet-BN | 0.1 | CIFAR-10 | | | | | |
 | EfficientNet-GN | 0.1 | CIFAR-10 | | | | | |
@@ -484,7 +490,7 @@ Report as `mean ± std` in all tables. Flag any run where accuracy std > 0.03 as
 Run all three variants under **identical** FL settings (same α, same seed, same round count). The gap between EfficientNet-BN and EfficientNet-GN/LN in both accuracy and drift isolates the normalization contribution.
 
 **Controlled variables:** same optimizer, LR, local epochs, data partition.
-**Outcome variable:** `drift["norm"]`, `accuracy@100`, `convergence_round`.
+**Outcome variable:** `drift["norm"]`, `accuracy@40`, `convergence_round`.
 
 ### Ablation 2: Heterogeneity Sensitivity
 **Question:** At what α does each architecture's performance degrade non-linearly?
@@ -541,8 +547,8 @@ logs/
 │       ├── metrics.csv          # one row per round: round, acc, drift_norm, drift_feature, etc.
 │       ├── events.out.tfevents  # tensorboard binary log
 │       └── checkpoints/
-│           ├── round_050.pt
-│           └── round_100.pt     # final global model
+│           ├── round_020.pt
+│           └── round_040.pt     # final global model
 └── summary/
     └── all_results.csv          # aggregated across seeds, one row per cell
 ```
@@ -584,8 +590,6 @@ Work through this list in order. Do not proceed to the next item until the curre
 - [ ] **0.4** Install additional packages: `pip install timm mamba-ssm tensorboard scikit-learn`
 - [ ] **0.5** Verify GPU availability: `python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"`
 - [ ] **0.6** Pin environment: `pip freeze > requirements_locked.txt` and log CUDA/torch versions to `environment.txt`
-- [ ] **0.7** Create `CLAUDE.md` in repo root with full project context (as defined in Section 3 of the Claude Code guide)
-- [ ] **0.8** Verify Claude Code installed and authenticated: `claude --version && claude doctor`
 
 ---
 
@@ -604,7 +608,7 @@ Work through this list in order. Do not proceed to the next item until the curre
   done
   ```
 - [ ] **1.6** Generate all Brain Tumor MRI partitions (same loop with `-d brain_tumor`)
-- [ ] **1.7** For each partition, run `compute_partition_stats()` and save JSON to `logs/partition_stats/`
+- [ ] **1.7** For each partition, verify that `compute_partition_stats()` executes and saves `all_stats.json` alongside the partition file.
 - [ ] **1.8** Manually inspect 2–3 partition stat files and verify that α=0.1 produces higher entropy spread than α=1.0
 - [ ] **1.9** Verify `drop_last=True` is set in all client DataLoaders (critical for BatchNorm)
 
@@ -674,7 +678,7 @@ Work through this list in order. Do not proceed to the next item until the curre
 - [ ] **6.1** Create `run_experiments.sh` iterating over all cells:
   - 2 datasets × 4 α values × 5 model variants × 2 algorithms × 3 seeds = **192 runs**
 - [ ] **6.2** Add DRYRUN mode: `DRYRUN=1 bash run_experiments.sh 2>&1 | head -50` and verify all 192 commands are printed correctly
-- [ ] **6.3** Add skip logic: if `logs/runs/{run_name}/metrics.csv` already exists and has 100 rows, skip the run (enables resuming after interruption)
+- [ ] **6.3** Add skip logic: if `logs/runs/{run_name}/metrics.csv` already exists and has 40 rows, skip the run (enables resuming after interruption)
 - [ ] **6.4** Add a progress log: `echo "$(date) — Starting: $run_name" >> logs/run_progress.log`
 - [ ] **6.5** Run the first 5 cells manually (not via the script) to verify end-to-end correctness before launching the full matrix
 
@@ -683,7 +687,7 @@ Work through this list in order. Do not proceed to the next item until the curre
 ### PHASE 7 — Full Experiment Execution
 
 - [ ] **7.1** Run CIFAR-10 experiments first (faster iteration): `bash run_experiments.sh --dataset cifar10`
-- [ ] **7.2** After CIFAR-10 completes, verify all 96 run directories exist and each `metrics.csv` has exactly 100 rows
+- [ ] **7.2** After CIFAR-10 completes, verify all 96 run directories exist and each `metrics.csv` has exactly 40 rows
 - [ ] **7.3** Run a quick sanity check on results: `python scripts/sanity_check.py` (to be written — see 8.2)
 - [ ] **7.4** Run Brain Tumor MRI experiments: `bash run_experiments.sh --dataset brain_tumor`
 - [ ] **7.5** After all 192 runs complete, verify no `metrics.csv` files are missing or truncated
@@ -697,7 +701,7 @@ Work through this list in order. Do not proceed to the next item until the curre
 - [ ] **8.3** Produce **Figure 1:** Accuracy vs. round for all 5 models × 2 datasets × α=1.0, 0.3, 0.03 (6 subplots × 2 datasets = 12 panels). Use mean ± std shading.
 - [ ] **8.4** Produce **Figure 2:** Per-layer drift (norm, feature, head) vs. round for all 5 models at α=0.03 on both datasets. 3 subplots (one per layer group).
 - [ ] **8.5** Produce **Figure 3:** Gradient cosine similarity vs. round for all 3 base architectures at α=0.03. 3 subplots (one per layer group).
-- [ ] **8.6** Produce **Figure 4 (Ablation 1):** Bar chart of drift@round100 and accuracy@round100 for EfficientNet-BN vs. GN vs. LN at each α level.
+- [ ] **8.6** Produce **Figure 4 (Ablation 1):** Bar chart of drift@round40 and accuracy@round40 for EfficientNet-BN vs. GN vs. LN at each α level.
 - [ ] **8.7** Produce **Figure 5:** Fairness gap (max-min per-client accuracy) vs. α, one line per model.
 - [ ] **8.8** Compute statistical significance (Wilcoxon test) for EfficientNet-BN vs. ViT-Tiny accuracy at α=0.03 across 3 seeds. Document p-value.
 - [ ] **8.9** Fill in the primary comparison table from Section 5.5 with all results.

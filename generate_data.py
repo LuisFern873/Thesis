@@ -13,6 +13,7 @@ import numpy as np
 
 from data.utils.schemes.flower import flower_partition
 from src.utils.functional import fix_random_seed
+from data.utils.partition_utils import enrich_stats
 from data.utils.process import (
     exclude_domain,
     plot_distribution,
@@ -35,14 +36,23 @@ CURRENT_DIR = Path(__file__).parent.absolute()
 
 def main(args):
     dataset_root = CURRENT_DIR / "data" / args.dataset
-
+    
     fix_random_seed(args.seed, args.use_cuda)
+
+    if args.alpha > 0:
+        save_dir = dataset_root / "partitions" / f"alpha_{args.alpha}" / f"seed_{args.seed}"
+    elif args.iid > 0:
+        save_dir = dataset_root / "partitions" / "iid" / f"seed_{args.seed}"
+    else:
+        save_dir = dataset_root / "partitions" / f"seed_{args.seed}"
 
     if not os.path.isdir(dataset_root):
         os.mkdir(dataset_root)
+        
+    os.makedirs(save_dir, exist_ok=True)
 
-    if os.path.isfile(dataset_root / "partition_md5.txt"):
-        with open(dataset_root / "partition_md5.txt", "r") as f:
+    if os.path.isfile(save_dir / "partition_md5.txt"):
+        with open(save_dir / "partition_md5.txt", "r") as f:
             md5 = f.read()
             if md5 == hashlib.md5(json.dumps(args.__dict__).encode()).hexdigest():
                 print("Partition file already exists. Skip partitioning.")
@@ -302,7 +312,7 @@ def main(args):
             plot_distribution(
                 client_num=args.client_num,
                 label_counts=counts,
-                save_path=f"{dataset_root}/class_distribution.png",
+                save_path=f"{save_dir}/class_distribution.png",
             )
             # domain distribution
             counts = np.zeros(
@@ -315,7 +325,7 @@ def main(args):
             plot_distribution(
                 client_num=args.client_num,
                 label_counts=counts,
-                save_path=f"{dataset_root}/domain_distribution.png",
+                save_path=f"{save_dir}/domain_distribution.png",
             )
 
         else:
@@ -327,19 +337,34 @@ def main(args):
             plot_distribution(
                 client_num=args.client_num,
                 label_counts=counts,
-                save_path=f"{dataset_root}/class_distribution.png",
+                save_path=f"{save_dir}/class_distribution.png",
             )
 
-    with open(dataset_root / "partition.pkl", "wb") as f:
+    with open(save_dir / "partition.pkl", "wb") as f:
         pickle.dump(partition, f)
 
-    with open(dataset_root / "all_stats.json", "w") as f:
+    with open(save_dir / "all_stats.json", "w") as f:
         json.dump(stats, f, indent=4)
 
-    with open(dataset_root / "args.json", "w") as f:
+    # Enrich all_stats.json with per-client Hellinger Distance, entropy, and
+    # label distribution fractions required by the drift experiment methodology.
+    if args.dataset not in ["femnist", "celeba", "synthetic"]:
+        try:
+            targets_array = np.array(dataset.targets, dtype=np.int32)
+            num_classes = len(dataset.classes)
+            enrich_stats(
+                save_dir=save_dir,
+                data_indices=partition["data_indices"],
+                targets=targets_array,
+                num_classes=num_classes,
+            )
+        except Exception as e:
+            print(f"[WARNING] Could not enrich partition stats: {e}")
+
+    with open(save_dir / "args.json", "w") as f:
         json.dump(prune_args(args), f, indent=4)
 
-    with open(dataset_root / "partition_md5.txt", "w") as f:
+    with open(save_dir / "partition_md5.txt", "w") as f:
         f.write(hashlib.md5(json.dumps(args.__dict__).encode()).hexdigest())
 
 

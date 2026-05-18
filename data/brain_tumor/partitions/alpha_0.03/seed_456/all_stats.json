@@ -1,0 +1,183 @@
+{
+    "0": {
+        "x": 1406,
+        "y": {
+            "1": 1406
+        },
+        "n_samples": 1406,
+        "label_distribution": [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+        ],
+        "dominant_class": 1,
+        "entropy": -1.000088900581841e-12,
+        "hellinger_distance": 0.7071067811865475
+    },
+    "1": {
+        "x": 183,
+        "y": {
+            "3": 183
+        },
+        "n_samples": 183,
+        "label_distribution": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+        ],
+        "dominant_class": 3,
+        "entropy": -1.000088900581841e-12,
+        "hellinger_distance": 0.7071067811865475
+    },
+    "2": {
+        "x": 40,
+        "y": {
+            "0": 8,
+            "2": 32
+        },
+        "n_samples": 40,
+        "label_distribution": [
+            0.2,
+            0.0,
+            0.8,
+            0.0
+        ],
+        "dominant_class": 2,
+        "entropy": 0.5004024235361879,
+        "hellinger_distance": 0.5737417596358688
+    },
+    "3": {
+        "x": 11,
+        "y": {
+            "0": 5,
+            "1": 6
+        },
+        "n_samples": 11,
+        "label_distribution": [
+            0.45454545454545453,
+            0.5454545454545454,
+            0.0,
+            0.0
+        ],
+        "dominant_class": 1,
+        "entropy": 0.6890092384746587,
+        "hellinger_distance": 0.5418723058344841
+    },
+    "4": {
+        "x": 387,
+        "y": {
+            "1": 387
+        },
+        "n_samples": 387,
+        "label_distribution": [
+            0.0,
+            1.0,
+            0.0,
+            0.0
+        ],
+        "dominant_class": 1,
+        "entropy": -1.000088900581841e-12,
+        "hellinger_distance": 0.7071067811865475
+    },
+    "5": {
+        "x": 1522,
+        "y": {
+            "0": 15,
+            "2": 1500,
+            "3": 7
+        },
+        "n_samples": 1522,
+        "label_distribution": [
+            0.00985545335085414,
+            0.0,
+            0.985545335085414,
+            0.0045992115637319315
+        ],
+        "dominant_class": 2,
+        "entropy": 0.08463158658198691,
+        "hellinger_distance": 0.6481363733668472
+    },
+    "6": {
+        "x": 825,
+        "y": {
+            "0": 825
+        },
+        "n_samples": 825,
+        "label_distribution": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "dominant_class": 0,
+        "entropy": -1.000088900581841e-12,
+        "hellinger_distance": 0.7071067811865475
+    },
+    "7": {
+        "x": 1713,
+        "y": {
+            "0": 382,
+            "1": 1,
+            "2": 242,
+            "3": 1088
+        },
+        "n_samples": 1713,
+        "label_distribution": [
+            0.2230005837711617,
+            0.0005837711617046118,
+            0.14127262113251604,
+            0.6351430239346176
+        ],
+        "dominant_class": 3,
+        "entropy": 0.9037513434770865,
+        "hellinger_distance": 0.4066867070337654
+    },
+    "8": {
+        "x": 535,
+        "y": {
+            "0": 535
+        },
+        "n_samples": 535,
+        "label_distribution": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "dominant_class": 0,
+        "entropy": -1.000088900581841e-12,
+        "hellinger_distance": 0.7071067811865475
+    },
+    "9": {
+        "x": 578,
+        "y": {
+            "0": 30,
+            "2": 26,
+            "3": 522
+        },
+        "n_samples": 578,
+        "label_distribution": [
+            0.05190311418685121,
+            0.0,
+            0.04498269896193772,
+            0.903114186851211
+        ],
+        "dominant_class": 3,
+        "entropy": 0.3850947816223869,
+        "hellinger_distance": 0.5521607544303476
+    },
+    "samples_per_client": {
+        "mean": 720.0,
+        "stddev": 594.1045362560363
+    },
+    "summary": {
+        "mean_hellinger": 0.625813180623405,
+        "std_hellinger": 0.09835657936955969,
+        "mean_entropy": 0.2562889373687306,
+        "std_entropy": 0.3225714043626938,
+        "min_samples": 11,
+        "max_samples": 1713
+    }
+}

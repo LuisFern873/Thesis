@@ -65,6 +65,7 @@ class FedAvgClient:
             shuffle=True,
             num_workers=self.args.common.dataloader_num_workers,
             pin_memory=self.args.common.use_cuda,
+            drop_last=True,  # prevents batch-size-1 crash with BatchNorm
         )
         self.valloader = DataLoader(
             self.valset,
