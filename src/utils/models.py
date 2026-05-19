@@ -16,21 +16,49 @@ from torch import Tensor
 from src.utils.constants import DATA_SHAPE, INPUT_CHANNELS, NUM_CLASSES
 
 
-def replace_batchnorm(model, norm_type="group", num_groups=32):
+def _largest_divisor(num_channels: int, max_groups: int) -> int:
+    """Return the largest divisor of num_channels that is <= max_groups.
+
+    GroupNorm requires num_channels % num_groups == 0.  EfficientNet-B0 has
+    early layers with as few as 8 or 16 channels, so num_groups=32 would
+    crash.  This helper finds the largest valid group count.
     """
-    Recursively replace all BatchNorm2d layers with GroupNorm or LayerNorm.
-    norm_type: "group" | "layer"
+    for g in range(min(max_groups, num_channels), 0, -1):
+        if num_channels % g == 0:
+            return g
+    return 1  # fallback: InstanceNorm-equivalent
+
+
+def replace_batchnorm(model: nn.Module, norm_type: str = "group", num_groups: int = 32) -> nn.Module:
+    """Recursively replace all BatchNorm2d layers in *model* in-place.
+
+    Args:
+        model:      The model to modify (modified in-place and returned).
+        norm_type:  ``"group"`` → GroupNorm(num_groups, C);
+                    ``"layer"`` → GroupNorm(1, C)  ≡ LayerNorm for 2-D feature maps.
+        num_groups: Target number of groups for GroupNorm.  Automatically
+                    reduced to the largest divisor of ``num_channels`` when the
+                    channel count is smaller than ``num_groups`` (e.g. early
+                    EfficientNet layers with 8 or 16 channels).
+
+    Returns:
+        The modified model (same object, modified in-place).
     """
     for name, module in model.named_children():
         if isinstance(module, nn.BatchNorm2d):
             num_features = module.num_features
             if norm_type == "group":
+                actual_groups = _largest_divisor(num_features, num_groups)
                 new_norm = nn.GroupNorm(
-                    num_groups=min(num_groups, num_features),
-                    num_channels=num_features
+                    num_groups=actual_groups,
+                    num_channels=num_features,
                 )
             elif norm_type == "layer":
-                new_norm = nn.GroupNorm(1, num_features)  # GN with 1 group == LN for 2D
+                # GroupNorm with 1 group is equivalent to LayerNorm over the
+                # spatial dimensions — standard practice for 2-D feature maps.
+                new_norm = nn.GroupNorm(1, num_features)
+            else:
+                raise ValueError(f"Unknown norm_type '{norm_type}'. Use 'group' or 'layer'.")
             setattr(model, name, new_norm)
         else:
             replace_batchnorm(module, norm_type, num_groups)
@@ -424,8 +452,6 @@ class EfficientNet(DecoupledModel):
 
     def __init__(self, version, dataset, pretrained):
         super().__init__()
-
-        print("pretrained =", pretrained)
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
         efficientnet: models.EfficientNet = self.archs[version][0](

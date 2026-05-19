@@ -390,53 +390,57 @@ class FedAvgServer:
         return dataset
 
     def get_dataset_transforms(self):
-        """Define data preprocessing schemes. These schemes will work for every
-        client. Consider to overwrite this function for your unique data
-        preprocessing.
+        """Define data preprocessing schemes applied identically to all models.
+
+        Pipeline contract
+        -----------------
+        Data arrives at this transform as a **float32 tensor in [0, 1]**:
+          - CIFAR-10 / other tensor datasets: stored as float, rescaled by
+            BaseDataset._rescale_data().
+          - BrainTumor: PIL → ToTensor (in pre_transform) → float [0, 1].
+
+        Therefore the correct pipeline is:
+            Resize → (augmentations) → Normalize
+        NOT: Normalize → Resize  (the previous buggy ordering).
 
         Returns:
-            Dict[str, Callable], which includes keys:
-                `train_data_transform`: The transform for training data.
-                `train_target_transform`: The transform for training targets.
-                `test_data_transform`: The transform for testing data.
-                `test_target_transform`: The transform for testing targets.
+            Dict[str, Callable] with keys:
+                ``train_data_transform``, ``train_target_transform``,
+                ``test_data_transform``, ``test_target_transform``.
         """
         size = 224
+        dataset_name = self.args.dataset.name
 
-        # Test transform: deterministic (no augmentation)
-        test_transform_list = [transforms.Resize((size, size))]
-        if (
-            self.args.dataset.name in DATA_MEAN
-            and self.args.dataset.name in DATA_STD
-        ):
-            test_transform_list.insert(
-                0,
-                transforms.Normalize(
-                    DATA_MEAN[self.args.dataset.name],
-                    DATA_STD[self.args.dataset.name],
-                ),
-            )
-        test_data_transform = transforms.Compose(test_transform_list)
+        # --- Normalisation stats (applied last, after spatial ops) ---
+        has_stats = dataset_name in DATA_MEAN and dataset_name in DATA_STD
+        normalize = (
+            transforms.Normalize(DATA_MEAN[dataset_name], DATA_STD[dataset_name])
+            if has_stats
+            else None
+        )
+
+        # --- Test transform: deterministic, no augmentation ---
+        test_ops = [transforms.Resize((size, size))]
+        if normalize is not None:
+            test_ops.append(normalize)
+        test_data_transform = transforms.Compose(test_ops)
         test_target_transform = transforms.Compose([])
 
-        # Train transform: includes augmentation for regularisation
-        train_transform_list = [
+        # --- Train transform: spatial augmentations then normalise ---
+        train_ops = [
             transforms.Resize((size, size)),
             transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=10),
+            transforms.RandomRotation(degrees=15),
         ]
-        if (
-            self.args.dataset.name in DATA_MEAN
-            and self.args.dataset.name in DATA_STD
-        ):
-            train_transform_list.insert(
-                0,
-                transforms.Normalize(
-                    DATA_MEAN[self.args.dataset.name],
-                    DATA_STD[self.args.dataset.name],
-                ),
+        # ColorJitter is applied for medical imaging datasets where colour
+        # variation is a meaningful source of domain shift.
+        if dataset_name == "brain_tumor":
+            train_ops.append(
+                transforms.ColorJitter(brightness=0.2, contrast=0.2)
             )
-        train_data_transform = transforms.Compose(train_transform_list)
+        if normalize is not None:
+            train_ops.append(normalize)
+        train_data_transform = transforms.Compose(train_ops)
         train_target_transform = transforms.Compose([])
 
         return dict(

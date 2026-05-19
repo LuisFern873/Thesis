@@ -129,17 +129,25 @@ These statistics are automatically saved as `all_stats.json` alongside the `part
 
 ### 2.1 Architecture Specifications
 
-| Property | EfficientNet-B0 | ViT-Tiny | Vim-tiny |
+| Property | EfficientNet-B0 (BN/GN/LN) | ViT-Tiny | Vim-tiny |
 |---|---|---|---|
 | Family | CNN | ViT | SSM |
-| Parameters | ~5.3M | ~5.7M | ~7M |
+| Parameters (total) | **4.02M** | **5.53M** | ~7M |
+| Parameters (base) | 4.01M | 5.52M | ~7M |
+| Parameters (head, 10-class) | 0.013M | 0.002M | — |
 | Input size | 224 × 224 | 224 × 224 | 224 × 224 |
-| Normalization | BatchNorm | LayerNorm | LayerNorm |
+| Normalization | BN / GN-32 / GN-1 | LayerNorm | LayerNorm |
 | Feature type | Local spatial filters | Global self-attention | Bidirectional state scan |
 | timm identifier | — | `vit_tiny_patch16_224` | — |
-| Pretrained init | ImageNet (torchvision) | ImageNet (timm) | ImageNet (mamba_ssm) |
+| Pretrained init | **None (random init)** | **None (random init)** | **None (random init)** |
 
-> **On pretrained weights:** All three models are initialized from ImageNet pretrained weights. This is standard practice in federated learning on small-to-medium datasets and prevents random-init variance from confounding the drift analysis. The classifier head is re-initialized randomly to match the target number of classes.
+> **On parameter count discrepancy:** The original methodology spec cited ~5.3M for EfficientNet-B0. The actual measured count is **4.02M**. The ~5.3M figure corresponds to the full ImageNet classifier variant (1000-class head); the backbone alone is 4.01M. The three EfficientNet normalization variants (BN, GN-32, LN/GN-1) share identical parameter counts because GroupNorm and LayerNorm have the same number of learnable parameters as BatchNorm for the same channel count.
+>
+> **Why parameter counts are NOT equalized across architectures:** Artificially inflating EfficientNet's parameter count (e.g. by widening the head or adding layers) would alter its inductive bias — precisely the variable under study. The comparison is made fair through identical training conditions (optimizer, LR, data, rounds, seeds), not through parameter parity. The 1.5× difference between EfficientNet-B0 (4.02M) and ViT-Tiny (5.53M) is within the acceptable range for cross-architecture comparisons in the FL literature and is explicitly documented here. All results tables must report parameter counts alongside accuracy metrics.
+
+> **Implementation decision — train from scratch:** All models are initialized with random weights (`pretrained=False`). This isolates the effect of architecture and normalization type on client drift, without confounding from pre-trained feature representations. Reflected in `config/defaults.yaml` via `model.use_torchvision_pretrained_weights: false`.
+>
+> **Limitation:** Convergence will be slower and final accuracy lower than with pretrained initialization, particularly on the small Brain Tumor MRI dataset (~7K images). Results should be interpreted as measuring architectural drift behavior under FL, not absolute classification performance.
 
 ### 2.2 Model Registration in FL-bench (`src/utils/models.py`)
 
