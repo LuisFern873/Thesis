@@ -1,27 +1,67 @@
-# config/drift_fedavg.yaml
-defaults:
-  - defaults
-  - _self_
+# config/driftfedavg.yaml
+# Drift experiment configuration — FedAvg baseline
+# Methodology Sections 3.1–3.3
+#
+# LR scheduler note: lr_scheduler.name is null here because the server
+# implements CosineAnnealingLR directly (steps once per round, not per
+# local epoch). See DriftFedAvgServer._cosine_lr() for the implementation.
+# The eta_min value is still read by the server from lr_scheduler.eta_min.
 
 method: driftfedavg
 
-common:
-  join_ratio: 1.0 # 100% participation for drift analysis
-  monitor: tensorboard
-  test:
-    server:
-      interval: 1
-      test: true
-
-optimizer:
-  momentum: 0.9
-  weight_decay: 1.0e-4
-
-lr_scheduler:
-  name: cosine
-  T_max: 100
-  eta_min: 1.0e-5
+dataset:
+  name: cifar10
+  partition_dir: partitions/alpha_1.0/seed_42
 
 model:
-  name: vit_tiny
+  name: efficient0
   use_torchvision_pretrained_weights: false
+
+optimizer:
+  name: sgd
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 1.0e-4
+  nesterov: false
+
+# No client-side scheduler — server applies cosine decay per round.
+lr_scheduler:
+  name: null
+  eta_min: 1.0e-5   # read by DriftFedAvgServer for cosine schedule
+
+mode: serial
+
+common:
+  seed: 42
+  join_ratio: 1.0          # 100% participation — all 10 clients every round
+  global_epoch: 40         # communication rounds T
+  local_epoch: 5           # local epochs E per round
+  batch_size: 32
+  dataloader_num_workers: 2
+  reset_optimizer_on_global_epoch: true
+  buffers: global
+  straggler_ratio: 0
+  client_side_evaluation: true
+
+  test:
+    client:
+      interval: 1
+      finetune_epoch: 0
+      train: false
+      val: false
+      test: true
+    server:
+      interval: 1
+      train: false
+      val: false
+      test: true
+      model_in_train_mode: false
+
+  verbose_gap: 10
+  monitor: tensorboard
+  use_cuda: true
+  save_log: true
+  save_model: false
+  save_learning_curve_plot: true
+  save_metrics: true
+  delete_useless_run: true

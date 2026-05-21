@@ -79,9 +79,10 @@ def main(config: DictConfig):
 
 
 if __name__ == "__main__":
-    # For gather the Fl-bench logs and hydra logs
-    # Otherwise the hydra logs are stored in ./outputs/...
-    sys.argv.append(
-        "hydra.run.dir=./out/${method}/${dataset.name}/${now:%Y-%m-%d-%H-%M-%S}"
-    )
+    # Set Hydra output dir only when not already overridden by the caller
+    # (run_experiments.sh passes hydra.run.dir=logs/runs/<name> explicitly).
+    if not any("hydra.run.dir" in arg for arg in sys.argv[1:]):
+        sys.argv.append(
+            "hydra.run.dir=./out/${method}/${dataset.name}/${now:%Y-%m-%d-%H-%M-%S}"
+        )
     main()

@@ -22,20 +22,30 @@ def compute_layer_drift(
     layer_taxonomy: Dict[str, str]
 ) -> Dict[str, float]:
     """
-    Returns mean L2 drift per layer group for a single client.
+    Returns the true L2 drift (Euclidean distance of the concatenated vector) 
+    per layer group for a single client, resolving device and precision mismatches.
     layer_taxonomy: {param_name: group_label}
     """
-    group_diffs = {"norm": [], "feature": [], "head": []}
+    group_sq_sums = {"norm": 0.0, "feature": 0.0, "head": 0.0}
+    group_has_params = {"norm": False, "feature": False, "head": False}
+    
     for name, local_param in local_state.items():
         group = layer_taxonomy.get(name, "other")
-        if group == "other":
+        if group == "other" or name not in global_state:
             continue
-        if name not in global_state:
-            continue
-        diff = (local_param.float() - global_state[name].float())
-        group_diffs[group].append(diff.norm(p=2).item())
-    
-    return {g: float(np.mean(v)) if v else 0.0 for g, v in group_diffs.items()}
+        
+        # Cast to float, detach, and move to CPU to guarantee safety across devices
+        local_val = local_param.detach().cpu().float()
+        global_val = global_state[name].detach().cpu().float()
+        
+        diff = local_val - global_val
+        group_sq_sums[group] += diff.square().sum().item()
+        group_has_params[group] = True
+        
+    return {
+        g: float(np.sqrt(group_sq_sums[g])) if group_has_params[g] else 0.0 
+        for g in group_sq_sums
+    }
 
 def aggregate_drift(per_client_drifts: List[Dict[str, float]]) -> Dict[str, Dict[str, float]]:
     """Returns mean and std of drift across clients, per layer group."""
@@ -54,8 +64,9 @@ def compute_gradient_alignment(
     layer_taxonomy: Dict[str, str]
 ) -> Dict[str, float]:
     """
+    Returns mean pairwise cosine similarity per layer group, ensuring consistent 
+    parameter alignment, device safety, and division-by-zero protection.
     client_grads: list of {param_name: grad_tensor} per client
-    Returns mean pairwise cosine similarity per layer group.
     """
     K = len(client_grads)
     if K < 2:
@@ -64,12 +75,19 @@ def compute_gradient_alignment(
     groups = ["norm", "feature", "head"]
     group_vecs = {g: [] for g in groups}
 
+    # Establish a reference key ordering from the first client to guarantee alignment
+    ref_keys = list(client_grads[0].keys())
+
     for grads in client_grads:
         group_flat = {g: [] for g in groups}
-        for name, grad in grads.items():
+        for name in ref_keys:
+            if name not in grads:
+                continue
+            grad = grads[name]
             g_label = layer_taxonomy.get(name, "other")
             if g_label != "other":
-                group_flat[g_label].append(grad.float().flatten())
+                # Move to CPU, detach, and convert to float for alignment safety
+                group_flat[g_label].append(grad.detach().cpu().float().flatten())
         for g in groups:
             if group_flat[g]:
                 group_vecs[g].append(torch.cat(group_flat[g]))
@@ -83,6 +101,12 @@ def compute_gradient_alignment(
         sims = []
         for i in range(len(vecs)):
             for j in range(i + 1, len(vecs)):
+                norm_i = vecs[i].norm(p=2)
+                norm_j = vecs[j].norm(p=2)
+                # Safe-guard against division by zero if updates are zero-vectors
+                if norm_i == 0.0 or norm_j == 0.0:
+                    sims.append(0.0)
+                    continue
                 cos = torch.nn.functional.cosine_similarity(
                     vecs[i].unsqueeze(0), vecs[j].unsqueeze(0)
                 ).item()

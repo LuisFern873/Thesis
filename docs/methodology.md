@@ -1,4 +1,4 @@
-# Rigorous Experiment Methodology & Implementation Checklist
+# Experiment Methodology & Implementation Checklist
 ## Architecture-Driven Client Drift in Federated Learning
 ### Luis Fernando Méndez Lázaro — UTEC 2026
 
@@ -251,20 +251,19 @@ def classify_layer(name: str, module: nn.Module) -> str:
 ### 3.2 Optimizer and Learning Rate
 
 ```yaml
-# config/drift_fedavg.yaml  (and drift_fedprox.yaml)
+# config/driftfedavg.yaml  (and driftfedprox.yaml)
 optimizer:
-  name: SGD
+  name: sgd
   lr: 0.01
   momentum: 0.9
   weight_decay: 1.0e-4
 
 lr_scheduler:
-  name: CosineAnnealingLR
-  T_max: 40          # matches total rounds
-  eta_min: 1.0e-5
+  name: null      # no client-side scheduler (see implementation note below)
+  eta_min: 1.0e-5 # read by DriftFedAvgServer for server-side cosine schedule
 ```
 
-> **Critical:** The learning rate scheduler steps once per communication round (not per local epoch), applied to the **global model** before broadcasting. This ensures all clients start each round from the same LR regardless of local convergence.
+> **LR scheduler implementation decision:** The methodology requires the scheduler to step once per communication round, not per local epoch. FL-bench's client-side scheduler steps once per local epoch inside `fit()`, which would cause 5× more steps than intended for E=5. To avoid modifying the shared `FedAvgClient` (which would break all other methods), the drift servers implement a **server-side CosineAnnealingLR** in `DriftFedAvgServer._cosine_lr(t)`. Before each round, the server computes the decayed LR and injects it into `args.optimizer.lr`. Clients read this value when constructing their optimizer at the start of each round (via `reset_optimizer_on_global_epoch: true`). This guarantees all clients start every round from the same globally-decayed LR. `lr_scheduler.name` is set to `null` in the config to disable the client-side scheduler entirely.
 
 ### 3.3 Data Loading per Client
 ```python
@@ -302,57 +301,75 @@ For round t = 1 to T:
 ### 4.1 Metric 1: Per-Layer Client Drift (L2 Distance)
 
 **Definition:**
-```
-drift_k^l(t) = ||θ_k^l(t) - θ_global^l(t-1)||_2
-```
-where `l` denotes a layer group, `k` a client index, and `t` a communication round.
+$$\text{drift}_k^l(t) = \|\theta_k^l(t) - \theta_{\text{global}}^l(t-1)\|_2$$
+where:
+* $l \in \{\text{"norm"}, \text{"feature"}, \text{"head"}\}$ denotes the layer group.
+* $k \in \{1, \dots, K\}$ denotes the client index.
+* $t \in \{1, \dots, T\}$ denotes the communication round.
+* $\theta_k^l(t)$ and $\theta_{\text{global}}^l(t-1)$ represent the concatenated parameter vectors of layer group $l$ for client $k$ at round $t$ (after local training) and the global model at round $t-1$ (before local training), respectively. The metric computes the exact Euclidean distance ($L_2$ norm) of the concatenated parameter differences in the parameter subspace of layer group $l$:
+  $$\|\theta_k^l(t) - \theta_{\text{global}}^l(t-1)\|_2 = \sqrt{\sum_{p \in l} \|\theta_{k, p}^l(t) - \theta_{\text{global}, p}^l(t-1)\|_2^2}$$
 
 **Implementation (`src/utils/drift_metrics.py`):**
 ```python
 import torch
 import torch.nn as nn
+import numpy as np
 from typing import Dict, List
 
 def compute_layer_drift(
     local_state: Dict[str, torch.Tensor],
     global_state: Dict[str, torch.Tensor],
-    layer_taxonomy: Dict[str, list]  # output of classify_layer for all params
+    layer_taxonomy: Dict[str, str]
 ) -> Dict[str, float]:
     """
-    Returns mean L2 drift per layer group for a single client.
+    Returns the true L2 drift (Euclidean distance of the concatenated vector) 
+    per layer group for a single client, resolving device and precision mismatches.
     layer_taxonomy: {param_name: group_label}
     """
-    group_diffs = {"norm": [], "feature": [], "head": []}
+    group_sq_sums = {"norm": 0.0, "feature": 0.0, "head": 0.0}
+    group_has_params = {"norm": False, "feature": False, "head": False}
+    
     for name, local_param in local_state.items():
         group = layer_taxonomy.get(name, "other")
-        if group == "other":
+        if group == "other" or name not in global_state:
             continue
-        diff = (local_param.float() - global_state[name].float())
-        group_diffs[group].append(diff.norm(p=2).item())
-    return {g: float(np.mean(v)) if v else 0.0 for g, v in group_diffs.items()}
+        
+        # Cast to float, detach, and move to CPU to guarantee safety across devices
+        local_val = local_param.detach().cpu().float()
+        global_val = global_state[name].detach().cpu().float()
+        
+        diff = local_val - global_val
+        group_sq_sums[group] += diff.square().sum().item()
+        group_has_params[group] = True
+        
+    return {
+        g: float(np.sqrt(group_sq_sums[g])) if group_has_params[g] else 0.0 
+        for g in group_sq_sums
+    }
 ```
 
 **Aggregation across clients:**
 ```python
-def aggregate_drift(per_client_drifts: List[Dict]) -> Dict[str, Dict]:
+def aggregate_drift(per_client_drifts: List[Dict[str, float]]) -> Dict[str, Dict[str, float]]:
     """Returns mean and std of drift across clients, per layer group."""
     groups = ["norm", "feature", "head"]
-    return {
-        g: {
-            "mean": float(np.mean([d[g] for d in per_client_drifts])),
-            "std":  float(np.std([d[g] for d in per_client_drifts]))
+    results = {}
+    for g in groups:
+        drifts = [d[g] for d in per_client_drifts]
+        results[g] = {
+            "mean": float(np.mean(drifts)),
+            "std":  float(np.std(drifts))
         }
-        for g in groups
-    }
+    return results
 ```
 
 ### 4.2 Metric 2: Aggregation Interference (Gradient Cosine Similarity)
 
 **Definition:**
-```
-interference^l(t) = (1 / (K*(K-1))) * Σ_{i≠j} cos(g_i^l(t), g_j^l(t))
-```
-where `g_k^l(t) = θ_{t-1}^l - θ_k^l(t)` is the pseudo-gradient of client `k` at round `t`.
+$$\text{interference}^l(t) = \frac{1}{K(K-1)} \sum_{i=1}^K \sum_{j \neq i} \cos(g_i^l(t), g_j^l(t))$$
+where:
+* $g_k^l(t) = \theta_{\text{global}}^l(t-1) - \theta_k^l(t)$ is the cumulative local parameter update (or pseudo-gradient) of client $k$ at round $t$.
+* $\cos(u, v) = \frac{u \cdot v}{\|u\|_2 \|v\|_2}$ is the standard cosine similarity computed over the concatenated parameter updates of layer group $l$.
 
 **Implementation:**
 ```python
@@ -361,19 +378,30 @@ def compute_gradient_alignment(
     layer_taxonomy: Dict[str, str]
 ) -> Dict[str, float]:
     """
+    Returns mean pairwise cosine similarity per layer group, ensuring consistent 
+    parameter alignment, device safety, and division-by-zero protection.
     client_grads: list of {param_name: grad_tensor} per client
-    Returns mean pairwise cosine similarity per layer group.
     """
     K = len(client_grads)
+    if K < 2:
+        return {"norm": 0.0, "feature": 0.0, "head": 0.0}
+        
     groups = ["norm", "feature", "head"]
     group_vecs = {g: [] for g in groups}
 
+    # Establish a reference key ordering from the first client to guarantee alignment
+    ref_keys = list(client_grads[0].keys())
+
     for grads in client_grads:
         group_flat = {g: [] for g in groups}
-        for name, grad in grads.items():
+        for name in ref_keys:
+            if name not in grads:
+                continue
+            grad = grads[name]
             g_label = layer_taxonomy.get(name, "other")
             if g_label != "other":
-                group_flat[g_label].append(grad.float().flatten())
+                # Move to CPU, detach, and convert to float for alignment safety
+                group_flat[g_label].append(grad.detach().cpu().float().flatten())
         for g in groups:
             if group_flat[g]:
                 group_vecs[g].append(torch.cat(group_flat[g]))
@@ -382,16 +410,22 @@ def compute_gradient_alignment(
     for g in groups:
         vecs = group_vecs[g]
         if len(vecs) < 2:
-            results[g] = float("nan")
+            results[g] = 0.0
             continue
         sims = []
-        for i in range(K):
-            for j in range(i + 1, K):
+        for i in range(len(vecs)):
+            for j in range(i + 1, len(vecs)):
+                norm_i = vecs[i].norm(p=2)
+                norm_j = vecs[j].norm(p=2)
+                # Safe-guard against division by zero if updates are zero-vectors
+                if norm_i == 0.0 or norm_j == 0.0:
+                    sims.append(0.0)
+                    continue
                 cos = torch.nn.functional.cosine_similarity(
                     vecs[i].unsqueeze(0), vecs[j].unsqueeze(0)
                 ).item()
                 sims.append(cos)
-        results[g] = float(np.mean(sims))
+        results[g] = float(np.mean(sims)) if sims else 0.0
     return results
 ```
 
@@ -475,11 +509,11 @@ Report as `mean ± std` in all tables. Flag any run where accuracy std > 0.03 as
 
 | Model | α | Dataset | Acc@40 ± std | Conv. Round | Drift-norm (mean) | Interference (mean) | Fairness Gap |
 |---|---|---|---|---|---|---|---|
-| EfficientNet-BN | 0.1 | CIFAR-10 | | | | | |
-| EfficientNet-GN | 0.1 | CIFAR-10 | | | | | |
-| EfficientNet-LN | 0.1 | CIFAR-10 | | | | | |
-| ViT-Tiny | 0.1 | CIFAR-10 | | | | | |
-| Vim-tiny | 0.1 | CIFAR-10 | | | | | |
+| EfficientNet-BN | 0.03 | Brain Tumor MRI | | | | | |
+| EfficientNet-GN | 0.03 | Brain Tumor MRI | | | | | |
+| EfficientNet-LN | 0.03 | Brain Tumor MRI | | | | | |
+| ViT-Tiny | 0.03 | Brain Tumor MRI | | | | | |
+| Vim-tiny | 0.03 | Brain Tumor MRI | | | | | |
 | ... | | | | | | | |
 
 ---
@@ -547,29 +581,47 @@ Set seed at the start of **each run**, before data partitioning, model initializ
 
 ```
 logs/
-├── partition_stats/
-│   └── cifar10_alpha0.1_seed42.json
 ├── runs/
-│   └── cifar10_alpha0.1_efficientnet_b0_fedavg_seed42/
-│       ├── config.yaml          # full config snapshot (auto-saved)
-│       ├── metrics.csv          # one row per round: round, acc, drift_norm, drift_feature, etc.
-│       ├── events.out.tfevents  # tensorboard binary log
-│       └── checkpoints/
-│           ├── round_020.pt
-│           └── round_040.pt     # final global model
-└── summary/
-    └── all_results.csv          # aggregated across seeds, one row per cell
+│   └── {dataset}_alpha{α}_{model}_{method}_seed{seed}/
+│       ├── drift_metrics.csv    ← PRIMARY per-round drift output
+│       ├── metrics.csv          ← FL-bench client-side metrics (epoch-indexed)
+│       ├── metrics.png          ← FL-bench learning curve
+│       ├── main.log             ← full training log
+│       └── events.out.tfevents  ← TensorBoard binary log
+│
+├── summary/
+│   ├── all_results.csv          ← one row per run (final-round values)
+│   └── seed_agg.csv             ← mean ± std per cell across 3 seeds
+│
+├── figures/
+│   ├── fig1_accuracy_vs_round_{dataset}_{method}.png
+│   ├── fig2_drift_vs_round_{dataset}_alpha{α}_{method}.png
+│   ├── fig3_interference_vs_round_{dataset}_alpha{α}_{method}.png
+│   ├── fig4_normalization_ablation_{dataset}_{method}.png
+│   ├── fig5_fairness_vs_alpha_{dataset}_{method}.png
+│   └── table1_comparison_{dataset}_{method}.txt
+│
+├── model_specs.txt
+└── run_progress.log
 ```
 
-**`metrics.csv` schema (written every round):**
+> **Two CSV files per run:** `drift_metrics.csv` is written by `DriftFedAvgServer` and contains the full drift/interference/fairness schema below. `metrics.csv` is FL-bench's built-in output (epoch-indexed, client-side accuracy). Analysis scripts use `drift_metrics.csv` as the primary source.
+
+> **Output directory:** Hydra writes to `logs/runs/<run_name>/` via the `hydra.run.dir` override in `run_experiments.sh`. The run name encodes all experimental dimensions: `{dataset}_alpha{α}_{model}_{method}_seed{seed}`.
+
+**`drift_metrics.csv` schema (written every round):**
 ```
-round, global_acc, global_f1, convergence_flag,
+round, lr,
+global_acc, global_f1, global_precision, global_recall,
+convergence_flag,
 drift_norm_mean, drift_norm_std,
 drift_feature_mean, drift_feature_std,
 drift_head_mean, drift_head_std,
 interference_norm, interference_feature, interference_head,
 fairness_gap, client_acc_min, client_acc_max, client_acc_std
 ```
+
+**Plots are generated automatically** by running `python scripts/plot_results.py` after all experiments complete. Plots are **not** generated during training to avoid slowing down the cluster runs. See `EXPERIMENTS.md` for the full post-experiment workflow.
 
 ### 7.4 Environment Pinning
 ```bash
@@ -731,16 +783,16 @@ Work through this list in order. Do not proceed to the next item until the curre
 
 | # | Dataset | α / Setup | Model | Algorithm | Seeds | Total runs |
 |---|---|---|---|---|---|---|
-| 1–3 | CIFAR-10 | α=0.03 | EfficientNet-BN | FedAvg | 42,123,456 | 3 |
-| 4–6 | CIFAR-10 | α=0.03 | EfficientNet-BN | FedProx | 42,123,456 | 3 |
-| 7–9 | CIFAR-10 | α=0.03 | EfficientNet-GN | FedAvg | 42,123,456 | 3 |
-| 10–12 | CIFAR-10 | α=0.03 | EfficientNet-LN | FedAvg | 42,123,456 | 3 |
-| 13–15 | CIFAR-10 | α=0.03 | ViT-Tiny | FedAvg | 42,123,456 | 3 |
-| 16–18 | CIFAR-10 | α=0.03 | ViT-Tiny | FedProx | 42,123,456 | 3 |
-| 19–21 | CIFAR-10 | α=0.03 | Vim-tiny | FedAvg | 42,123,456 | 3 |
-| 22–24 | CIFAR-10 | α=0.03 | Vim-tiny | FedProx | 42,123,456 | 3 |
+| 1–3 | Brain Tumor MRI | α=0.03 | EfficientNet-BN | FedAvg | 42,123,456 | 3 |
+| 4–6 | Brain Tumor MRI | α=0.03 | EfficientNet-BN | FedProx | 42,123,456 | 3 |
+| 7–9 | Brain Tumor MRI | α=0.03 | EfficientNet-GN | FedAvg | 42,123,456 | 3 |
+| 10–12 | Brain Tumor MRI | α=0.03 | EfficientNet-LN | FedAvg | 42,123,456 | 3 |
+| 13–15 | Brain Tumor MRI | α=0.03 | ViT-Tiny | FedAvg | 42,123,456 | 3 |
+| 16–18 | Brain Tumor MRI | α=0.03 | ViT-Tiny | FedProx | 42,123,456 | 3 |
+| 19–21 | Brain Tumor MRI | α=0.03 | Vim-tiny | FedAvg | 42,123,456 | 3 |
+| 22–24 | Brain Tumor MRI | α=0.03 | Vim-tiny | FedProx | 42,123,456 | 3 |
 | ... | *(repeat for α=0.3, 1.0, 1000)* | | | | | 72 more |
-| ... | *(repeat applicable settings for Brain Tumor MRI)* | | | | | 96 more |
+| ... | *(repeat applicable settings for CIFAR-10)* | | | | | 96 more |
 | **Total** | | | | | | **192** |
 
 > Note: EfficientNet-GN and EfficientNet-LN are run under FedAvg only for the normalization ablation (Ablation 1). If resources allow, run FedProx for these variants too. The Brain Tumor MRI smoke test (item 4.7) should use `num_classes=4`.
