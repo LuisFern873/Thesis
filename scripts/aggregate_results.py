@@ -36,8 +36,11 @@ FINAL_ROUND_COLS = [
 ]
 
 # Run directory name pattern produced by run_experiments.sh
+# Note: dataset uses .+ (not [^_]+) because dataset names like
+# "brain_tumor" contain underscores. The literal "_alpha" token
+# is the unambiguous separator between dataset and alpha.
 RUN_PATTERN = re.compile(
-    r"^(?P<dataset>[^_]+)_alpha(?P<alpha>[^_]+)_(?P<model>.+)"
+    r"^(?P<dataset>.+)_alpha(?P<alpha>[^_]+)_(?P<model>.+)"
     r"_(?P<method>drift\w+)_seed(?P<seed>\d+)$"
 )
 

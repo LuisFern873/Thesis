@@ -5,6 +5,7 @@ from typing import Any
 import torch
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Subset
+from tqdm import tqdm
 
 from data.utils.datasets import BaseDataset
 from src.utils.functional import evaluate_model, get_optimal_cuda_device
@@ -218,9 +219,15 @@ class FedAvgClient:
     def fit(self):
         self.model.train()
         self.dataset.train()
-        
-        for _ in range(self.local_epoch):
-            for x, y in self.trainloader:
+
+        for epoch in range(self.local_epoch):
+            pbar = tqdm(
+                self.trainloader,
+                desc=f"      Client {self.client_id} Train Epoch {epoch+1}/{self.local_epoch}",
+                leave=False,
+                disable=self.args.mode == "parallel",
+            )
+            for x, y in pbar:
                 # When the current batch size is 1, the batchNorm2d modules in the model would raise error.
                 # So the latent size 1 data batches are discarded.
                 if len(x) <= 1:
@@ -235,6 +242,7 @@ class FedAvgClient:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                pbar.set_postfix(loss=f"{loss.item():.4f}")
 
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
@@ -339,8 +347,14 @@ class FedAvgClient:
         """
         self.model.train()
         self.dataset.train()
-        for _ in range(self.args.common.test.client.finetune_epoch):
-            for x, y in self.trainloader:
+        for epoch in range(self.args.common.test.client.finetune_epoch):
+            pbar = tqdm(
+                self.trainloader,
+                desc=f"      Client {self.client_id} Finetune Epoch {epoch+1}/{self.args.common.test.client.finetune_epoch}",
+                leave=False,
+                disable=self.args.mode == "parallel",
+            )
+            for x, y in pbar:
                 if len(x) <= 1:
                     continue
 
@@ -350,3 +364,4 @@ class FedAvgClient:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                pbar.set_postfix(loss=f"{loss.item():.4f}")

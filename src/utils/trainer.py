@@ -1,3 +1,4 @@
+import time
 from collections import OrderedDict, deque
 from typing import Any, Callable, Optional
 
@@ -40,8 +41,14 @@ class FLbenchTrainer:
     def _serial_train(self):
         client_packages = OrderedDict()
         for client_id in self.server.selected_clients:
+            self.server.logger.log(f"  [Client {client_id}] Starting local training...")
+            start_time = time.time()
             server_package = self.server.package(client_id)
             client_package = self.worker.train(server_package) # it gives eval_results
+            duration = time.time() - start_time
+            self.server.logger.log(f"  [Client {client_id}] Finished training in {duration:.2f}s")
+
+            client_packages[client_id] = client_package
 
             # What is worker?
             # self.worker = client_cls(**init_args)
@@ -49,7 +56,6 @@ class FLbenchTrainer:
             # FedAvgServer:
             #       client_cls = FedAvgClient
 
-            client_packages[client_id] = client_package
 
             if self.server.verbose:
                 self.server.logger.log(
@@ -80,6 +86,7 @@ class FLbenchTrainer:
         while i < len(clients) or len(futures) > 0:
             while i < len(clients) and len(idle_workers) > 0:
                 worker_id = idle_workers.popleft()
+                self.server.logger.log(f"  [Client {clients[i]}] Submitting to Worker {worker_id}")
                 server_package = ray.put(self.server.package(clients[i]))
                 future = self.workers[worker_id].train.remote(server_package)
                 job_map[future] = (clients[i], worker_id)
@@ -91,6 +98,7 @@ class FLbenchTrainer:
                 for finished in all_finished:
                     client_id, worker_id = job_map[finished]
                     client_package = ray.get(finished)
+                    self.server.logger.log(f"  [Client {client_id}] Finished parallel training (Worker {worker_id})")
                     idle_workers.append(worker_id)
                     client_packages[client_id] = client_package
 

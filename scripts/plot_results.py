@@ -93,7 +93,7 @@ CONVERGENCE_THRESHOLDS: Dict[str, float] = {
 }
 
 RUN_PATTERN = re.compile(
-    r"^(?P<dataset>[^_]+)_alpha(?P<alpha>[^_]+)_(?P<model>.+)"
+    r"^(?P<dataset>.+)_alpha(?P<alpha>[^_]+)_(?P<model>.+)"
     r"_(?P<method>drift\w+)_seed(?P<seed>\d+)$"
 )
 
@@ -475,7 +475,7 @@ def write_comparison_table(
 
     rows.append(sep)
     fname = out_dir / f"table1_comparison_{dataset}_{method}.txt"
-    fname.write_text("\n".join(rows))
+    fname.write_text("\n".join(rows), encoding="utf-8")
     print(f"  [OK] {fname.name}")
 
 

@@ -510,16 +510,18 @@ class FedAvgServer:
             self.current_epoch = E
             self.verbose = (self.current_epoch + 1) % self.args.common.verbose_gap == 0
 
-            if self.verbose:
-                self.logger.log("-" * 28, f"TRAINING EPOCH: {E + 1}", "-" * 28)
-
+            self.logger.log("-" * 28, f"ROUND {E + 1}/{self.args.common.global_epoch} START", "-" * 28)
             self.selected_clients = self.client_sample_stream[E]
+            self.logger.log(f"Selected clients: {self.selected_clients}")
+
             begin = time.time()
             self.train_one_round()
             end = time.time()
-            avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
+            round_duration = end - begin
+            avg_round_time = (avg_round_time * self.current_epoch + round_duration) / (
                 self.current_epoch + 1
             )
+            self.logger.log(f"ROUND {E + 1} FINISHED in {round_duration:.2f}s (Avg: {avg_round_time:.2f}s)")
 
             if (
                 self.args.common.test.server.interval > 0
@@ -723,6 +725,8 @@ class FedAvgServer:
 
             About the content of client parameter package, check `FedAvgClient.package()`.
         """
+        self.logger.log("  Starting weight aggregation...")
+        start_agg = time.time()
         client_weights = [package["weight"] for package in client_packages.values()]
         weights = torch.tensor(client_weights) / sum(client_weights)
         if self.return_diff:  # inputs are model params diff
@@ -749,6 +753,7 @@ class FedAvgServer:
 
                 global_param.data = aggregated
         self.model.load_state_dict(self.public_model_params, strict=False)
+        self.logger.log(f"  Aggregation completed in {time.time() - start_agg:.2f}s")
 
     def display_metrics(self):
         """Display aggregated client and server evaluation metrics at each

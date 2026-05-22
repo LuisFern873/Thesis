@@ -28,7 +28,7 @@ import pandas as pd
 FLBENCH_ROOT = Path(__file__).parent.parent
 
 RUN_PATTERN = re.compile(
-    r"^(?P<dataset>[^_]+)_alpha(?P<alpha>[^_]+)_(?P<model>.+)"
+    r"^(?P<dataset>.+)_alpha(?P<alpha>[^_]+)_(?P<model>.+)"
     r"_(?P<method>drift\w+)_seed(?P<seed>\d+)$"
 )
 
