@@ -60,20 +60,26 @@ ALPHAS   = ["1000.0", "1.0", "0.3", "0.03"]
 SEEDS    = [42, 123, 456]
 
 MODEL_LABELS: Dict[str, str] = {
-    "efficient0":    "EfficientNet-BN",
-    "efficient0_gn": "EfficientNet-GN",
-    "efficient0_ln": "EfficientNet-LN",
+    "efficient0":    "EfficientNet-B0 (BN)",
+    "efficient0_gn": "EfficientNet-B0 (GN)",
+    "efficient0_ln": "EfficientNet-B0 (LN)",
+    "efficient1":    "EfficientNet-B1 (BN)",
+    "efficient1_gn": "EfficientNet-B1 (GN)",
+    "efficient1_ln": "EfficientNet-B1 (LN)",
     "vit_tiny":      "ViT-Tiny",
     "vim_tiny":      "Vim-Tiny",
 }
 
 # Consistent colour palette across all figures
 MODEL_COLORS: Dict[str, str] = {
-    "efficient0":    "#e41a1c",
-    "efficient0_gn": "#ff7f00",
-    "efficient0_ln": "#f0c040",
-    "vit_tiny":      "#377eb8",
-    "vim_tiny":      "#4daf4a",
+    "efficient0":    "#e41a1c",   # red
+    "efficient0_gn": "#ff7f00",   # orange
+    "efficient0_ln": "#f0c040",   # yellow
+    "efficient1":    "#984ea3",   # purple
+    "efficient1_gn": "#a65628",   # brown
+    "efficient1_ln": "#f781bf",   # pink
+    "vit_tiny":      "#377eb8",   # blue
+    "vim_tiny":      "#4daf4a",   # green
 }
 
 ALPHA_LABELS: Dict[str, str] = {
@@ -330,41 +336,58 @@ def plot_normalization_ablation(
     method: str,
     out_dir: Path,
 ) -> None:
-    ablation_models = ["efficient0", "efficient0_gn", "efficient0_ln"]
+    """Bar chart comparing BN / GN / LN for both B0 and B1 at each alpha level.
+
+    Two rows of bar charts:
+      Row 1 (B0): EfficientNet-B0 BN vs GN vs LN — accuracy and norm-layer drift
+      Row 2 (B1): EfficientNet-B1 BN vs GN vs LN — accuracy and norm-layer drift
+
+    Within each row: normalization effect (BN vs GN vs LN, same capacity).
+    Between rows:    capacity effect (B0 vs B1, same normalization type).
+    """
+    backbone_groups = [
+        ("B0", ["efficient0",    "efficient0_gn", "efficient0_ln"]),
+        ("B1", ["efficient1",    "efficient1_gn", "efficient1_ln"]),
+    ]
     x     = np.arange(len(ALPHAS))
     width = 0.25
 
-    fig, (ax_acc, ax_drift) = plt.subplots(1, 2, figsize=(12, 5))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
 
-    for i, model in enumerate(ablation_models):
-        accs, drifts = [], []
-        for alpha in ALPHAS:
-            r_acc   = get_series(runs, dataset, alpha, model, method, "global_acc")
-            r_drift = get_series(runs, dataset, alpha, model, method, "drift_norm_mean")
-            # Use the mean value at the final round
-            accs.append(  float(r_acc[1][-1])   if r_acc   is not None else 0.0)
-            drifts.append(float(r_drift[1][-1]) if r_drift is not None else 0.0)
+    for row, (backbone, ablation_models) in enumerate(backbone_groups):
+        ax_acc   = axes[row][0]
+        ax_drift = axes[row][1]
 
-        offset = (i - 1) * width
-        color  = MODEL_COLORS[model]
-        label  = MODEL_LABELS[model]
-        ax_acc.bar(x + offset,   accs,   width, label=label, color=color, alpha=0.85)
-        ax_drift.bar(x + offset, drifts, width, label=label, color=color, alpha=0.85)
+        for i, model in enumerate(ablation_models):
+            accs, drifts = [], []
+            for alpha in ALPHAS:
+                r_acc   = get_series(runs, dataset, alpha, model, method, "global_acc")
+                r_drift = get_series(runs, dataset, alpha, model, method, "drift_norm_mean")
+                accs.append(  float(r_acc[1][-1])   if r_acc   is not None else 0.0)
+                drifts.append(float(r_drift[1][-1]) if r_drift is not None else 0.0)
 
-    for ax, ylabel, title in [
-        (ax_acc,   "Accuracy@Final (%)",  "Accuracy — Normalization Ablation"),
-        (ax_drift, "Drift-Norm@Final",    "Norm-Layer Drift — Normalization Ablation"),
-    ]:
-        ax.set_xticks(x)
-        ax.set_xticklabels(
-            [ALPHA_LABELS.get(a, a) for a in ALPHAS], rotation=15, ha="right"
-        )
-        ax.set_ylabel(ylabel)
-        ax.set_title(title)
-        ax.legend(frameon=False)
-        ax.grid(True, axis="y", linestyle="--", alpha=0.4)
+            offset = (i - 1) * width
+            color  = MODEL_COLORS[model]
+            label  = MODEL_LABELS[model]
+            ax_acc.bar(x + offset,   accs,   width, label=label, color=color, alpha=0.85)
+            ax_drift.bar(x + offset, drifts, width, label=label, color=color, alpha=0.85)
 
-    fig.suptitle(f"Normalization Ablation — {dataset}", fontsize=12)
+        for ax, ylabel, title in [
+            (ax_acc,   "Accuracy@Final (%)",
+             f"EfficientNet-{backbone}: Accuracy — Norm Ablation"),
+            (ax_drift, "Drift-Norm@Final",
+             f"EfficientNet-{backbone}: Norm-Layer Drift — Norm Ablation"),
+        ]:
+            ax.set_xticks(x)
+            ax.set_xticklabels(
+                [ALPHA_LABELS.get(a, a) for a in ALPHAS], rotation=15, ha="right"
+            )
+            ax.set_ylabel(ylabel)
+            ax.set_title(title)
+            ax.legend(frameon=False)
+            ax.grid(True, axis="y", linestyle="--", alpha=0.4)
+
+    fig.suptitle(f"Normalization Ablation: B0 vs B1 — {dataset}", fontsize=12)
     fig.tight_layout()
 
     fname = out_dir / f"fig4_normalization_ablation_{dataset}_{method}.png"
@@ -480,6 +503,88 @@ def write_comparison_table(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Figure 6 — EfficientNet-B0 vs B1 side-by-side comparison
+# ─────────────────────────────────────────────────────────────────────────────
+
+def plot_b0_vs_b1(
+    runs: Dict[Tuple, pd.DataFrame],
+    dataset: str,
+    method: str,
+    out_dir: Path,
+) -> None:
+    """Side-by-side comparison of EfficientNet-B0 (BN) and EfficientNet-B1 (BN).
+
+    Four panels per figure:
+      Row 1: Accuracy vs. round at α=0.03 (extreme) and α=1000 (IID)
+      Row 2: Norm-layer drift vs. round at the same two α levels
+
+    This directly answers: does scaling from B0 → B1 (+2.5M params) change
+    the drift profile or convergence behaviour under non-IID FL?
+    """
+    compare_alphas = ["1000.0", "0.03"]   # IID baseline + extreme non-IID
+    b0, b1 = "efficient0", "efficient1"
+    colors  = {b0: MODEL_COLORS[b0], b1: MODEL_COLORS[b1]}
+    labels  = {b0: MODEL_LABELS[b0],  b1: MODEL_LABELS[b1]}
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharey="row")
+
+    for col, alpha in enumerate(compare_alphas):
+        alpha_label = ALPHA_LABELS.get(alpha, f"α={alpha}")
+
+        # ── Row 0: Accuracy ──────────────────────────────────────────────
+        ax_acc = axes[0][col]
+        for model in [b0, b1]:
+            result = get_series(runs, dataset, alpha, model, method, "global_acc")
+            if result is None:
+                continue
+            rounds, mean, std = result
+            ax_acc.plot(rounds, mean, label=labels[model],
+                        color=colors[model], linewidth=2.0)
+            ax_acc.fill_between(rounds, mean - std, mean + std,
+                                alpha=0.15, color=colors[model])
+        ax_acc.set_title(f"Accuracy — {alpha_label}")
+        ax_acc.set_xlabel("Communication Round")
+        ax_acc.set_ylim(0, 100)
+        ax_acc.grid(True, linestyle="--", alpha=0.4)
+        ax_acc.legend(frameon=False)
+
+        # ── Row 1: Norm-layer drift ───────────────────────────────────────
+        ax_drift = axes[1][col]
+        for model in [b0, b1]:
+            result = get_series(runs, dataset, alpha, model, method, "drift_norm_mean")
+            if result is None:
+                continue
+            rounds, mean, std = result
+            ax_drift.plot(rounds, mean, label=labels[model],
+                          color=colors[model], linewidth=2.0)
+            ax_drift.fill_between(rounds, mean - std, mean + std,
+                                  alpha=0.15, color=colors[model])
+        ax_drift.set_title(f"Norm-Layer Drift — {alpha_label}")
+        ax_drift.set_xlabel("Communication Round")
+        ax_drift.set_ylabel("L2 Drift")
+        ax_drift.grid(True, linestyle="--", alpha=0.4)
+        ax_drift.legend(frameon=False)
+
+    axes[0][0].set_ylabel("Global Test Accuracy (%)")
+    axes[1][0].set_ylabel("L2 Drift (norm layers)")
+
+    # Parameter count annotation
+    b0_params = 4.01   # base params in M (brain_tumor head)
+    b1_params = 6.51
+    fig.suptitle(
+        f"EfficientNet-B0 ({b0_params:.2f}M params) vs. "
+        f"B1 ({b1_params:.2f}M params) — {dataset} ({method})",
+        fontsize=12,
+    )
+    fig.tight_layout()
+
+    fname = out_dir / f"fig6_b0_vs_b1_{dataset}_{method}.png"
+    fig.savefig(fname, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  [OK] {fname.name}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -524,6 +629,7 @@ def main() -> None:
 
             plot_normalization_ablation(runs, dataset, method, out_dir)
             plot_fairness_vs_alpha(runs, dataset, method, out_dir)
+            plot_b0_vs_b1(runs, dataset, method, out_dir)
             write_comparison_table(runs, dataset, method, out_dir)
 
     print(f"\nAll outputs saved to {out_dir}/")

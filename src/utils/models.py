@@ -557,6 +557,43 @@ class EfficientNetB0_LN(DecoupledModel):
         self.classifier = nn.Linear(model.classifier[1].in_features, NUM_CLASSES[dataset])
         self.base.classifier[1] = nn.Identity()
 
+
+class EfficientNetB1_GN(DecoupledModel):
+    """EfficientNet-B1 with all BatchNorm2d layers replaced by GroupNorm(32).
+
+    Mirrors EfficientNetB0_GN but uses the B1 backbone (~6.5M params vs ~4.0M).
+    Enables a capacity-controlled normalization ablation: comparing B1-GN against
+    B0-GN isolates the effect of model size while keeping normalization type fixed.
+    """
+
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+        weights = models.EfficientNet_B1_Weights.DEFAULT if pretrained else None
+        model = models.efficientnet_b1(weights=weights)
+        model = replace_batchnorm(model, norm_type="group", num_groups=32)
+
+        self.base = model
+        self.classifier = nn.Linear(model.classifier[1].in_features, NUM_CLASSES[dataset])
+        self.base.classifier[1] = nn.Identity()
+
+
+class EfficientNetB1_LN(DecoupledModel):
+    """EfficientNet-B1 with all BatchNorm2d layers replaced by GroupNorm(1) ≡ LayerNorm.
+
+    Mirrors EfficientNetB0_LN but uses the B1 backbone (~6.5M params vs ~4.0M).
+    GroupNorm with num_groups=1 is equivalent to LayerNorm over 2-D feature maps.
+    """
+
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+        weights = models.EfficientNet_B1_Weights.DEFAULT if pretrained else None
+        model = models.efficientnet_b1(weights=weights)
+        model = replace_batchnorm(model, norm_type="layer")
+
+        self.base = model
+        self.classifier = nn.Linear(model.classifier[1].in_features, NUM_CLASSES[dataset])
+        self.base.classifier[1] = nn.Identity()
+
 class VimTiny(DecoupledModel):
     def __init__(self, dataset: str, pretrained: bool):
         super().__init__()
@@ -640,4 +677,6 @@ MODELS = {
     "vim_tiny": VimTiny,
     "efficient0_gn": EfficientNetB0_GN,
     "efficient0_ln": EfficientNetB0_LN,
+    "efficient1_gn": EfficientNetB1_GN,
+    "efficient1_ln": EfficientNetB1_LN,
 }
