@@ -1,0 +1,127 @@
+==================== DriftFedProx ====================                                                                                                      
+Experiment Arguments:                                                                                                                                       
+{
+│   'method': 'driftfedprox',
+│   'dataset': {
+│   │   'name': 'brain_tumor',
+│   │   'partition_dir': 'partitions/alpha_1.0/seed_42',
+│   │   'client_num': 10,
+│   │   'test_ratio': 0.25,
+│   │   'val_ratio': 0.0,
+│   │   'seed': 42,
+│   │   'split': 'sample',
+│   │   'IID_ratio': 0.0,
+│   │   'monitor_window_name_suffix': 'brain_tumor-10clients-0%IID-Dir(1.0)-seed42',
+│   │   'alpha': 1.0,
+│   │   'min_samples_per_client': 10
+│   },
+│   'model': {
+│   │   'name': 'vim_tiny',
+│   │   'use_torchvision_pretrained_weights': False,
+│   │   'external_model_weights_path': None
+│   },
+│   'optimizer': {
+│   │   'lr': 0.01,
+│   │   'dampening': 0,
+│   │   'weight_decay': 0.0001,
+│   │   'momentum': 0.9,
+│   │   'nesterov': False,
+│   │   'name': 'sgd'
+│   },
+│   'mode': 'serial',
+│   'parallel': {
+│   │   'ray_cluster_addr': None,
+│   │   'num_cpus': None,
+│   │   'num_gpus': None,
+│   │   'num_workers': 2
+│   },
+│   'common': {
+│   │   'seed': 42,
+│   │   'join_ratio': 1.0,
+│   │   'global_epoch': 40,
+│   │   'local_epoch': 5,
+│   │   'batch_size': 32,
+│   │   'reset_optimizer_on_global_epoch': True,
+│   │   'straggler_ratio': 0,
+│   │   'straggler_min_local_epoch': 0,
+│   │   'buffers': 'global',
+│   │   'client_side_evaluation': True,
+│   │   'test': {
+│   │   │   'client': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'finetune_epoch': 0,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True
+│   │   │   },
+│   │   │   'server': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True,
+│   │   │   │   'model_in_train_mode': False
+│   │   │   }
+│   │   },
+│   │   'verbose_gap': 10,
+│   │   'monitor': 'tensorboard',
+│   │   'use_cuda': True,
+│   │   'save_log': True,
+│   │   'save_model': False,
+│   │   'save_learning_curve_plot': True,
+│   │   'save_metrics': True,
+│   │   'delete_useless_run': True,
+│   │   'dataloader_num_workers': 2
+│   },
+│   'driftfedprox': {
+│   │   'mu': 0.01
+│   },
+│   'driftfedavg': {}
+}
+---------------------------- ROUND 1/40 START ----------------------------                                                                                  
+Selected clients: [1, 0, 4, 9, 6, 5, 8, 2, 3, 7]                                                                                                            
+  [Client 1] Starting local training...                                                                                                                     
+Traceback (most recent call last):                                                                                                                          
+  File "/home/luis.mendezl/Thesis/src/server/fedavg.py", line 1073, in run_experiment                                                                       
+    self.train()                                                                                                                                            
+  File "/home/luis.mendezl/Thesis/src/server/fedavg.py", line 518, in train                                                                                 
+    self.train_one_round()                                                                                                                                  
+  File "/home/luis.mendezl/Thesis/src/server/driftfedavg.py", line 141, in train_one_round                                                                  
+    client_packages = self.trainer.train()                                                                                                                  
+                      ^^^^^^^^^^^^^^^^^^^^                                                                                                                  
+  File "/home/luis.mendezl/Thesis/src/utils/trainer.py", line 47, in _serial_train                                                                          
+    client_package = self.worker.train(server_package) # it gives eval_results                                                                              
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                                                                      
+  File "/home/luis.mendezl/Thesis/src/client/fedavg.py", line 171, in train                                                                                 
+    self.train_with_eval()                                                                                                                                  
+  File "/home/luis.mendezl/Thesis/src/client/fedavg.py", line 117, in train_with_eval                                                                       
+    self.fit()                                                                                                                                              
+  File "/home/luis.mendezl/Thesis/src/client/fedprox.py", line 24, in fit                                                                                   
+    w.grad.data += self.args.fedprox.mu * (w.data - w_t.data)                                                                                               
+                   ^^^^^^^^^^^^^^^^^                                                                                                                        
+  File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/omegaconf/dictconfig.py", line 355, in __getattr__                                 
+    self._format_and_raise(                                                                                                                                 
+  File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/omegaconf/base.py", line 231, in _format_and_raise                                 
+    format_and_raise(                                                                                                                                       
+  File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/omegaconf/_utils.py", line 899, in format_and_raise                                
+    _raise(ex, cause)                                                                                                                                       
+  File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/omegaconf/_utils.py", line 797, in _raise                                          
+    raise ex.with_traceback(sys.exc_info()[2])  # set env var OC_CAUSE=1 for full trace                                                                     
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                                                                              
+  File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/omegaconf/dictconfig.py", line 351, in __getattr__                                 
+    return self._get_impl(                                                                                                                                  
+           ^^^^^^^^^^^^^^^                                                                                                                                  
+  File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/omegaconf/dictconfig.py", line 442, in _get_impl                                   
+    node = self._get_child(                                                                                                                                 
+           ^^^^^^^^^^^^^^^^                                                                                                                                 
+  File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/omegaconf/basecontainer.py", line 73, in _get_child                                
+    child = self._get_node(                                                                                                                                 
+            ^^^^^^^^^^^^^^^                                                                                                                                 
+  File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/omegaconf/dictconfig.py", line 480, in _get_node                                   
+    raise ConfigKeyError(f"Missing key {key!s}")                                                                                                            
+omegaconf.errors.ConfigAttributeError: Missing key fedprox                                                                                                  
+    full_key: fedprox                                                                                                                                       
+    object_type=dict                                                                                                                                        
+                                                                                                                                                            
+Exception occurred: Missing key fedprox                                                                                                                     
+    full_key: fedprox                                                                                                                                       
+    object_type=dict                                                                                                                                        
