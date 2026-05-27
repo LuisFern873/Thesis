@@ -6,6 +6,8 @@ __pycache__
 config/*
 !config/defaults.yaml
 !config/driftfedavg.yaml
+!config/driftfedprox.yaml
+!config/driftscaffold.yaml
 
 # IDE configurations
 .idea
