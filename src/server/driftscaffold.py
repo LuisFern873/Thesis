@@ -41,7 +41,7 @@ from typing import Any, Dict, List
 
 import torch
 
-from src.client.scaffold import SCAFFOLDClient
+from src.client.driftscaffold import DriftSCAFFOLDClient
 from src.server.driftfedavg import DriftFedAvgServer
 from src.utils.drift_metrics import (
     aggregate_drift,
@@ -52,7 +52,7 @@ from src.utils.drift_metrics import (
 
 class DriftSCAFFOLDServer(DriftFedAvgServer):
     algorithm_name = "DriftSCAFFOLD"
-    client_cls = SCAFFOLDClient
+    client_cls = DriftSCAFFOLDClient
     return_diff = True  # clients return y_delta, not full params
 
     @staticmethod
