@@ -80,7 +80,7 @@ Experiment Arguments:
 ---------------------------- ROUND 1/40 START ----------------------------                                                                                  
 Selected clients: [1, 0, 4, 9, 6, 5, 8, 2, 3, 7]                                                                                                            
   [Client 1] Starting local training...                                                                                                                     
-  [Client 1] Finished training in 5.06s                                                                                                                     
+  [Client 1] Finished training in 5.14s                                                                                                                     
   [Client 0] Starting local training...                                                                                                                     
 Traceback (most recent call last):                                                                                                                          
   File "/home/luis.mendezl/Thesis/src/client/driftscaffold.py", line 128, in get_data_batch                                                                 
