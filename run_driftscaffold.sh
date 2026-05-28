@@ -31,13 +31,13 @@ run_experiment() {
 # ── vim_tiny ──────────────────────────────────────────
 
 # ── Alpha 1000.0 ──────────────────────────────────────────
-run_experiment "brain_tumor | alpha=1000.0 | vim_tiny" \
-  python main.py --config-name driftscaffold method=driftscaffold \
-    dataset.name=brain_tumor \
-    dataset.partition_dir=partitions/alpha_1000.0/seed_42 \
-    model.name=vim_tiny \
-    common.seed=42 common.global_epoch=40 \
-    "hydra.run.dir=logs/runs/brain_tumor_alpha1000.0_vim_tiny_driftscaffold_seed42"
+# run_experiment "brain_tumor | alpha=1000.0 | vim_tiny" \
+#   python main.py --config-name driftscaffold method=driftscaffold \
+#     dataset.name=brain_tumor \
+#     dataset.partition_dir=partitions/alpha_1000.0/seed_42 \
+#     model.name=vim_tiny \
+#     common.seed=42 common.global_epoch=40 \
+#     "hydra.run.dir=logs/runs/brain_tumor_alpha1000.0_vim_tiny_driftscaffold_seed42"
 
 # ── Alpha 1.0 ─────────────────────────────────────────────
 run_experiment "brain_tumor | alpha=1.0 | vim_tiny" \
@@ -143,6 +143,7 @@ run_experiment "brain_tumor | alpha=0.03 | efficient1" \
     model.name=efficient1 \
     common.seed=42 common.global_epoch=40 \
     "hydra.run.dir=logs/runs/brain_tumor_alpha0.03_efficient1_driftscaffold_seed42"
+  
 
 echo ""
 echo "========================================"

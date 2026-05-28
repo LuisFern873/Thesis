@@ -80,10 +80,10 @@ Experiment Arguments:
 ---------------------------- ROUND 1/40 START ----------------------------                                                                                  
 Selected clients: [1, 0, 4, 9, 6, 5, 8, 2, 3, 7]                                                                                                            
   [Client 1] Starting local training...                                                                                                                     
-  [Client 1] Finished training in 7.09s                                                                                                                     
+  [Client 1] Finished training in 5.06s                                                                                                                     
   [Client 0] Starting local training...                                                                                                                     
 Traceback (most recent call last):                                                                                                                          
-  File "/home/luis.mendezl/Thesis/src/client/scaffold.py", line 76, in get_data_batch                                                                       
+  File "/home/luis.mendezl/Thesis/src/client/driftscaffold.py", line 128, in get_data_batch                                                                 
     x, y = next(self.iter_trainloader)                                                                                                                      
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                                                                                      
   File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 718, in __next__                             
@@ -106,15 +106,15 @@ Traceback (most recent call last):
   File "/home/luis.mendezl/Thesis/src/utils/trainer.py", line 47, in _serial_train                                                                          
     client_package = self.worker.train(server_package) # it gives eval_results                                                                              
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                                                                      
-  File "/home/luis.mendezl/Thesis/src/client/scaffold.py", line 26, in train                                                                                
+  File "/home/luis.mendezl/Thesis/src/client/driftscaffold.py", line 68, in train                                                                           
     self.train_with_eval()                                                                                                                                  
   File "/home/luis.mendezl/Thesis/src/client/fedavg.py", line 117, in train_with_eval                                                                       
     self.fit()                                                                                                                                              
-  File "/home/luis.mendezl/Thesis/src/client/scaffold.py", line 59, in fit                                                                                  
+  File "/home/luis.mendezl/Thesis/src/client/driftscaffold.py", line 99, in fit                                                                             
     x, y = self.get_data_batch()                                                                                                                            
            ^^^^^^^^^^^^^^^^^^^^^                                                                                                                            
-  File "/home/luis.mendezl/Thesis/src/client/scaffold.py", line 81, in get_data_batch                                                                       
-    x, y = next(self.iter_trainloader)                                                                                                                      
+  File "/home/luis.mendezl/Thesis/src/client/driftscaffold.py", line 133, in get_data_batch                                                                 
+    x, y = next(self.iter_trainloader)   # propagates if truly empty                                                                                        
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                                                                                      
   File "/home/luis.mendezl/.conda/envs/venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 718, in __next__                             
     data = self._next_data()                                                                                                                                
