@@ -18,7 +18,7 @@ mode: serial
 common:
   seed: 42
   join_ratio: 1.0
-  global_epoch: 40
+  global_epoch: 50
   local_epoch: 5
   batch_size: 32
   dataloader_num_workers: 2

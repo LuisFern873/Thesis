@@ -118,11 +118,11 @@ hydra:
     - dataset.partition_dir=partitions/alpha_1.0/seed_42
     - model.name=vim_tiny
     - common.seed=42
-    - common.global_epoch=40
+    - common.global_epoch=50
   job:
     name: main
     chdir: null
-    override_dirname: common.global_epoch=40,common.seed=42,dataset.name=brain_tumor,dataset.partition_dir=partitions/alpha_1.0/seed_42,method=driftfedprox,model.name=vim_tiny
+    override_dirname: common.global_epoch=50,common.seed=42,dataset.name=brain_tumor,dataset.partition_dir=partitions/alpha_1.0/seed_42,method=driftfedprox,model.name=vim_tiny
     id: ???
     num: ???
     config_name: driftfedprox
