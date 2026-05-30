@@ -307,32 +307,41 @@ def compute_cka_diagonal(
         ``None`` if an exception occurred during computation.
     """
     try:
-        # Wrap both models in SimilarityModel (Requirement 3.3)
-        sim_global = SimilarityModel(global_model, layers_to_include=layer_spec)
-        sim_client = SimilarityModel(client_model, layers_to_include=layer_spec)
+        with torch.no_grad():
+            try:
+                device = next(client_model.parameters()).device
+                if device.type == "cpu" and torch.cuda.is_available():
+                    device = torch.device("cuda:0")
+            except StopIteration:
+                device = "cpu" if not torch.cuda.is_available() else torch.device("cuda:0")
 
-        # Instantiate CKA and select the data iterator (Requirements 3.4, 4.4, 4.5)
-        cka = CKA(sim_global, sim_client)
-        if probe_batches >= 1:
-            data_iter = islice(probe_loader, probe_batches)
-        else:
-            # probe_batches == -1 or 0 → consume the full loader
-            data_iter = probe_loader  # type: ignore[assignment]
+            # Wrap both models in SimilarityModel (Requirement 3.3)
+            sim_global = SimilarityModel(global_model, layers_to_include=layer_spec, device=device)
+            sim_client = SimilarityModel(client_model, layers_to_include=layer_spec, device=device)
 
-        matrix = cka.compute(data_iter)
+            # Instantiate CKA and select the data iterator (Requirements 3.4, 4.4, 4.5)
+            cka = CKA(sim_global, sim_client, device=device)
+            if probe_batches >= 1:
+                # Convert to list so simtorch can call len() on it
+                data_iter = list(islice(probe_loader, probe_batches))
+            else:
+                # probe_batches == -1 or 0 → consume the full loader
+                data_iter = list(probe_loader)  # type: ignore[assignment]
 
-        # Extract the diagonal (Requirement 3.5)
-        diagonal: np.ndarray = np.diag(matrix)
+            matrix = cka.compute(data_iter)
 
-        # Optionally save the heatmap PNG (Requirement 7.4)
-        if heatmap_save_path is not None:
-            cka.plot_similarity(
-                savefig=True,
-                save_path=heatmap_save_path,
-                title=heatmap_title,
-            )
+            # Extract the diagonal (Requirement 3.5)
+            diagonal: np.ndarray = np.diag(matrix)
 
-        return diagonal
+            # Optionally save the heatmap PNG (Requirement 7.4)
+            if heatmap_save_path is not None:
+                cka.plot_similarity(
+                    savefig=True,
+                    save_path=heatmap_save_path,
+                    title=heatmap_title,
+                )
+
+            return diagonal
 
     except (KeyboardInterrupt, SystemExit):
         # Re-raise signals that should terminate the process
@@ -343,5 +352,6 @@ def compute_cka_diagonal(
             "CKA computation failed: %s: %s",
             type(exc).__name__,
             exc,
+            exc_info=True
         )
         return None
