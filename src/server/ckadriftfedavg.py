@@ -370,14 +370,6 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
             # 4b. Resolve layer_spec (Requirement 3.3)
             layer_spec = get_layer_spec(self.args.model.name, Global_Model_Copy)
 
-            # Derive ordered layer names by replicating SimilarityModel.hook_model()
-            # logic: iterate named_modules and keep paths that contain any spec substring.
-            layer_names = [
-                path
-                for path, _ in Global_Model_Copy.named_modules()
-                if path and any(sub in path for sub in layer_spec)
-            ]
-
             # 4c. Heatmap save path (Requirement 7.4)
             heatmap_path = (
                 self.cka_heatmaps_dir
@@ -388,7 +380,7 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
             )
 
             # 4d. Compute CKA diagonal (Requirements 3.3–3.5, 3.7, 10.2)
-            diagonal = compute_cka_diagonal(
+            diagonal, layer_names = compute_cka_diagonal(
                 global_model=Global_Model_Copy,
                 client_model=Client_Model_Copy,
                 layer_spec=layer_spec,

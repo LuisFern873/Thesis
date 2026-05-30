@@ -15,8 +15,9 @@ import re
 import sys
 from itertools import islice
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Tuple, List
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -86,7 +87,8 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
         "base.layers.6",  "base.layers.7",  "base.layers.8",
         "base.layers.9",  "base.layers.10", "base.layers.11",
         "base.norm_f",
-    ],  # 14 layers
+        "classifier",
+    ],  # 15 layers
 }
 
 
@@ -265,7 +267,7 @@ def compute_cka_diagonal(
     probe_batches: int,
     heatmap_save_path: Optional[Path] = None,
     heatmap_title: str = "",
-) -> Optional[np.ndarray]:
+) -> Tuple[Optional[np.ndarray], Optional[List[str]]]:
     """Compute the CKA diagonal between *global_model* and *client_model*.
 
     Both models are wrapped in :class:`SimilarityModel` using *layer_spec*
@@ -303,8 +305,9 @@ def compute_cka_diagonal(
         heatmap_title:     Title string forwarded to ``plot_similarity()``.
 
     Returns:
-        A 1-D :class:`numpy.ndarray` of length N (the CKA diagonal), or
-        ``None`` if an exception occurred during computation.
+        A tuple containing:
+        - A 1-D :class:`numpy.ndarray` of length N (the CKA diagonal), or ``None`` if failed.
+        - A list of layer names in the exact execution order, or ``None`` if failed.
     """
     try:
         with torch.no_grad():
@@ -332,6 +335,7 @@ def compute_cka_diagonal(
 
             # Extract the diagonal (Requirement 3.5)
             diagonal: np.ndarray = np.diag(matrix)
+            layer_names = list(sim_client.model_activations.keys())
 
             # Optionally save the heatmap PNG (Requirement 7.4)
             if heatmap_save_path is not None:
@@ -340,8 +344,9 @@ def compute_cka_diagonal(
                     save_path=heatmap_save_path,
                     title=heatmap_title,
                 )
+                plt.close("all")
 
-            return diagonal
+            return diagonal, layer_names
 
     except (KeyboardInterrupt, SystemExit):
         # Re-raise signals that should terminate the process
@@ -354,4 +359,4 @@ def compute_cka_diagonal(
             exc,
             exc_info=True
         )
-        return None
+        return None, None
