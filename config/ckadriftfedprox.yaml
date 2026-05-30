@@ -1,0 +1,80 @@
+# config/ckadriftfedprox.yaml
+# CKA representation-drift experiment — FedProx (μ=0.01)
+# Extends driftfedprox.yaml with CKA layer-similarity instrumentation.
+
+method: ckadriftfedprox
+
+# ---------------------------------------------------------------------------
+# Experimental matrix
+# ---------------------------------------------------------------------------
+# datasets  : cifar10, brain_tumor
+# models    : efficient0, efficient0_gn, efficient0_ln, vit_tiny, vim_tiny
+# alpha     : 0.03, 0.1, 0.3, 1.0
+# ---------------------------------------------------------------------------
+
+dataset:
+  name: cifar10
+  partition_dir: partitions/alpha_1.0/seed_42
+
+model:
+  name: efficient0
+  use_torchvision_pretrained_weights: false
+
+optimizer:
+  name: sgd
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 1.0e-4
+  nesterov: false
+
+lr_scheduler:
+  name: null
+  eta_min: 1.0e-5
+
+mode: serial
+
+common:
+  # seeds 42, 123, and 456 are used for the three replicate runs of the thesis study
+  seed: 42
+  join_ratio: 1.0
+  global_epoch: 40
+  local_epoch: 5
+  batch_size: 32
+  dataloader_num_workers: 2
+  reset_optimizer_on_global_epoch: true
+  buffers: global
+  straggler_ratio: 0
+  client_side_evaluation: true
+
+  test:
+    client:
+      interval: 1
+      finetune_epoch: 0
+      train: false
+      val: false
+      test: true
+    server:
+      interval: 1
+      train: false
+      val: false
+      test: true
+      model_in_train_mode: false
+
+  verbose_gap: 10
+  monitor: tensorboard
+  use_cuda: true
+  save_log: true
+  save_model: false
+  save_learning_curve_plot: true
+  save_metrics: true
+  delete_useless_run: true
+
+# proximal coefficient — penalises client model deviation from the global model
+fedprox:
+  mu: 0.01  # proximal term weight (μ); controls the strength of the FedProx regularisation
+
+# CKA measurement scheduling
+cka:
+  interval: 5       # measure every N communication rounds (≥ 1)
+  client_sample: 5  # max clients to measure per CKA round (≥ 1)
+  probe_batches: 20 # max probe-loader batches consumed per CKA computation (≥ 1)
