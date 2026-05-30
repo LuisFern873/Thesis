@@ -148,3 +148,10 @@ fedprox:
   mu: 0.01
 pfedsim:
   warmup_round: 0.5
+
+# CKA measurement configuration (used by ckadriftfedavg / ckadriftfedprox).
+# Override via --config-name ckadriftfedavg or CLI: cka.interval=5
+cka:
+  interval: 5
+  client_sample: 5
+  probe_batches: 20

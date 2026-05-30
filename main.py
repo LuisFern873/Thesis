@@ -47,6 +47,7 @@ def main(config: DictConfig):
         "parallel",
         "optimizer",
         "lr_scheduler",
+        "cka",
         config.method,
     ]
 
