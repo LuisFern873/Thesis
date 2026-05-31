@@ -105,9 +105,14 @@ class DriftFedAvgServer(FedAvgServer):
         "global_precision",
         "global_recall",
         "convergence_flag",
-        "drift_norm_mean",   "drift_norm_std",
-        "drift_feature_mean","drift_feature_std",
-        "drift_head_mean",   "drift_head_std",
+        # Raw L2 drift (scale-dependent; use for absolute magnitude comparisons)
+        "drift_norm_mean",    "drift_norm_std",
+        "drift_feature_mean", "drift_feature_std",
+        "drift_head_mean",    "drift_head_std",
+        # Normalised (RMS) drift = raw / sqrt(N); use for cross-group / cross-arch comparisons
+        "drift_norm_norm_mean",    "drift_norm_norm_std",
+        "drift_feature_norm_mean", "drift_feature_norm_std",
+        "drift_head_norm_mean",    "drift_head_norm_std",
         "interference_norm", "interference_feature", "interference_head",
         "fairness_gap",
         "client_acc_min",
@@ -246,9 +251,14 @@ class DriftFedAvgServer(FedAvgServer):
             round(global_prec, 4),
             round(global_rec,  4),
             convergence_flag,
+            # Raw L2 drift
             round(ds["norm"]["mean"],    6), round(ds["norm"]["std"],    6),
             round(ds["feature"]["mean"], 6), round(ds["feature"]["std"], 6),
             round(ds["head"]["mean"],    6), round(ds["head"]["std"],    6),
+            # Normalised (RMS) drift
+            round(ds["norm"]["norm_mean"],    6), round(ds["norm"]["norm_std"],    6),
+            round(ds["feature"]["norm_mean"], 6), round(ds["feature"]["norm_std"], 6),
+            round(ds["head"]["norm_mean"],    6), round(ds["head"]["norm_std"],    6),
             round(ig["norm"],    6),
             round(ig["feature"], 6),
             round(ig["head"],    6),
@@ -272,6 +282,8 @@ class DriftFedAvgServer(FedAvgServer):
             tb.add_scalar("fairness/acc_std",      client_acc_std,round_idx)
             tb.add_scalar("fairness/acc_min",      client_acc_min,round_idx)
             for group in ["norm", "feature", "head"]:
-                tb.add_scalar(f"drift/{group}_mean", ds[group]["mean"], round_idx)
-                tb.add_scalar(f"drift/{group}_std",  ds[group]["std"],  round_idx)
-                tb.add_scalar(f"interference/{group}", ig[group],       round_idx)
+                tb.add_scalar(f"drift/{group}_mean",      ds[group]["mean"],      round_idx)
+                tb.add_scalar(f"drift/{group}_std",       ds[group]["std"],       round_idx)
+                tb.add_scalar(f"drift/{group}_norm_mean", ds[group]["norm_mean"], round_idx)
+                tb.add_scalar(f"drift/{group}_norm_std",  ds[group]["norm_std"],  round_idx)
+                tb.add_scalar(f"interference/{group}",    ig[group],              round_idx)

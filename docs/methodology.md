@@ -301,64 +301,85 @@ For round t = 1 to T:
 ### 4.1 Metric 1: Per-Layer Client Drift (L2 Distance)
 
 **Definition:**
-$$\text{drift}_k^l(t) = \|\theta_k^l(t) - \theta_{\text{global}}^l(t-1)\|_2$$
+
+Two complementary drift values are computed per layer group per client per round:
+
+**Raw L2 drift** (scale-dependent; use for absolute magnitude comparisons):
+$$\text{drift\_raw}_k^l(t) = \|\theta_k^l(t) - \theta_{\text{global}}^l(t-1)\|_2 = \sqrt{\sum_{p \in l} \|\theta_{k,p}(t) - \theta_{\text{global},p}(t-1)\|_2^2}$$
+
+**Normalised (RMS) drift** (scale-independent; use for cross-group and cross-architecture comparisons):
+$$\text{drift\_norm}_k^l(t) = \frac{\|\theta_k^l(t) - \theta_{\text{global}}^l(t-1)\|_2}{\sqrt{N^l}} = \sqrt{\frac{1}{N^l}\sum_{p \in l} \|\theta_{k,p}(t) - \theta_{\text{global},p}(t-1)\|_2^2}$$
+
 where:
 * $l \in \{\text{"norm"}, \text{"feature"}, \text{"head"}\}$ denotes the layer group.
 * $k \in \{1, \dots, K\}$ denotes the client index.
 * $t \in \{1, \dots, T\}$ denotes the communication round.
-* $\theta_k^l(t)$ and $\theta_{\text{global}}^l(t-1)$ represent the concatenated parameter vectors of layer group $l$ for client $k$ at round $t$ (after local training) and the global model at round $t-1$ (before local training), respectively. The metric computes the exact Euclidean distance ($L_2$ norm) of the concatenated parameter differences in the parameter subspace of layer group $l$:
-  $$\|\theta_k^l(t) - \theta_{\text{global}}^l(t-1)\|_2 = \sqrt{\sum_{p \in l} \|\theta_{k, p}^l(t) - \theta_{\text{global}, p}^l(t-1)\|_2^2}$$
+* $N^l = \sum_{p \in l} |\theta_p|$ is the total number of scalar parameters in group $l$.
+* $\theta_k^l(t)$ and $\theta_{\text{global}}^l(t-1)$ represent the concatenated parameter vectors of layer group $l$ for client $k$ after local training and the global model before local training, respectively.
+
+> **Why two variants?** The raw L2 drift is scale-dependent: larger layer groups (more parameters) produce larger absolute values by construction, not because they drift more per parameter. For example, the "feature" group in EfficientNet-B0 has ~4M parameters while the "norm" group has only ~10K — a direct raw comparison would be misleading. The normalised drift divides by $\sqrt{N^l}$, yielding the root-mean-squared (RMS) per-parameter drift, which is directly comparable across groups and architectures. **All cross-group and cross-architecture comparisons in this thesis use `drift_norm`.** Raw drift is retained for absolute magnitude analysis (e.g. verifying FedProx's proximal term bounds drift).
 
 **Implementation (`src/utils/drift_metrics.py`):**
 ```python
-import torch
-import torch.nn as nn
-import numpy as np
-from typing import Dict, List
-
 def compute_layer_drift(
     local_state: Dict[str, torch.Tensor],
     global_state: Dict[str, torch.Tensor],
     layer_taxonomy: Dict[str, str]
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     """
-    Returns the true L2 drift (Euclidean distance of the concatenated vector) 
-    per layer group for a single client, resolving device and precision mismatches.
-    layer_taxonomy: {param_name: group_label}
+    Returns per-layer-group drift for a single client.
+
+    Each group maps to:
+        {
+            "raw":      float,   # ||Δθ^l||_2  (Euclidean distance)
+            "norm":     float,   # ||Δθ^l||_2 / sqrt(N^l)  (RMS drift)
+            "n_params": int,     # N^l — total scalar parameters in group
+        }
+
+    BN buffers (running_mean, running_var, num_batches_tracked) are excluded.
     """
-    group_sq_sums = {"norm": 0.0, "feature": 0.0, "head": 0.0}
-    group_has_params = {"norm": False, "feature": False, "head": False}
-    
+    groups = ("norm", "feature", "head")
+    group_sq_sums  = {g: 0.0 for g in groups}
+    group_n_params = {g: 0   for g in groups}
+
     for name, local_param in local_state.items():
+        if is_bn_buffer(name):
+            continue
         group = layer_taxonomy.get(name, "other")
         if group == "other" or name not in global_state:
             continue
-        
-        # Cast to float, detach, and move to CPU to guarantee safety across devices
-        local_val = local_param.detach().cpu().float()
+        local_val  = local_param.detach().cpu().float()
         global_val = global_state[name].detach().cpu().float()
-        
         diff = local_val - global_val
-        group_sq_sums[group] += diff.square().sum().item()
-        group_has_params[group] = True
-        
-    return {
-        g: float(np.sqrt(group_sq_sums[g])) if group_has_params[g] else 0.0 
-        for g in group_sq_sums
-    }
+        group_sq_sums[group]  += diff.square().sum().item()
+        group_n_params[group] += local_val.numel()
+
+    result = {}
+    for g in groups:
+        n   = group_n_params[g]
+        raw = float(np.sqrt(group_sq_sums[g])) if n > 0 else 0.0
+        result[g] = {
+            "raw":      raw,
+            "norm":     float(raw / np.sqrt(n)) if n > 0 else 0.0,
+            "n_params": n,
+        }
+    return result
 ```
 
 **Aggregation across clients:**
 ```python
-def aggregate_drift(per_client_drifts: List[Dict[str, float]]) -> Dict[str, Dict[str, float]]:
-    """Returns mean and std of drift across clients, per layer group."""
+def aggregate_drift(per_client_drifts: List[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
+    """Returns mean and std of both raw and normalised drift across clients, per layer group."""
     groups = ["norm", "feature", "head"]
     results = {}
     for g in groups:
-        drifts = [d[g] for d in per_client_drifts]
+        raw_vals  = [d[g]["raw"]  for d in per_client_drifts]
+        norm_vals = [d[g]["norm"] for d in per_client_drifts]
         results[g] = {
-            "mean": float(np.mean(drifts)),
-            "std":  float(np.std(drifts))
+            "mean":      float(np.mean(raw_vals)),
+            "std":       float(np.std(raw_vals)),
+            "norm_mean": float(np.mean(norm_vals)),
+            "norm_std":  float(np.std(norm_vals)),
         }
     return results
 ```
@@ -446,11 +467,11 @@ These are the mechanistic predictions your results should be compared against:
 
 | Prediction | What to check in results |
 |---|---|
-| EfficientNet-BN has highest drift in "norm" layer group | `drift["norm"]` for EfficientNet-BN > ViT-Tiny > Vim at α=0.1 |
-| Drift stabilises for all models after round ~20 | Plot drift vs. round; look for plateau before round 25 at α=1.0 |
-| EfficientNet-BN drift oscillates more (higher std) than ViT-Tiny | Compare `drift_std["norm"]` across clients at α=0.1 |
-| ViT-Tiny shows higher initial interference (rounds 1–10) but converges faster | `interference["feature"]` for ViT-Tiny starts lower cos_sim, crosses EfficientNet by round 15 |
-| Replacing BN → GN/LN narrows the EfficientNet drift gap to ViT-Tiny | `drift["norm"]` for EfficientNet-GN ≈ ViT-Tiny at same α |
+| EfficientNet-BN has highest drift in "norm" layer group | `drift_norm_norm_mean` for EfficientNet-BN > ViT-Tiny > Vim at α=0.1 |
+| Drift stabilises for all models after round ~20 | Plot normalised drift vs. round; look for plateau before round 25 at α=1.0 |
+| EfficientNet-BN drift oscillates more (higher std) than ViT-Tiny | Compare `drift_norm_norm_std` across clients at α=0.1 |
+| ViT-Tiny shows higher initial interference (rounds 1–10) but converges faster | `interference_feature` for ViT-Tiny starts lower cos_sim, crosses EfficientNet by round 15 |
+| Replacing BN → GN/LN narrows the EfficientNet drift gap to ViT-Tiny | `drift_norm_norm_mean` for EfficientNet-GN ≈ ViT-Tiny at same α |
 
 ---
 
@@ -617,9 +638,14 @@ convergence_flag,
 drift_norm_mean, drift_norm_std,
 drift_feature_mean, drift_feature_std,
 drift_head_mean, drift_head_std,
+drift_norm_norm_mean, drift_norm_norm_std,
+drift_feature_norm_mean, drift_feature_norm_std,
+drift_head_norm_mean, drift_head_norm_std,
 interference_norm, interference_feature, interference_head,
 fairness_gap, client_acc_min, client_acc_max, client_acc_std
 ```
+
+> **Column naming convention:** `drift_<group>_mean` / `drift_<group>_std` are the raw L2 drift values. `drift_<group>_norm_mean` / `drift_<group>_norm_std` are the normalised (RMS) drift values. All cross-group and cross-architecture analysis should use the `_norm_` columns.
 
 **Plots are generated automatically** by running `python scripts/plot_results.py` after all experiments complete. Plots are **not** generated during training to avoid slowing down the cluster runs. See `EXPERIMENTS.md` for the full post-experiment workflow.
 

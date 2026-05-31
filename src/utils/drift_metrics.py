@@ -50,20 +50,44 @@ def compute_layer_drift(
     local_state: Dict[str, torch.Tensor],
     global_state: Dict[str, torch.Tensor],
     layer_taxonomy: Dict[str, str]
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     """
-    Returns the true L2 drift (Euclidean distance of the concatenated vector) 
-    per layer group for a single client, resolving device and precision mismatches.
-    layer_taxonomy: {param_name: group_label}
+    Returns per-layer-group drift for a single client.
+
+    Two drift values are returned for each group:
+
+    * ``"raw"``  — plain L2 distance of the concatenated parameter difference
+      vector (Euclidean distance, scale-dependent):
+          drift_raw = ||θ_local^l − θ_global^l||_2
+
+    * ``"norm"`` — parameter-count-normalised L2 drift (scale-independent,
+      comparable across layer groups and architectures):
+          drift_norm = ||θ_local^l − θ_global^l||_2 / sqrt(N^l)
+      where N^l is the total number of scalar parameters in group l.
+      Equivalently, this is the root-mean-squared (RMS) per-parameter drift.
+
+    Use ``"norm"`` for cross-group and cross-architecture comparisons.
+    Use ``"raw"`` when you need the absolute magnitude (e.g. to verify
+    FedProx's proximal term is bounding drift correctly).
 
     BN buffers (running_mean, running_var, num_batches_tracked) are explicitly
     excluded even if they appear in local_state or global_state, because they
     reflect local data statistics rather than gradient-driven optimisation and
     would produce artificially large, flat drift values.
+
+    Returns:
+        Dict with keys ``"norm"`` (group label) each mapping to a sub-dict::
+
+            {
+                "raw":   float,   # ||Δθ^l||_2
+                "norm":  float,   # ||Δθ^l||_2 / sqrt(N^l)  (RMS drift)
+                "n_params": int,  # N^l — number of scalar parameters in group
+            }
     """
-    group_sq_sums = {"norm": 0.0, "feature": 0.0, "head": 0.0}
-    group_has_params = {"norm": False, "feature": False, "head": False}
-    
+    groups = ("norm", "feature", "head")
+    group_sq_sums:   Dict[str, float] = {g: 0.0   for g in groups}
+    group_n_params:  Dict[str, int]   = {g: 0     for g in groups}
+
     for name, local_param in local_state.items():
         # Explicitly exclude BN running-statistics buffers from metric vectors.
         if is_bn_buffer(name):
@@ -72,19 +96,25 @@ def compute_layer_drift(
         group = layer_taxonomy.get(name, "other")
         if group == "other" or name not in global_state:
             continue
-        
+
         # Cast to float, detach, and move to CPU to guarantee safety across devices
-        local_val = local_param.detach().cpu().float()
+        local_val  = local_param.detach().cpu().float()
         global_val = global_state[name].detach().cpu().float()
-        
+
         diff = local_val - global_val
-        group_sq_sums[group] += diff.square().sum().item()
-        group_has_params[group] = True
-        
-    return {
-        g: float(np.sqrt(group_sq_sums[g])) if group_has_params[g] else 0.0 
-        for g in group_sq_sums
-    }
+        group_sq_sums[group]  += diff.square().sum().item()
+        group_n_params[group] += local_val.numel()
+
+    result: Dict[str, Any] = {}
+    for g in groups:
+        n   = group_n_params[g]
+        raw = float(np.sqrt(group_sq_sums[g])) if n > 0 else 0.0
+        result[g] = {
+            "raw":      raw,
+            "norm":     float(raw / np.sqrt(n)) if n > 0 else 0.0,
+            "n_params": n,
+        }
+    return result
 
 def get_norm_layer_metric_keys(
     model: nn.Module,
@@ -124,15 +154,33 @@ def get_norm_layer_metric_keys(
     )
 
 
-def aggregate_drift(per_client_drifts: List[Dict[str, float]]) -> Dict[str, Dict[str, float]]:
-    """Returns mean and std of drift across clients, per layer group."""
+def aggregate_drift(
+    per_client_drifts: List[Dict[str, Any]]
+) -> Dict[str, Dict[str, float]]:
+    """Aggregate drift statistics across clients, per layer group.
+
+    Accepts the enriched dicts returned by :func:`compute_layer_drift` (each
+    group maps to ``{"raw": float, "norm": float, "n_params": int}``).
+
+    Returns a dict keyed by group label, each containing::
+
+        {
+            "mean":      float,   # mean raw L2 drift across clients
+            "std":       float,   # std  raw L2 drift across clients
+            "norm_mean": float,   # mean normalised (RMS) drift across clients
+            "norm_std":  float,   # std  normalised (RMS) drift across clients
+        }
+    """
     groups = ["norm", "feature", "head"]
     results = {}
     for g in groups:
-        drifts = [d[g] for d in per_client_drifts]
+        raw_vals  = [d[g]["raw"]  for d in per_client_drifts]
+        norm_vals = [d[g]["norm"] for d in per_client_drifts]
         results[g] = {
-            "mean": float(np.mean(drifts)),
-            "std":  float(np.std(drifts))
+            "mean":      float(np.mean(raw_vals)),
+            "std":       float(np.std(raw_vals)),
+            "norm_mean": float(np.mean(norm_vals)),
+            "norm_std":  float(np.std(norm_vals)),
         }
     return results
 
