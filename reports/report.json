@@ -1,0 +1,2007 @@
+[
+  {
+    "model_key": "vim_tiny",
+    "class_name": "VimTiny",
+    "total_params": 3571204,
+    "trainable_params": 3571204,
+    "summary": {
+      "norm": {
+        "count": 14,
+        "params": 2496,
+        "pct_of_total": 0.07
+      },
+      "feature": {
+        "count": 97,
+        "params": 3373248,
+        "pct_of_total": 94.46
+      },
+      "head": {
+        "count": 2,
+        "params": 772,
+        "pct_of_total": 0.02
+      },
+      "other": {
+        "count": 26,
+        "params": 0,
+        "pct_of_total": 0.0
+      }
+    },
+    "layers": [
+      {
+        "name": "base",
+        "type": "VisionMamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 38016,
+        "layer_params": {}
+      },
+      {
+        "name": "base.patch_embed",
+        "type": "PatchEmbed",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.patch_embed.proj",
+        "type": "Conv2d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147648,
+        "layer_params": {
+          "in_channels": 3,
+          "out_channels": 192,
+          "kernel_size": [
+            16,
+            16
+          ],
+          "stride": [
+            16,
+            16
+          ],
+          "padding": [
+            0,
+            0
+          ],
+          "groups": 1,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.patch_embed.norm",
+        "type": "Identity",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.pos_drop",
+        "type": "Dropout",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {
+          "p": 0.0
+        }
+      },
+      {
+        "name": "base.head",
+        "type": "Identity",
+        "is_leaf": true,
+        "classification": "head",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers",
+        "type": "ModuleList",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.0",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.0.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.0.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.0.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.0.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.0.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.0.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.0.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.0.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.0.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.0.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.0.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.0.drop_path",
+        "type": "Identity",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.1",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.1.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.1.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.1.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.1.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.1.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.1.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.1.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.1.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.1.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.1.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.1.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.1.drop_path",
+        "type": "Identity",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.2",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.2.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.2.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.2.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.2.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.2.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.2.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.2.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.2.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.2.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.2.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.2.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.2.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.3",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.3.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.3.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.3.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.3.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.3.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.3.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.3.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.3.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.3.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.3.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.3.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.3.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.4",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.4.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.4.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.4.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.4.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.4.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.4.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.4.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.4.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.4.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.4.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.4.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.4.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.5",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.5.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.5.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.5.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.5.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.5.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.5.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.5.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.5.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.5.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.5.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.5.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.5.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.6",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.6.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.6.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.6.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.6.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.6.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.6.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.6.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.6.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.6.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.6.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.6.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.6.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.7",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.7.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.7.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.7.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.7.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.7.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.7.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.7.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.7.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.7.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.7.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.7.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.7.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.8",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.8.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.8.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.8.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.8.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.8.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.8.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.8.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.8.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.8.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.8.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.8.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.8.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.9",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.9.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.9.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.9.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.9.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.9.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.9.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.9.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.9.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.9.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.9.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.9.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.9.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.10",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.10.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.10.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.10.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.10.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.10.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.10.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.10.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.10.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.10.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.10.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.10.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.10.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.11",
+        "type": "Block",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.11.mixer",
+        "type": "Mamba",
+        "is_leaf": false,
+        "classification": "other",
+        "own_params": 13056,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.11.mixer.in_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 147456,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 768,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.11.mixer.conv1d",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.11.mixer.act",
+        "type": "SiLU",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.11.mixer.x_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.11.mixer.dt_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.11.mixer.conv1d_b",
+        "type": "Conv1d",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 1920,
+        "layer_params": {
+          "in_channels": 384,
+          "out_channels": 384,
+          "kernel_size": [
+            4
+          ],
+          "stride": [
+            1
+          ],
+          "padding": [
+            3
+          ],
+          "groups": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.11.mixer.x_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 16896,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 44,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.11.mixer.dt_proj_b",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 4992,
+        "layer_params": {
+          "in_features": 12,
+          "out_features": 384,
+          "bias": true
+        }
+      },
+      {
+        "name": "base.layers.11.mixer.out_proj",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "feature",
+        "own_params": 73728,
+        "layer_params": {
+          "in_features": 384,
+          "out_features": 192,
+          "bias": false
+        }
+      },
+      {
+        "name": "base.layers.11.norm",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "base.layers.11.drop_path",
+        "type": "DropPath",
+        "is_leaf": true,
+        "classification": "other",
+        "own_params": 0,
+        "layer_params": {}
+      },
+      {
+        "name": "base.norm_f",
+        "type": "RMSNorm",
+        "is_leaf": true,
+        "classification": "norm",
+        "own_params": 192,
+        "layer_params": {}
+      },
+      {
+        "name": "classifier",
+        "type": "Linear",
+        "is_leaf": true,
+        "classification": "head",
+        "own_params": 772,
+        "layer_params": {
+          "in_features": 192,
+          "out_features": 4,
+          "bias": true
+        }
+      }
+    ]
+  }
+]

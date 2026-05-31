@@ -1,0 +1,160 @@
+
+##########################################################################################
+  FL-bench Model Architecture Inspector
+  Dataset: brain_tumor  |  Models: 1
+##########################################################################################
+
+==========================================================================================
+  MODEL: vim_tiny  (VimTiny)
+  Total params: 3.57 M  |  Trainable: 3.57 M
+==========================================================================================
+  Layer name                                 Type                       Group        Params  Details
+------------------------------------------------------------------------------------------
+  base.patch_embed.proj                      Conv2d                     🔵feature    147.6 K    [in_channels=3, out_channels=192, kernel_size=(16, 16), stride=(16, 16), padding=(0, 0), groups=1, bias=True]
+  base.patch_embed.norm                      Identity                   🟡norm             -  
+  base.pos_drop                              Dropout                    ⚪other            -    [p=0.0]
+  base.head                                  Identity                   🔴head             -  
+  base.drop_path                             DropPath                   ⚪other            -  
+  base.layers.0.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.0.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.0.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.0.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.0.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.0.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.0.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.0.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.0.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.0.norm                         RMSNorm                    🟡norm           192  
+  base.layers.0.drop_path                    Identity                   ⚪other            -  
+  base.layers.1.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.1.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.1.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.1.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.1.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.1.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.1.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.1.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.1.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.1.norm                         RMSNorm                    🟡norm           192  
+  base.layers.1.drop_path                    Identity                   ⚪other            -  
+  base.layers.2.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.2.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.2.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.2.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.2.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.2.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.2.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.2.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.2.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.2.norm                         RMSNorm                    🟡norm           192  
+  base.layers.2.drop_path                    DropPath                   ⚪other            -  
+  base.layers.3.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.3.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.3.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.3.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.3.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.3.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.3.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.3.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.3.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.3.norm                         RMSNorm                    🟡norm           192  
+  base.layers.3.drop_path                    DropPath                   ⚪other            -  
+  base.layers.4.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.4.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.4.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.4.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.4.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.4.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.4.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.4.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.4.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.4.norm                         RMSNorm                    🟡norm           192  
+  base.layers.4.drop_path                    DropPath                   ⚪other            -  
+  base.layers.5.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.5.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.5.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.5.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.5.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.5.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.5.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.5.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.5.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.5.norm                         RMSNorm                    🟡norm           192  
+  base.layers.5.drop_path                    DropPath                   ⚪other            -  
+  base.layers.6.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.6.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.6.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.6.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.6.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.6.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.6.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.6.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.6.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.6.norm                         RMSNorm                    🟡norm           192  
+  base.layers.6.drop_path                    DropPath                   ⚪other            -  
+  base.layers.7.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.7.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.7.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.7.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.7.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.7.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.7.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.7.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.7.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.7.norm                         RMSNorm                    🟡norm           192  
+  base.layers.7.drop_path                    DropPath                   ⚪other            -  
+  base.layers.8.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.8.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.8.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.8.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.8.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.8.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.8.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.8.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.8.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.8.norm                         RMSNorm                    🟡norm           192  
+  base.layers.8.drop_path                    DropPath                   ⚪other            -  
+  base.layers.9.mixer.in_proj                Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.9.mixer.conv1d                 Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.9.mixer.act                    SiLU                       ⚪other            -  
+  base.layers.9.mixer.x_proj                 Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.9.mixer.dt_proj                Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.9.mixer.conv1d_b               Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.9.mixer.x_proj_b               Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.9.mixer.dt_proj_b              Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.9.mixer.out_proj               Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.9.norm                         RMSNorm                    🟡norm           192  
+  base.layers.9.drop_path                    DropPath                   ⚪other            -  
+  base.layers.10.mixer.in_proj               Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.10.mixer.conv1d                Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.10.mixer.act                   SiLU                       ⚪other            -  
+  base.layers.10.mixer.x_proj                Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.10.mixer.dt_proj               Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.10.mixer.conv1d_b              Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.10.mixer.x_proj_b              Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.10.mixer.dt_proj_b             Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.10.mixer.out_proj              Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.10.norm                        RMSNorm                    🟡norm           192  
+  base.layers.10.drop_path                   DropPath                   ⚪other            -  
+  base.layers.11.mixer.in_proj               Linear                     🔵feature    147.5 K    [in_features=192, out_features=768, bias=False]
+  base.layers.11.mixer.conv1d                Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.11.mixer.act                   SiLU                       ⚪other            -  
+  base.layers.11.mixer.x_proj                Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.11.mixer.dt_proj               Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.11.mixer.conv1d_b              Conv1d                     🔵feature      1.9 K    [in_channels=384, out_channels=384, kernel_size=(4,), stride=(1,), padding=(3,), groups=384, bias=True]
+  base.layers.11.mixer.x_proj_b              Linear                     🔵feature     16.9 K    [in_features=384, out_features=44, bias=False]
+  base.layers.11.mixer.dt_proj_b             Linear                     🔵feature      5.0 K    [in_features=12, out_features=384, bias=True]
+  base.layers.11.mixer.out_proj              Linear                     🔵feature     73.7 K    [in_features=384, out_features=192, bias=False]
+  base.layers.11.norm                        RMSNorm                    🟡norm           192  
+  base.layers.11.drop_path                   DropPath                   ⚪other            -  
+  base.norm_f                                RMSNorm                    🟡norm           192  
+  classifier                                 Linear                     🔴head           772    [in_features=192, out_features=4, bias=True]
+------------------------------------------------------------------------------------------
+  GROUP SUMMARY (leaf layers only)
+------------------------------------------------------------------------------------------
+  Group          Layers       Params   % of total
+  ------------------------------------------------
+  🟡norm              14        2.5 K         0.1%
+  🔵feature           97       3.37 M        94.5%
+  🔴head               2          772         0.0%
+  ⚪other             26            0         0.0%
