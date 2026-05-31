@@ -52,6 +52,26 @@ logger = logging.getLogger(__name__)
 # Maps each model name key to a Layer_Spec list of submodule name substrings.
 # Matching is performed using str.__contains__ against the full dotted path
 # returned by model.named_modules().
+#
+# DESIGN PRINCIPLE — one semantic unit per entry
+# -----------------------------------------------
+# Each entry should correspond to one semantically meaningful processing
+# stage (e.g. a full transformer block, a MBConv stage, a patch embedding).
+# This keeps the CKA diagonal comparable across architectures and avoids
+# double-counting caused by substring pollution (see vim_tiny note below).
+#
+# SUBSTRING POLLUTION WARNING
+# ---------------------------
+# SimilarityModel uses str.__contains__ to match module paths.  A spec entry
+# like "base.layers.1" is a substring of "base.layers.10", "base.layers.11",
+# "base.layers.1.mixer", and "base.layers.1.drop_path".  This causes a single
+# logical block to produce multiple CKA rows, inflating the diagonal and
+# making cross-architecture comparison unreliable.
+#
+# The fix applied here is to use the most specific unambiguous prefix for
+# each entry.  For vim_tiny this means using "base.layers.0.mixer" (the SSM
+# core of each block) rather than "base.layers.0" (the full block container
+# which also matches sub-modules).  See the vim_tiny entry for full rationale.
 ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
     "efficient0": [
         "base.features.0", "base.features.1", "base.features.2",
@@ -71,6 +91,18 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
         "base.features.6", "base.features.7", "base.features.8",
         "classifier",
     ],  # 10 layers
+    "efficient1_gn": [
+        "base.features.0", "base.features.1", "base.features.2",
+        "base.features.3", "base.features.4", "base.features.5",
+        "base.features.6", "base.features.7", "base.features.8",
+        "classifier",
+    ],  # 10 layers
+    "efficient1_ln": [
+        "base.features.0", "base.features.1", "base.features.2",
+        "base.features.3", "base.features.4", "base.features.5",
+        "base.features.6", "base.features.7", "base.features.8",
+        "classifier",
+    ],  # 10 layers
     "vit_tiny": [
         "base.patch_embed",
         "base.blocks.0",  "base.blocks.1",  "base.blocks.2",
@@ -80,15 +112,50 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
         "base.norm",
         "classifier",
     ],  # 15 layers
+    # -----------------------------------------------------------------------
+    # vim_tiny — corrected spec (was: 15 entries with 3 bugs)
+    # -----------------------------------------------------------------------
+    # Bug 1 — substring pollution (critical):
+    #   The old spec used "base.layers.N" as entries.  Because SimilarityModel
+    #   matches via str.__contains__, "base.layers.1" also matches
+    #   "base.layers.10", "base.layers.11", "base.layers.1.mixer", and
+    #   "base.layers.1.drop_path".  The actual run produced 39 rows per client
+    #   instead of the intended 15: each block contributed 3 rows (container +
+    #   mixer + drop_path) and patch_embed contributed 3 rows (container +
+    #   proj + norm).
+    #
+    # Bug 2 — phantom entry (base.norm_f):
+    #   "base.norm_f" was listed but does not exist in the VisionMamba
+    #   checkpoint used here (confirmed: 0 matches in the CSV).  The module
+    #   is named differently depending on the Vim repo version.  Removing it
+    #   avoids a silent zero-match entry that would produce a meaningless CKA
+    #   value of 1.0 (identical empty activations).
+    #
+    # Bug 3 — asymmetric layer.0 (minor):
+    #   base.layers.0 has no drop_path sub-module (stochastic depth is only
+    #   applied from layer 1 onward), so the old spec produced 2 rows for
+    #   layer 0 and 3 rows for layers 1–11.
+    #
+    # Fix — use ".mixer" suffix for each block:
+    #   Each Mamba block's SSM core is named "base.layers.N.mixer".  This
+    #   string is unique (not a prefix of any other module path), so it
+    #   produces exactly one CKA row per block.  It is also the functional
+    #   analogue of "base.blocks.N.attn" in ViT-Tiny: both capture the
+    #   sequence-mixing operation that is the architectural differentiator.
+    #
+    # Structural correspondence with vit_tiny (14 entries each):
+    #   vit_tiny  base.patch_embed   ↔  vim_tiny  base.patch_embed
+    #   vit_tiny  base.blocks.N      ↔  vim_tiny  base.layers.N.mixer  (N=0..11)
+    #   vit_tiny  base.norm          ↔  (absent in this Vim version — omitted)
+    #   vit_tiny  classifier         ↔  vim_tiny  classifier
     "vim_tiny": [
         "base.patch_embed",
-        "base.layers.0",  "base.layers.1",  "base.layers.2",
-        "base.layers.3",  "base.layers.4",  "base.layers.5",
-        "base.layers.6",  "base.layers.7",  "base.layers.8",
-        "base.layers.9",  "base.layers.10", "base.layers.11",
-        "base.norm_f",
+        "base.layers.0.mixer",  "base.layers.1.mixer",  "base.layers.2.mixer",
+        "base.layers.3.mixer",  "base.layers.4.mixer",  "base.layers.5.mixer",
+        "base.layers.6.mixer",  "base.layers.7.mixer",  "base.layers.8.mixer",
+        "base.layers.9.mixer",  "base.layers.10.mixer", "base.layers.11.mixer",
         "classifier",
-    ],  # 15 layers
+    ],  # 14 layers — 1 patch_embed + 12 SSM blocks (mixer only) + 1 head
 }
 
 
