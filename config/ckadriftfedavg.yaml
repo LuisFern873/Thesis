@@ -80,6 +80,6 @@ common:
 # probe_batches: max batches of the probe dataloader consumed per CKA computation;
 #                set to -1 or 0 to consume the full dataloader
 cka:
-  interval: 1
+  interval: 10
   client_sample: 5
   probe_batches: 20

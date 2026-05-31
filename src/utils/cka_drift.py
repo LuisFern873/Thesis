@@ -49,29 +49,26 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Architecture layer map (Requirement 2.1, 2.2, 2.3, 2.4, 2.7)
 # ---------------------------------------------------------------------------
-# Maps each model name key to a Layer_Spec list of submodule name substrings.
-# Matching is performed using str.__contains__ against the full dotted path
-# returned by model.named_modules().
+# Maps each model name key to a Layer_Spec list of EXACT submodule names.
+# Matching in SimilarityModel.hook_model() uses exact equality
+# (``name in layers_to_include``) so every entry must be a full dotted
+# module path as returned by model.named_modules().
 #
-# DESIGN PRINCIPLE — one semantic unit per entry
+# DESIGN PRINCIPLE -- one semantic unit per entry
 # -----------------------------------------------
-# Each entry should correspond to one semantically meaningful processing
-# stage (e.g. a full transformer block, a MBConv stage, a patch embedding).
-# This keeps the CKA diagonal comparable across architectures and avoids
-# double-counting caused by substring pollution (see vim_tiny note below).
+# Each entry corresponds to one semantically meaningful processing stage:
+# a feature stage for CNNs, a full encoder block or its sub-components
+# (norm + mixer) for transformer/SSM models.
 #
-# SUBSTRING POLLUTION WARNING
-# ---------------------------
-# SimilarityModel uses str.__contains__ to match module paths.  A spec entry
-# like "base.layers.1" is a substring of "base.layers.10", "base.layers.11",
-# "base.layers.1.mixer", and "base.layers.1.drop_path".  This causes a single
-# logical block to produce multiple CKA rows, inflating the diagonal and
-# making cross-architecture comparison unreliable.
-#
-# The fix applied here is to use the most specific unambiguous prefix for
-# each entry.  For vim_tiny this means using "base.layers.0.mixer" (the SSM
-# core of each block) rather than "base.layers.0" (the full block container
-# which also matches sub-modules).  See the vim_tiny entry for full rationale.
+# NOTE ON PREVIOUS SUBSTRING-BASED MATCHING
+# ------------------------------------------
+# The old sim_model.py used str.__contains__ for matching, which caused
+# "base.layers.0.mixer" to also hook "base.layers.0.mixer.in_proj" and
+# "base.layers.0.mixer.out_proj".  This inflated model_activations with
+# spurious sub-module entries, making the CKA matrix larger than intended
+# and causing norm layers to be present in the dict but displaced in the
+# diagonal.  sim_model.py now uses exact name matching, eliminating this
+# entirely.  All spec entries below are verified exact module paths.
 ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
     "efficient0": [
         "base.features.0", "base.features.1", "base.features.2",
@@ -84,7 +81,7 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
         "base.features.3", "base.features.4", "base.features.5",
         "base.features.6", "base.features.7", "base.features.8",
         "classifier",
-    ],  # 10 layers — same spec, different norm layers inside
+    ],  # 10 layers -- same spec, different norm type inside each stage
     "efficient0_ln": [
         "base.features.0", "base.features.1", "base.features.2",
         "base.features.3", "base.features.4", "base.features.5",
@@ -103,6 +100,12 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
         "base.features.6", "base.features.7", "base.features.8",
         "classifier",
     ],  # 10 layers
+    # -----------------------------------------------------------------------
+    # vit_tiny -- 15 layers
+    # patch_embed + 12 transformer blocks + final LayerNorm + classifier head.
+    # "base.norm" is the post-encoder LayerNorm applied before the head.
+    # All names verified as exact module paths via model.named_modules().
+    # -----------------------------------------------------------------------
     "vit_tiny": [
         "base.patch_embed",
         "base.blocks.0",  "base.blocks.1",  "base.blocks.2",
@@ -113,69 +116,56 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
         "classifier",
     ],  # 15 layers
     # -----------------------------------------------------------------------
-    # vim_tiny — corrected spec (was: 15 entries with 3 bugs)
-    # -----------------------------------------------------------------------
-    # Bug 1 — substring pollution (critical):
-    #   The old spec used "base.layers.N" as entries.  Because SimilarityModel
-    #   matches via str.__contains__, "base.layers.1" also matches
-    #   "base.layers.10", "base.layers.11", "base.layers.1.mixer", and
-    #   "base.layers.1.drop_path".  The actual run produced 39 rows per client
-    #   instead of the intended 15: each block contributed 3 rows (container +
-    #   mixer + drop_path) and patch_embed contributed 3 rows (container +
-    #   proj + norm).
+    # vim_tiny -- 14 layers
+    # patch_embed + 12 mixer blocks + classifier head.
     #
-    # Bug 2 — phantom entry (base.norm_f):
-    #   "base.norm_f" was listed but does not exist in the VisionMamba
-    #   checkpoint used here (confirmed: 0 matches in the CSV).  The module
-    #   is named differently depending on the Vim repo version.  Removing it
-    #   avoids a silent zero-match entry that would produce a meaningless CKA
-    #   value of 1.0 (identical empty activations).
+    # WHY NORM LAYERS ARE EXCLUDED
+    # -----------------------------
+    # VisionMamba's Block.forward() has two execution paths:
     #
-    # Bug 3 — asymmetric layer.0 (minor):
-    #   base.layers.0 has no drop_path sub-module (stochastic depth is only
-    #   applied from layer 1 onward), so the old spec produced 2 rows for
-    #   layer 0 and 3 rows for layers 1–11.
+    #   fused_add_norm=False:  calls self.norm(x) normally -> hook fires
+    #   fused_add_norm=True:   calls rms_norm_fn(x, self.norm.weight, ...)
+    #                          directly -> self.norm.__call__() is NEVER
+    #                          invoked -> forward hook NEVER fires
     #
-    # Fix — use ".mixer" suffix for each block:
-    #   Each Mamba block's SSM core is named "base.layers.N.mixer".  This
-    #   string is unique (not a prefix of any other module path), so it
-    #   produces exactly one CKA row per block.  It is also the functional
-    #   analogue of "base.blocks.N.attn" in ViT-Tiny: both capture the
-    #   sequence-mixing operation that is the architectural differentiator.
+    # The production VimTiny config uses fused_add_norm=True (CUDA fused
+    # kernel from mamba_ssm).  This means base.layers.N.norm is registered
+    # as an nn.Module and appears in named_modules(), but its forward hook
+    # will never receive an activation during inference.  Including it in
+    # the spec produces a silent gap: the hook is registered but never
+    # called, so the layer never appears in model_activations and is absent
+    # from the CKA diagonal.
+    #
+    # This is confirmed by the live run: the original CSV (before cleanup)
+    # had 16 rows per client -- patch_embed(1) + mixers(12) + classifier(1)
+    # + patch_embed sub-modules(2 noise) -- with zero norm rows despite
+    # norm entries being present in the old substring-based spec.
     #
     # Structural correspondence with vit_tiny (14 entries each):
-    #   vit_tiny  base.patch_embed   ↔  vim_tiny  base.patch_embed
-    #   vit_tiny  base.blocks.N      ↔  vim_tiny  base.layers.N.mixer  (N=0..11)
-    #   vit_tiny  base.norm          ↔  (absent in this Vim version — omitted)
-    #   vit_tiny  classifier         ↔  vim_tiny  classifier
+    #   vit_tiny  base.patch_embed  <->  vim_tiny  base.patch_embed
+    #   vit_tiny  base.blocks.N     <->  vim_tiny  base.layers.N.mixer
+    #   vit_tiny  base.norm         <->  (fused, not hookable)
+    #   vit_tiny  classifier        <->  vim_tiny  classifier
+    # -----------------------------------------------------------------------
     "vim_tiny": [
         "base.patch_embed",
-        "base.layers.0.mixer", 
-        "base.layers.0.norm",
+        "base.layers.0.mixer",
         "base.layers.1.mixer",
-        "base.layers.1.norm",  
         "base.layers.2.mixer",
-        "base.layers.2.norm",
         "base.layers.3.mixer",
-        "base.layers.3.norm", 
         "base.layers.4.mixer",
-        "base.layers.4.norm",  
         "base.layers.5.mixer",
-        "base.layers.5.norm",
         "base.layers.6.mixer",
-        "base.layers.6.norm", 
         "base.layers.7.mixer",
-        "base.layers.7.norm",  
         "base.layers.8.mixer",
-        "base.layers.8.norm",
         "base.layers.9.mixer",
-        "base.layers.9.norm", 
         "base.layers.10.mixer",
-        "base.layers.10.norm", 
         "base.layers.11.mixer",
-        "base.layers.11.norm",
         "classifier",
-    ],  # 14 layers — 1 patch_embed + 12 SSM blocks (mixer only) + 1 head
+    ],  # 14 layers -- 1 patch_embed + 12 SSM mixer blocks + 1 head
+    # NOTE: norm layers (base.layers.N.norm) are intentionally excluded.
+    # They use a fused CUDA kernel (rms_norm_fn) that bypasses nn.Module
+    # __call__, so forward hooks never fire on them.
 }
 
 
@@ -184,23 +174,23 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
 # ---------------------------------------------------------------------------
 
 def count_matching_submodules(model: nn.Module, spec: list[str]) -> int:
-    """Count the number of named-module paths that contain any spec substring.
+    """Count the number of named-module paths that exactly match any spec entry.
 
-    Matching uses ``str.__contains__``: a path matches if *any* element of
-    *spec* is a substring of the full dotted path returned by
-    ``model.named_modules()``.
+    Matching uses exact equality: a path matches if it is present in *spec*.
+    This mirrors the behaviour of the corrected ``SimilarityModel.hook_model``
+    which uses ``name in layers_to_include`` rather than substring containment.
 
     Args:
         model: The PyTorch module whose submodule paths are inspected.
-        spec:  A list of substrings to match against each path.
+        spec:  A list of exact module name strings to match against.
 
     Returns:
-        The number of submodule paths (including the root empty string) that
-        contain at least one substring from *spec*.
+        The number of submodule paths that exactly match any entry in *spec*.
     """
+    spec_set = set(spec)
     count = 0
     for path, _ in model.named_modules():
-        if any(substring in path for substring in spec):
+        if path in spec_set:
             count += 1
     return count
 
@@ -217,7 +207,7 @@ def get_layer_spec(
 
     When *model* is provided the resolved spec is validated against the
     model's actual submodule paths via :func:`count_matching_submodules`.
-    If no submodule path matches any spec substring a ``ValueError`` is
+    If no submodule path matches any spec entry a ``ValueError`` is
     raised identifying the model name and the offending spec.
 
     Args:
@@ -225,7 +215,7 @@ def get_layer_spec(
         model:      Optional model instance used for zero-match validation.
 
     Returns:
-        The resolved ``Layer_Spec`` list of submodule name substrings.
+        The resolved ``Layer_Spec`` list of exact submodule name strings.
 
     Raises:
         ValueError: When *model* is provided and the resolved spec matches
@@ -292,7 +282,7 @@ def build_probe_loader(
 ) -> DataLoader:
     """Build a deterministic probe :class:`~torch.utils.data.DataLoader`.
 
-    Applies the test-time transform pipeline ``Resize(224) → Normalize`` to
+    Applies the test-time transform pipeline ``Resize(224) -> Normalize`` to
     *testset* (no random augmentations) and returns a :class:`DataLoader`
     with ``shuffle=False`` and ``drop_last=False``.
 
@@ -367,7 +357,7 @@ def compute_cka_diagonal(
     - ``probe_batches == -1`` or ``probe_batches == 0``: the full
       *probe_loader* is consumed without truncation.
 
-    After ``CKA.compute()`` returns the N×N similarity matrix, the diagonal
+    After ``CKA.compute()`` returns the N x N similarity matrix, the diagonal
     is extracted with ``numpy.diag(matrix)`` and returned as a 1-D array of
     length N.
 
@@ -382,7 +372,7 @@ def compute_cka_diagonal(
     Args:
         global_model:      The reference (global) model in ``eval()`` mode.
         client_model:      The client's locally-trained model in ``eval()`` mode.
-        layer_spec:        List of submodule name substrings passed as
+        layer_spec:        List of exact submodule name strings passed as
                            ``layers_to_include`` to :class:`SimilarityModel`.
         probe_loader:      A deterministic :class:`DataLoader` used to collect
                            activations for the CKA estimate.
@@ -393,8 +383,10 @@ def compute_cka_diagonal(
 
     Returns:
         A tuple containing:
-        - A 1-D :class:`numpy.ndarray` of length N (the CKA diagonal), or ``None`` if failed.
-        - A list of layer names in the exact execution order, or ``None`` if failed.
+        - A 1-D :class:`numpy.ndarray` of length N (the CKA diagonal), or
+          ``None`` if the computation failed.
+        - A list of layer names in the exact execution order, or ``None`` if
+          the computation failed.
     """
     try:
         with torch.no_grad():
@@ -415,7 +407,7 @@ def compute_cka_diagonal(
                 # Convert to list so simtorch can call len() on it
                 data_iter = list(islice(probe_loader, probe_batches))
             else:
-                # probe_batches == -1 or 0 → consume the full loader
+                # probe_batches == -1 or 0 -- consume the full loader
                 data_iter = list(probe_loader)  # type: ignore[assignment]
 
             matrix = cka.compute(data_iter)
