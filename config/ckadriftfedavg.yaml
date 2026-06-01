@@ -42,7 +42,7 @@ common:
   # Seeds 42, 123, and 456 are used for the three replicate runs of the thesis study.
   seed: 42
   join_ratio: 1.0          # 100% participation — all 10 clients every round
-  global_epoch: 40         # communication rounds T
+  global_epoch: 50         # communication rounds T
   local_epoch: 5           # local epochs E per round
   batch_size: 32
   dataloader_num_workers: 2
@@ -75,11 +75,13 @@ common:
   delete_useless_run: true
 
 # CKA measurement configuration.
-# interval     : measure CKA every N communication rounds (1 = every round)
+# rounds       : explicit list of 1-based round indices at which to measure CKA.
+#                Dense at the start (rapid drift phase) and sparser later.
+#                Alternatively, use the legacy `interval: N` for every-N-rounds scheduling.
 # client_sample: max number of clients to measure per CKA round (sampled without replacement)
 # probe_batches: max batches of the probe dataloader consumed per CKA computation;
 #                set to -1 or 0 to consume the full dataloader
 cka:
-  interval: 10
-  client_sample: 5
+  rounds: [1, 2, 5, 10, 20, 30, 40, 50]
+  client_sample: 10
   probe_batches: 20

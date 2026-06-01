@@ -107,20 +107,54 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
     def _validate_cka_config(self) -> None:
         """Validate the ``cka`` section of the Hydra config.
 
+        Accepts either ``cka.rounds`` (list of 1-based round indices) or the
+        legacy ``cka.interval`` (integer).  If both are present, ``rounds``
+        takes precedence and a warning is logged.
+
         Raises:
             ValueError: For each field that is outside its valid range:
-                - ``cka.interval`` must be >= 1
+                - ``cka.rounds`` entries must all be >= 1
+                - ``cka.interval`` must be >= 1 (legacy fallback)
                 - ``cka.client_sample`` must be >= 1
                 - ``cka.probe_batches`` must be >= 1, or -1/0 for unlimited
         """
-        interval = self.args.cka.interval
-        client_sample = self.args.cka.client_sample
-        probe_batches = self.args.cka.probe_batches
+        cka_cfg = self.args.cka
+        client_sample = cka_cfg.client_sample
+        probe_batches = cka_cfg.probe_batches
 
-        if interval < 1:
+        # Determine scheduling mode: explicit rounds list vs. legacy interval
+        has_rounds = hasattr(cka_cfg, "rounds") and cka_cfg.rounds is not None
+        has_interval = hasattr(cka_cfg, "interval") and cka_cfg.interval is not None
+
+        if has_rounds:
+            if has_interval:
+                self.logger.log(
+                    "WARNING: Both cka.rounds and cka.interval are set. "
+                    "cka.rounds takes precedence; cka.interval will be ignored."
+                )
+            rounds = list(cka_cfg.rounds)
+            if not rounds:
+                raise ValueError("cka.rounds must not be empty.")
+            invalid = [r for r in rounds if r < 1]
+            if invalid:
+                raise ValueError(
+                    f"All cka.rounds entries must be >= 1, got invalid: {invalid}"
+                )
+            self._cka_rounds_set = set(rounds)
+            self._cka_use_rounds_list = True
+        elif has_interval:
+            interval = cka_cfg.interval
+            if interval < 1:
+                raise ValueError(
+                    f"cka.interval must be >= 1, got {interval}"
+                )
+            self._cka_rounds_set = None
+            self._cka_use_rounds_list = False
+        else:
             raise ValueError(
-                f"cka.interval must be >= 1, got {interval}"
+                "cka config must contain either 'rounds' (list) or 'interval' (int)."
             )
+
         if client_sample < 1:
             raise ValueError(
                 f"cka.client_sample must be >= 1, got {client_sample}"
@@ -375,9 +409,12 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
                 self.cka_heatmaps_dir
                 / f"round_{round_idx}_client_{client_id}.png"
             )
+            model_name = self.args.model.name
             heatmap_title = (
-                f"CKA Round {round_idx} Client {client_id}"
+                f"CKA — {model_name} | Round {round_idx} | Client {client_id}"
             )
+            heatmap_xlabel = f"Client {client_id} (local model)"
+            heatmap_ylabel = "Global model"
 
             # 4d. Compute CKA diagonal (Requirements 3.3–3.5, 3.7, 10.2)
             diagonal, layer_names = compute_cka_diagonal(
@@ -388,6 +425,8 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
                 probe_batches=probe_batches,
                 heatmap_save_path=heatmap_path,
                 heatmap_title=heatmap_title,
+                heatmap_xlabel=heatmap_xlabel,
+                heatmap_ylabel=heatmap_ylabel,
             )
 
             if diagonal is not None:
@@ -419,6 +458,23 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
             self._log_cka_tensorboard(round_idx, all_diagonals)
 
     # ------------------------------------------------------------------
+    # Scheduling helper
+    # ------------------------------------------------------------------
+
+    def _is_cka_round(self, round_idx: int) -> bool:
+        """Return True if CKA should be measured at *round_idx*.
+
+        Uses ``cka.rounds`` (explicit list) when available, otherwise falls
+        back to the legacy ``cka.interval`` modulo check.
+
+        Args:
+            round_idx: 1-based communication round index.
+        """
+        if self._cka_use_rounds_list:
+            return round_idx in self._cka_rounds_set
+        return round_idx % self.args.cka.interval == 0
+
+    # ------------------------------------------------------------------
     # aggregate_client_updates override (stub — implemented in task 2.5)
     # ------------------------------------------------------------------
 
@@ -443,7 +499,8 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
         Requirements: 3.1, 5.2, 5.4, 5.5, 6.8
         """
         # CKA measurement block — runs before aggregation (Requirement 5.4)
-        if self._cka_enabled and (self.current_epoch + 1) % self.args.cka.interval == 0:
+        round_idx = self.current_epoch + 1  # 1-based
+        if self._cka_enabled and self._is_cka_round(round_idx):
             self._run_cka_round(client_packages)
 
         # Delegate to DriftFedAvgServer: L2 drift + gradient alignment + FedAvg

@@ -344,6 +344,8 @@ def compute_cka_diagonal(
     probe_batches: int,
     heatmap_save_path: Optional[Path] = None,
     heatmap_title: str = "",
+    heatmap_xlabel: Optional[str] = None,
+    heatmap_ylabel: Optional[str] = None,
 ) -> Tuple[Optional[np.ndarray], Optional[List[str]]]:
     """Compute the CKA diagonal between *global_model* and *client_model*.
 
@@ -362,8 +364,9 @@ def compute_cka_diagonal(
     length N.
 
     If *heatmap_save_path* is provided, ``cka.plot_similarity()`` is called
-    with ``savefig=True``, ``save_path=heatmap_save_path``, and
-    ``title=heatmap_title`` to persist a heatmap PNG.
+    with ``savefig=True``, ``save_path=heatmap_save_path``,
+    ``title=heatmap_title``, ``xlabel=heatmap_xlabel``, and
+    ``ylabel=heatmap_ylabel`` to persist a heatmap PNG.
 
     Any :class:`Exception` (excluding :class:`KeyboardInterrupt` and
     :class:`SystemExit`) is caught, a warning is logged, and ``None`` is
@@ -380,6 +383,12 @@ def compute_cka_diagonal(
                            to consume the entire loader.
         heatmap_save_path: Optional path at which to save the CKA heatmap PNG.
         heatmap_title:     Title string forwarded to ``plot_similarity()``.
+        heatmap_xlabel:    X-axis label for the heatmap (client model axis).
+                           Defaults to ``None``, which lets simtorch use the
+                           model's internal name.
+        heatmap_ylabel:    Y-axis label for the heatmap (global model axis).
+                           Defaults to ``None``, which lets simtorch use the
+                           model's internal name.
 
     Returns:
         A tuple containing:
@@ -422,6 +431,8 @@ def compute_cka_diagonal(
                     savefig=True,
                     save_path=heatmap_save_path,
                     title=heatmap_title,
+                    xlabel=heatmap_xlabel,
+                    ylabel=heatmap_ylabel,
                 )
                 plt.close("all")
 

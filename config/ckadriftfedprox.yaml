@@ -74,7 +74,12 @@ fedprox:
   mu: 0.01  # proximal term weight (μ); controls the strength of the FedProx regularisation
 
 # CKA measurement scheduling
+# rounds       : explicit list of 1-based round indices at which to measure CKA.
+#                Dense at the start (rapid drift phase) and sparser later.
+#                Alternatively, use the legacy `interval: N` for every-N-rounds scheduling.
+# client_sample: max clients to measure per CKA round (≥ 1)
+# probe_batches: max probe-loader batches consumed per CKA computation (≥ 1)
 cka:
-  interval: 5       # measure every N communication rounds (≥ 1)
-  client_sample: 5  # max clients to measure per CKA round (≥ 1)
-  probe_batches: 20 # max probe-loader batches consumed per CKA computation (≥ 1)
+  rounds: [1, 2, 5, 10, 20, 30, 40]
+  client_sample: 10
+  probe_batches: 20
