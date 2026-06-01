@@ -48,6 +48,14 @@ common:
   save_metrics: true
   delete_useless_run: true
 cka:
-  interval: 10
-  client_sample: 5
+  rounds:
+  - 1
+  - 2
+  - 5
+  - 10
+  - 20
+  - 30
+  - 40
+  - 50
+  client_sample: 10
   probe_batches: 20
