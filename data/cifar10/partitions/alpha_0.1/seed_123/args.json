@@ -1,0 +1,11 @@
+{
+    "client_num": 10,
+    "test_ratio": 0.25,
+    "val_ratio": 0.0,
+    "seed": 123,
+    "split": "sample",
+    "IID_ratio": 0.0,
+    "monitor_window_name_suffix": "cifar10-10clients-0%IID-Dir(0.1)-seed123",
+    "alpha": 0.1,
+    "min_samples_per_client": 10
+}
