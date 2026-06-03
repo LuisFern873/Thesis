@@ -1,0 +1,6 @@
+[submodule "Vision_GNN"]
+	path = Vision_GNN
+	url = https://github.com/LuisFern873/Vision_GNN.git
+[submodule "simtorch"]
+	path = simtorch
+	url = https://github.com/LuisFern873/simtorch.git
