@@ -166,6 +166,52 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
     # NOTE: norm layers (base.layers.N.norm) are intentionally excluded.
     # They use a fused CUDA kernel (rms_norm_fn) that bypasses nn.Module
     # __call__, so forward hooks never fire on them.
+    # -----------------------------------------------------------------------
+    # vig_tiny -- 14 layers
+    # stem + 12 graph blocks + classifier head.
+    #
+    # MODULE PATH NOTE
+    # ----------------
+    # ViGTiny stores its sub-components as direct attributes of the top-level
+    # ViGTiny instance (_vig_stem, _vig_blocks), NOT under a "base." prefix.
+    # This differs from most other models where the feature extractor lives
+    # under self.base.  The _ViGBase wrapper is assigned to self.base for
+    # DecoupledModel compatibility, but PyTorch's named_modules() still
+    # exposes the underlying modules with their original attribute names
+    # (_vig_stem, _vig_blocks.N) because they were registered on the parent
+    # module before _ViGBase was constructed.
+    #
+    # LAYER GRANULARITY
+    # -----------------
+    # Each of the 12 backbone blocks is a Sequential([Grapher, FFN]).
+    # Hooking at the Sequential level (_vig_blocks.N) captures the combined
+    # output of one full graph-attention + feed-forward step, which is the
+    # correct semantic unit — analogous to base.blocks.N in vit_tiny.
+    # Hooking at Grapher or FFN separately would double the layer count and
+    # break cross-architecture CKA comparisons.
+    #
+    # Structural correspondence with vit_tiny (14 entries) and vim_tiny (14):
+    #   vit_tiny  base.patch_embed   <->  vig_tiny  _vig_stem
+    #   vit_tiny  base.blocks.N      <->  vig_tiny  _vig_blocks.N  (N=0..11)
+    #   vit_tiny  base.norm          <->  (BN is inside each block, not separate)
+    #   vit_tiny  classifier         <->  vig_tiny  classifier
+    # -----------------------------------------------------------------------
+    "vig_tiny": [
+        "_vig_stem",
+        "_vig_blocks.0",
+        "_vig_blocks.1",
+        "_vig_blocks.2",
+        "_vig_blocks.3",
+        "_vig_blocks.4",
+        "_vig_blocks.5",
+        "_vig_blocks.6",
+        "_vig_blocks.7",
+        "_vig_blocks.8",
+        "_vig_blocks.9",
+        "_vig_blocks.10",
+        "_vig_blocks.11",
+        "classifier",
+    ],  # 14 layers -- 1 stem + 12 graph (Grapher+FFN) blocks + 1 head
 }
 
 
