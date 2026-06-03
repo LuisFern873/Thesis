@@ -594,6 +594,107 @@ class EfficientNetB1_LN(DecoupledModel):
         self.classifier = nn.Linear(model.classifier[1].in_features, NUM_CLASSES[dataset])
         self.base.classifier[1] = nn.Identity()
 
+class ViGTiny(DecoupledModel):
+    """Vision GNN Tiny (ViG-Ti) wrapped as a DecoupledModel.
+
+    Architecture (from https://github.com/jichengyuan/Vision_GNN):
+      - Stem: 4× strided Conv2d stack → (B, 192, 14, 14)
+      - Backbone: 12 × [Grapher (dynamic kNN, MR-Conv) + FFN] blocks
+      - Head: AdaptiveAvgPool → Linear(192, num_classes)
+
+    Normalization: BatchNorm2d throughout (same family as efficient0).
+    Embedding dim: 192 (same as vit_tiny and vim_tiny for fair comparison).
+    Input: 224×224 RGB (no grayscale broadcast needed for primary datasets).
+
+    Import strategy mirrors VimTiny: Vision_GNN/ is added to sys.path so that
+    ``gcn_lib`` (pure-PyTorch, no torch_geometric) can be resolved regardless
+    of the working directory.
+    """
+
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+
+        import sys
+        import os
+
+        # Locate Vision_GNN/ relative to this file (src/utils/ → ../../Vision_GNN)
+        _vig_repo = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "Vision_GNN")
+        )
+        if not os.path.isdir(_vig_repo):
+            raise ImportError(
+                f"Vision GNN repo not found at '{_vig_repo}'. "
+                "Please clone https://github.com/jichengyuan/Vision_GNN "
+                "into the FL-bench root directory."
+            )
+        if _vig_repo not in sys.path:
+            sys.path.insert(0, _vig_repo)
+
+        try:
+            from vig import vig_ti_224_gelu
+        except ImportError as exc:
+            raise ImportError(
+                "Could not import vig_ti_224_gelu from Vision_GNN/vig.py. "
+                f"Root cause: {exc}"
+            ) from exc
+
+        # Build ViG-Ti with the correct number of output classes.
+        # We will strip the prediction head below and use a plain nn.Linear
+        # as self.classifier, keeping the DecoupledModel contract.
+        backbone = vig_ti_224_gelu(pretrained=False, num_classes=NUM_CLASSES[dataset])
+
+        # --- Split backbone into base + classifier ---
+        # DeepGCN.forward:
+        #   x = stem(x) + pos_embed
+        #   for block in backbone: x = block(x)
+        #   x = AdaptiveAvgPool2d(1)          → (B, 192, 1, 1)
+        #   return prediction(x).squeeze()    → (B, num_classes)
+        #
+        # We keep stem / pos_embed / backbone blocks as self.base and replace
+        # prediction with nn.Identity so the base returns (B, 192) features.
+        # self.classifier is a separate nn.Linear(192, num_classes).
+        self._vig_stem = backbone.stem          # Stem module
+        self._vig_pos_embed = backbone.pos_embed  # nn.Parameter (1, 192, 14, 14)
+        self._vig_blocks = backbone.backbone    # nn.Sequential of 12 Grapher+FFN pairs
+        self.n_blocks = backbone.n_blocks       # 12
+
+        # classifier follows DecoupledModel convention
+        self.classifier = nn.Linear(192, NUM_CLASSES[dataset])
+
+        # self.base must be set for DecoupledModel.check_and_preprocess().
+        # We create a lightweight nn.Module that groups the ViG feature extractor
+        # so that buffer/BN handling in check_and_preprocess works correctly.
+        class _ViGBase(nn.Module):
+            def __init__(self, stem, pos_embed, blocks, n_blocks):
+                super().__init__()
+                self.stem = stem
+                self.pos_embed = pos_embed  # registered as a Parameter via backbone
+                self.blocks = blocks
+                self._n_blocks = n_blocks
+
+            def forward(self, x):
+                import torch.nn.functional as F
+                x = self.stem(x) + self.pos_embed
+                for i in range(self._n_blocks):
+                    x = self.blocks[i](x)
+                x = F.adaptive_avg_pool2d(x, 1)
+                return x.flatten(1)  # (B, 192)
+
+        self.base = _ViGBase(
+            self._vig_stem,
+            self._vig_pos_embed,
+            self._vig_blocks,
+            self.n_blocks,
+        )
+
+    def forward(self, x):
+        return self.classifier(self.base(x))
+
+    def get_last_features(self, x, detach=True):
+        func = (lambda t: t.detach().clone()) if detach else (lambda t: t)
+        return func(self.base(x))
+
+
 class VimTiny(DecoupledModel):
     def __init__(self, dataset: str, pretrained: bool):
         super().__init__()
@@ -674,6 +775,7 @@ MODELS = {
     "vgg16": partial(VGG, version="16"),
     "vgg19": partial(VGG, version="19"),
     "vit_tiny": ViTTiny,
+    "vig_tiny": ViGTiny,
     "vim_tiny": VimTiny,
     "efficient0_gn": EfficientNetB0_GN,
     "efficient0_ln": EfficientNetB0_LN,
