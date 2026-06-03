@@ -7,6 +7,16 @@ simtorch library.
 This module degrades gracefully when simtorch is unavailable: all public
 names are still importable, but SIMTORCH_AVAILABLE will be False and
 SimilarityModel / CKA will be None.
+
+Design note — separation of concerns
+--------------------------------------
+Training-time code (``compute_cka_diagonal``) only computes values and
+returns them; it does **not** generate any visualisation artefacts.  The full
+CKA similarity matrix is returned alongside the diagonal so callers can
+persist it for later analysis.  Heatmap generation is delegated to the
+post-processing script ``scripts/plot_cka_heatmaps.py``, which reads the
+stored ``.npz`` files from the run directory and renders PNGs with whatever
+configuration the analyst needs without re-running training.
 """
 
 import itertools
@@ -17,7 +27,6 @@ from itertools import islice
 from pathlib import Path
 from typing import Optional, Union, Tuple, List
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -388,12 +397,8 @@ def compute_cka_diagonal(
     layer_spec: list[str],
     probe_loader: DataLoader,
     probe_batches: int,
-    heatmap_save_path: Optional[Path] = None,
-    heatmap_title: str = "",
-    heatmap_xlabel: Optional[str] = None,
-    heatmap_ylabel: Optional[str] = None,
-) -> Tuple[Optional[np.ndarray], Optional[List[str]]]:
-    """Compute the CKA diagonal between *global_model* and *client_model*.
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[List[str]]]:
+    """Compute the CKA similarity matrix between *global_model* and *client_model*.
 
     Both models are wrapped in :class:`SimilarityModel` using *layer_spec*
     as the ``layers_to_include`` argument.  A :class:`CKA` object is then
@@ -405,43 +410,42 @@ def compute_cka_diagonal(
     - ``probe_batches == -1`` or ``probe_batches == 0``: the full
       *probe_loader* is consumed without truncation.
 
-    After ``CKA.compute()`` returns the N x N similarity matrix, the diagonal
-    is extracted with ``numpy.diag(matrix)`` and returned as a 1-D array of
-    length N.
+    After ``CKA.compute()`` returns the N×N similarity matrix, the diagonal
+    is extracted with ``numpy.diag(matrix)`` and returned alongside the full
+    matrix.  Callers that only need scalar summaries use the diagonal; callers
+    that want full heatmap visualisation (e.g. the post-processing script)
+    use the full matrix.
 
-    If *heatmap_save_path* is provided, ``cka.plot_similarity()`` is called
-    with ``savefig=True``, ``save_path=heatmap_save_path``,
-    ``title=heatmap_title``, ``xlabel=heatmap_xlabel``, and
-    ``ylabel=heatmap_ylabel`` to persist a heatmap PNG.
+    Heatmap generation is **not** performed here.  Visualisations must be
+    produced offline via ``scripts/plot_cka_heatmaps.py`` after training
+    completes.  This keeps training-time overhead minimal and allows
+    heatmaps to be regenerated with different configurations without
+    re-running experiments.
 
     Any :class:`Exception` (excluding :class:`KeyboardInterrupt` and
-    :class:`SystemExit`) is caught, a warning is logged, and ``None`` is
-    returned so that the caller can continue processing remaining clients.
+    :class:`SystemExit`) is caught, a warning is logged, and a triple of
+    ``None`` values is returned so that the caller can continue processing
+    remaining clients.
 
     Args:
-        global_model:      The reference (global) model in ``eval()`` mode.
-        client_model:      The client's locally-trained model in ``eval()`` mode.
-        layer_spec:        List of exact submodule name strings passed as
-                           ``layers_to_include`` to :class:`SimilarityModel`.
-        probe_loader:      A deterministic :class:`DataLoader` used to collect
-                           activations for the CKA estimate.
-        probe_batches:     Maximum number of batches to consume.  Pass -1 or 0
-                           to consume the entire loader.
-        heatmap_save_path: Optional path at which to save the CKA heatmap PNG.
-        heatmap_title:     Title string forwarded to ``plot_similarity()``.
-        heatmap_xlabel:    X-axis label for the heatmap (client model axis).
-                           Defaults to ``None``, which lets simtorch use the
-                           model's internal name.
-        heatmap_ylabel:    Y-axis label for the heatmap (global model axis).
-                           Defaults to ``None``, which lets simtorch use the
-                           model's internal name.
+        global_model:  The reference (global) model in ``eval()`` mode.
+        client_model:  The client's locally-trained model in ``eval()`` mode.
+        layer_spec:    List of exact submodule name strings passed as
+                       ``layers_to_include`` to :class:`SimilarityModel`.
+        probe_loader:  A deterministic :class:`DataLoader` used to collect
+                       activations for the CKA estimate.
+        probe_batches: Maximum number of batches to consume.  Pass -1 or 0
+                       to consume the entire loader.
 
     Returns:
-        A tuple containing:
-        - A 1-D :class:`numpy.ndarray` of length N (the CKA diagonal), or
-          ``None`` if the computation failed.
-        - A list of layer names in the exact execution order, or ``None`` if
-          the computation failed.
+        A 3-tuple ``(diagonal, matrix, layer_names)`` where:
+        - ``diagonal``    — 1-D :class:`numpy.ndarray` of length N (CKA diagonal),
+                            or ``None`` if computation failed.
+        - ``matrix``      — 2-D :class:`numpy.ndarray` of shape (N, N) (full CKA
+                            similarity matrix), or ``None`` if computation failed.
+        - ``layer_names`` — ordered list of layer name strings corresponding to
+                            the rows/columns of *matrix*, or ``None`` if
+                            computation failed.
     """
     try:
         with torch.no_grad():
@@ -465,24 +469,13 @@ def compute_cka_diagonal(
                 # probe_batches == -1 or 0 -- consume the full loader
                 data_iter = list(probe_loader)  # type: ignore[assignment]
 
-            matrix = cka.compute(data_iter)
+            matrix: np.ndarray = cka.compute(data_iter)
 
             # Extract the diagonal (Requirement 3.5)
             diagonal: np.ndarray = np.diag(matrix)
             layer_names = list(sim_client.model_activations.keys())
 
-            # Optionally save the heatmap PNG (Requirement 7.4)
-            if heatmap_save_path is not None:
-                cka.plot_similarity(
-                    savefig=True,
-                    save_path=heatmap_save_path,
-                    title=heatmap_title,
-                    xlabel=heatmap_xlabel,
-                    ylabel=heatmap_ylabel,
-                )
-                plt.close("all")
-
-            return diagonal, layer_names
+            return diagonal, matrix, layer_names
 
     except (KeyboardInterrupt, SystemExit):
         # Re-raise signals that should terminate the process
@@ -495,4 +488,4 @@ def compute_cka_diagonal(
             exc,
             exc_info=True
         )
-        return None, None
+        return None, None, None

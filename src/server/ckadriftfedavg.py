@@ -7,6 +7,22 @@ clients complete local training and before aggregation, using a shared probe
 dataloader.  It does not modify training dynamics, model weights, or
 optimizer states.
 
+Separation of concerns
+-----------------------
+Training stores CKA values in two ways:
+
+1. ``cka_metrics.csv`` — one row per (round, client, layer) with the scalar
+   diagonal value.  Used by ``scripts/aggregate_results.py`` and
+   ``scripts/plot_results.py`` for lightweight analysis without loading
+   large arrays.
+
+2. ``cka_matrices/round_<N>_client_<ID>.npz`` — the full N×N CKA similarity
+   matrix persisted with ``numpy.savez_compressed``.  Keys: ``matrix``
+   (shape N×N float32) and ``layer_names`` (1-D object array of strings).
+   These files are the inputs for ``scripts/plot_cka_heatmaps.py``, which
+   generates heatmap PNGs offline with configurable titles, colour maps, and
+   layout — without any need to re-run training.
+
 Requirements addressed: 1.3, 5.1, 6.1, 7.6, 9.1
 """
 
@@ -64,7 +80,7 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
            ``FedAvgServer.__init__``).
         2. Validate the ``cka`` config section via :meth:`_validate_cka_config`.
         3. Check ``SIMTORCH_AVAILABLE``; disable CKA with a warning if False.
-        4. Create the ``cka_heatmaps/`` output subdirectory.
+        4. Create the ``cka_matrices/`` output subdirectory.
         5. Initialise ``cka_metrics.csv`` via :meth:`_init_cka_csv`.
 
         Args:
@@ -93,9 +109,10 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
         else:
             self._cka_enabled = True
 
-        # 4. Create heatmaps output directory (Requirement 7.6)
-        self.cka_heatmaps_dir = self.output_dir / "cka_heatmaps"
-        os.makedirs(self.cka_heatmaps_dir, exist_ok=True)
+        # 4. Create cka_matrices output directory (stores full N×N matrices as
+        #    .npz files for offline heatmap generation via plot_cka_heatmaps.py)
+        self.cka_matrices_dir = self.output_dir / "cka_matrices"
+        os.makedirs(self.cka_matrices_dir, exist_ok=True)
 
         # 5. Initialise cka_metrics.csv (Requirement 6.1)
         self._init_cka_csv()
@@ -329,16 +346,22 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
            a. Construct ``Client_Model_Copy`` (deepcopy + load client params +
               eval).
            b. Resolve ``layer_spec`` via :func:`get_layer_spec`.
-           c. Call :func:`compute_cka_diagonal`; if diagonal is not ``None``,
-              call :meth:`_write_cka_rows` and append to ``all_diagonals``.
-           d. Save heatmap PNG to
-              ``cka_heatmaps_dir / f"round_{round_idx}_client_{client_id}.png"``.
-           e. Delete ``Client_Model_Copy`` and call
+           c. Call :func:`compute_cka_diagonal`; if diagonal is not ``None``:
+              - call :meth:`_write_cka_rows` to append to ``cka_metrics.csv``.
+              - persist the full N×N matrix as
+                ``cka_matrices/round_<N>_client_<ID>.npz`` (keys: ``matrix``,
+                ``layer_names``) for offline heatmap generation.
+              - append diagonal to ``all_diagonals``.
+           d. Delete ``Client_Model_Copy`` and call
               ``torch.cuda.empty_cache()`` if CUDA.
         5. Delete ``Global_Model_Copy`` and call ``torch.cuda.empty_cache()``
            if CUDA.
         6. If ``all_diagonals`` is non-empty, call
            :meth:`_log_cka_tensorboard`.
+
+        No heatmap PNGs are generated during training.  Use
+        ``scripts/plot_cka_heatmaps.py`` after training to render heatmaps
+        from the stored ``.npz`` files.
 
         Args:
             client_packages: Mapping of client ID → package dict returned by
@@ -404,39 +427,45 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
             # 4b. Resolve layer_spec (Requirement 3.3)
             layer_spec = get_layer_spec(self.args.model.name, Global_Model_Copy)
 
-            # 4c. Heatmap save path (Requirement 7.4)
-            heatmap_path = (
-                self.cka_heatmaps_dir
-                / f"round_{round_idx}_client_{client_id}.png"
-            )
-            model_name = self.args.model.name
-            heatmap_title = (
-                f"CKA — {model_name} | Round {round_idx} | Client {client_id}"
-            )
-            heatmap_xlabel = f"Client {client_id} (local model)"
-            heatmap_ylabel = "Global model"
-
-            # 4d. Compute CKA diagonal (Requirements 3.3–3.5, 3.7, 10.2)
-            diagonal, layer_names = compute_cka_diagonal(
+            # 4c. Compute CKA diagonal + full matrix (Requirements 3.3–3.5, 3.7, 10.2)
+            diagonal, matrix, layer_names = compute_cka_diagonal(
                 global_model=Global_Model_Copy,
                 client_model=Client_Model_Copy,
                 layer_spec=layer_spec,
                 probe_loader=probe_loader,
                 probe_batches=probe_batches,
-                heatmap_save_path=heatmap_path,
-                heatmap_title=heatmap_title,
-                heatmap_xlabel=heatmap_xlabel,
-                heatmap_ylabel=heatmap_ylabel,
             )
 
             if diagonal is not None:
-                # 4e. Write CSV rows (Requirement 6.4)
+                # 4d. Write diagonal rows to cka_metrics.csv (Requirement 6.4)
                 self._write_cka_rows(
                     round_idx=round_idx,
                     client_id=client_id,
                     diagonal=diagonal,
                     layer_names=layer_names,
                 )
+
+                # 4e. Persist full N×N matrix for offline heatmap generation.
+                #     Stored as compressed NumPy archive:
+                #       matrix      — float32 array, shape (N, N)
+                #       layer_names — object array of strings, shape (N,)
+                #     Load with: np.load(path, allow_pickle=True)
+                npz_path = (
+                    self.cka_matrices_dir
+                    / f"round_{round_idx:04d}_client_{client_id:03d}.npz"
+                )
+                try:
+                    np.savez_compressed(
+                        npz_path,
+                        matrix=matrix.astype(np.float32),
+                        layer_names=np.array(layer_names, dtype=object),
+                    )
+                except Exception as e:
+                    self.logger.log(
+                        f"WARNING: Failed to save CKA matrix for round {round_idx} "
+                        f"client {client_id}: {e}"
+                    )
+
                 all_diagonals.append(diagonal)
 
             # 4f. Clean up client copy (Requirements 8.2, 10.3)
