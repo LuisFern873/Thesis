@@ -1,0 +1,6 @@
+- method=ckadriftfedavg
+- dataset.name=brain_tumor
+- dataset.partition_dir=partitions/alpha_0.03/seed_42
+- model.name=efficient1
+- common.seed=42
+- common.global_epoch=50
