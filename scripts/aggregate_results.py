@@ -28,9 +28,14 @@ FLBENCH_ROOT = Path(__file__).parent.parent
 # Columns present in drift_metrics.csv that we want at the final round
 FINAL_ROUND_COLS = [
     "global_acc", "global_f1", "global_precision", "global_recall",
+    # Raw L2 drift
     "drift_norm_mean",    "drift_norm_std",
     "drift_feature_mean", "drift_feature_std",
     "drift_head_mean",    "drift_head_std",
+    # Normalised (RMS) drift — primary metric for cross-group/cross-arch comparisons
+    "drift_norm_norm_mean",    "drift_norm_norm_std",
+    "drift_feature_norm_mean", "drift_feature_norm_std",
+    "drift_head_norm_mean",    "drift_head_norm_std",
     "interference_norm", "interference_feature", "interference_head",
     "fairness_gap", "client_acc_min", "client_acc_max", "client_acc_std",
 ]
@@ -41,7 +46,7 @@ FINAL_ROUND_COLS = [
 # is the unambiguous separator between dataset and alpha.
 RUN_PATTERN = re.compile(
     r"^(?P<dataset>.+)_alpha(?P<alpha>[^_]+)_(?P<model>.+)"
-    r"_(?P<method>drift\w+)_seed(?P<seed>\d+)$"
+    r"_(?P<method>cka\w+)_seed(?P<seed>\d+)$"
 )
 
 CONVERGENCE_THRESHOLDS: Dict[str, float] = {
@@ -125,6 +130,40 @@ def aggregate_seeds(all_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def print_summary_table(seed_agg: pd.DataFrame) -> None:
+    """Print a human-readable per-cell summary to stdout.
+
+    Shows: Acc@final (mean±std), convergence round, raw drift-norm and
+    normalised drift-norm (mean), and interference for the norm layer group.
+    Falls back gracefully when normalised columns are absent (old CSV runs).
+    """
+    header = (
+        f"{'Dataset':<13} {'α':<7} {'Model':<16} {'Method':<16} "
+        f"{'Seeds':>5} {'Acc@final':>11} {'ConvRnd':>8} "
+        f"{'RawDrift-norm':>14} {'NormDrift-norm':>15} {'Interf-norm':>12}"
+    )
+    sep = "─" * len(header)
+    print(f"\n{sep}")
+    print(header)
+    print(sep)
+
+    has_norm_drift = "drift_norm_norm_mean@final_mean" in seed_agg.columns
+
+    for _, r in seed_agg.iterrows():
+        acc_str   = f"{r.get('global_acc@final_mean', float('nan')):6.1f}±{r.get('global_acc@final_std', float('nan')):.1f}"
+        conv_str  = str(int(r.get("convergence_round_mean", -1) or -1))
+        raw_d     = r.get("drift_norm_mean@final_mean", float("nan"))
+        norm_d    = r.get("drift_norm_norm_mean@final_mean", float("nan")) if has_norm_drift else float("nan")
+        interf    = r.get("interference_norm@final_mean", float("nan"))
+        print(
+            f"{str(r['dataset']):<13} {str(r['alpha']):<7} {str(r['model']):<16} "
+            f"{str(r['method']):<16} {int(r.get('n_seeds', 0)):>5} "
+            f"{acc_str:>11} {conv_str:>8} "
+            f"{raw_d:>14.4f} {norm_d:>15.4f} {interf:>12.4f}"
+        )
+    print(f"{sep}\n")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -177,6 +216,8 @@ def main() -> None:
     agg_path = out_dir / "seed_agg.csv"
     seed_agg.to_csv(agg_path, index=False)
     print(f"[OK] {len(seed_agg)} cells →  {agg_path}")
+
+    print_summary_table(seed_agg)
 
     hv = seed_agg[seed_agg["high_variance_flag"] == 1]
     if not hv.empty:

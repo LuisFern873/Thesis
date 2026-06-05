@@ -56,7 +56,7 @@ FLBENCH_ROOT = Path(__file__).parent.parent
 # ─────────────────────────────────────────────────────────────────────────────
 
 DATASETS = ["cifar10", "brain_tumor"]
-ALPHAS   = ["1000.0", "1.0", "0.3", "0.03"]
+ALPHAS   = ["1000.0", "1.0", "0.3", "0.1", "0.03"]
 SEEDS    = [42, 123, 456]
 
 MODEL_LABELS: Dict[str, str] = {
@@ -68,6 +68,7 @@ MODEL_LABELS: Dict[str, str] = {
     "efficient1_ln": "EfficientNet-B1 (LN)",
     "vit_tiny":      "ViT-Tiny",
     "vim_tiny":      "Vim-Tiny",
+    "vig_tiny":      "ViG-Tiny",
 }
 
 # Consistent colour palette across all figures
@@ -78,14 +79,16 @@ MODEL_COLORS: Dict[str, str] = {
     "efficient1":    "#984ea3",   # purple
     "efficient1_gn": "#a65628",   # brown
     "efficient1_ln": "#f781bf",   # pink
-    "vit_tiny":      "#377eb8",   # blue
-    "vim_tiny":      "#4daf4a",   # green
+    "vit_tiny":      "#0072B2",  # blue
+    "vim_tiny":      "#009E73",  # green
+    "vig_tiny":      "#D55E00",  # orange
 }
 
 ALPHA_LABELS: Dict[str, str] = {
     "1000.0": "IID (α=1000)",
     "1.0":    "Low het. (α=1.0)",
-    "0.3":    "High het. (α=0.3)",
+    "0.3":    "Mid het. (α=0.3)",
+    "0.1":    "High het. (α=0.1)",
     "0.03":   "Extreme het. (α=0.03)",
 }
 
@@ -245,32 +248,75 @@ def plot_drift_vs_round(
     method: str,
     out_dir: Path,
 ) -> None:
-    models = list(MODEL_LABELS.keys())
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
+    """Three subplots (one per layer group) showing normalised RMS drift only.
 
-    for ax, group in zip(axes, LAYER_GROUPS):
-        col = f"drift_{group}_mean"
+    All three axes share the same Y scale so magnitudes are directly comparable
+    across layer groups. Falls back to raw L2 drift with a note in the title
+    when normalised columns are absent (older CSV files).
+    """
+    models = list(MODEL_LABELS.keys())
+
+    # Decide which column set to use: prefer normalised, fall back to raw.
+    has_norm = any(
+        get_series(runs, dataset, alpha, model, method,
+                   f"drift_{group}_norm_mean") is not None
+        for model in models
+        for group in LAYER_GROUPS
+    )
+    col_suffix = "_norm_mean" if has_norm else "_mean"
+    ylabel     = "RMS Drift  ||Δθ||₂ / √N  (per-parameter)" if has_norm else "Raw L2 Drift  ||Δθ||₂"
+    title_tag  = "Normalised RMS Drift" if has_norm else "Raw L2 Drift (no norm data)"
+
+    # ── First pass: collect all data so we can compute a shared Y limit ──
+    all_upper: List[float] = []
+    series_cache: Dict[Tuple[str, str], Optional[Tuple]] = {}
+    for group in LAYER_GROUPS:
+        col = f"drift_{group}{col_suffix}"
         for model in models:
             result = get_series(runs, dataset, alpha, model, method, col)
+            series_cache[(group, model)] = result
+            if result is not None:
+                rounds, mean, std = result
+                all_upper.extend((mean + std).tolist())
+
+    y_max = max(all_upper) * 1.12 if all_upper else 1.0  # 12 % headroom
+
+    # ── Plot ─────────────────────────────────────────────────────────────
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4.5), sharey=True)
+
+    for ax, group in zip(axes, LAYER_GROUPS):
+        any_data = False
+        for model in models:
+            result = series_cache[(group, model)]
             if result is None:
                 continue
             rounds, mean, std = result
+            any_data = True
             color = MODEL_COLORS[model]
-            ax.plot(rounds, mean, label=MODEL_LABELS[model], color=color, linewidth=1.8)
-            ax.fill_between(rounds, mean - std, mean + std, alpha=0.15, color=color)
+            ax.plot(rounds, mean, label=MODEL_LABELS[model],
+                    color=color, linewidth=1.8)
+            ax.fill_between(rounds, mean - std, mean + std,
+                            alpha=0.15, color=color)
 
-        ax.set_title(f"Drift — {LAYER_LABELS[group]}")
+        ax.set_title(f"{title_tag}\n{LAYER_LABELS[group]}")
         ax.set_xlabel("Communication Round")
-        ax.set_ylabel("L2 Drift")
+        ax.set_ylim(0, y_max)
         ax.grid(True, linestyle="--", alpha=0.4)
+
+        if not any_data:
+            ax.text(0.5, 0.5, "No data", ha="center", va="center",
+                    transform=ax.transAxes, color="grey", fontsize=9)
+
+    axes[0].set_ylabel(ylabel)
 
     handles, labels = axes[-1].get_legend_handles_labels()
     if handles:
         fig.legend(handles, labels, loc="lower center", ncol=min(len(models), 5),
                    bbox_to_anchor=(0.5, -0.08), frameon=False)
+
     alpha_label = ALPHA_LABELS.get(alpha, f"α={alpha}")
     fig.suptitle(f"Per-Layer Drift — {dataset}, {alpha_label} ({method})",
-                 fontsize=12, y=1.01)
+                 fontsize=12, y=1.02)
     fig.tight_layout()
 
     fname = out_dir / f"fig2_drift_vs_round_{dataset}_alpha{alpha}_{method}.png"
@@ -342,8 +388,10 @@ def plot_normalization_ablation(
       Row 1 (B0): EfficientNet-B0 BN vs GN vs LN — accuracy and norm-layer drift
       Row 2 (B1): EfficientNet-B1 BN vs GN vs LN — accuracy and norm-layer drift
 
-    Within each row: normalization effect (BN vs GN vs LN, same capacity).
-    Between rows:    capacity effect (B0 vs B1, same normalization type).
+    The drift bars show **normalised (RMS) drift** (`drift_norm_norm_mean`),
+    falling back to raw L2 drift (`drift_norm_mean`) for older CSV files.
+    Normalised drift is scale-independent and directly comparable across
+    normalization variants.
     """
     backbone_groups = [
         ("B0", ["efficient0",    "efficient0_gn", "efficient0_ln"]),
@@ -358,11 +406,19 @@ def plot_normalization_ablation(
         ax_acc   = axes[row][0]
         ax_drift = axes[row][1]
 
+        # Prefer normalised drift; fall back to raw when absent
+        norm_col = "drift_norm_norm_mean"
+        raw_col  = "drift_norm_mean"
+
         for i, model in enumerate(ablation_models):
             accs, drifts = [], []
             for alpha in ALPHAS:
-                r_acc   = get_series(runs, dataset, alpha, model, method, "global_acc")
-                r_drift = get_series(runs, dataset, alpha, model, method, "drift_norm_mean")
+                r_acc = get_series(runs, dataset, alpha, model, method, "global_acc")
+                # Try normalised first, fall back to raw
+                r_drift = get_series(runs, dataset, alpha, model, method, norm_col)
+                if r_drift is None:
+                    r_drift = get_series(runs, dataset, alpha, model, method, raw_col)
+
                 accs.append(  float(r_acc[1][-1])   if r_acc   is not None else 0.0)
                 drifts.append(float(r_drift[1][-1]) if r_drift is not None else 0.0)
 
@@ -372,10 +428,22 @@ def plot_normalization_ablation(
             ax_acc.bar(x + offset,   accs,   width, label=label, color=color, alpha=0.85)
             ax_drift.bar(x + offset, drifts, width, label=label, color=color, alpha=0.85)
 
+        # Determine which drift label was actually used
+        any_norm = any(
+            get_series(runs, dataset, alpha, model, method, norm_col) is not None
+            for alpha in ALPHAS
+            for model in ablation_models
+        )
+        drift_ylabel = (
+            "Norm-Layer RMS Drift@Final  (||Δθ||₂/√N)"
+            if any_norm else
+            "Norm-Layer Raw L2 Drift@Final  (||Δθ||₂)"
+        )
+
         for ax, ylabel, title in [
             (ax_acc,   "Accuracy@Final (%)",
              f"EfficientNet-{backbone}: Accuracy — Norm Ablation"),
-            (ax_drift, "Drift-Norm@Final",
+            (ax_drift, drift_ylabel,
              f"EfficientNet-{backbone}: Norm-Layer Drift — Norm Ablation"),
         ]:
             ax.set_xticks(x)
@@ -447,9 +515,15 @@ def write_comparison_table(
     method: str,
     out_dir: Path,
 ) -> None:
+    """Primary comparison table (methodology Section 5.5).
+
+    Shows raw L2 drift AND normalised (RMS) drift per-group for the norm layer.
+    Normalised drift column falls back to 'n/a' for older CSV files.
+    """
     header = (
         f"{'Model':<20} {'α':<8} {'Acc@final±std':>15} {'Conv.Rnd':>10} "
-        f"{'Drift-norm':>12} {'Interference':>14} {'Fairness':>10}"
+        f"{'RawDrift-norm':>14} {'NormDrift-norm':>15} "
+        f"{'Interference':>14} {'Fairness':>10}"
     )
     sep = "-" * len(header)
     rows: List[str] = [
@@ -460,7 +534,9 @@ def write_comparison_table(
 
     for alpha in ALPHAS:
         for model in list(MODEL_LABELS.keys()):
-            accs, drifts, interfs, fairs, conv_rounds = [], [], [], [], []
+            accs, raw_drifts, norm_drifts, interfs, fairs, conv_rounds = \
+                [], [], [], [], [], []
+
             for seed in SEEDS:
                 key = (dataset, alpha, model, method, seed)
                 if key not in runs:
@@ -469,34 +545,48 @@ def write_comparison_table(
                 if df.empty:
                     continue
                 final = df.iloc[-1]
-                accs.append(   float(final.get("global_acc",          float("nan"))))
-                drifts.append( float(final.get("drift_norm_mean",     float("nan"))))
-                interfs.append(float(final.get("interference_feature",float("nan"))))
-                fairs.append(  float(final.get("fairness_gap",        float("nan"))))
+                accs.append(      float(final.get("global_acc",                float("nan"))))
+                raw_drifts.append(float(final.get("drift_norm_mean",           float("nan"))))
+                # Normalised column may not exist in older CSVs
+                nd_val = final.get("drift_norm_norm_mean", None)
+                norm_drifts.append(float(nd_val) if nd_val is not None else float("nan"))
+                interfs.append(   float(final.get("interference_feature",      float("nan"))))
+                fairs.append(     float(final.get("fairness_gap",              float("nan"))))
                 if "global_acc" in df.columns:
                     conv_rounds.append(_convergence_round(df["global_acc"], threshold))
 
             if not accs:
                 continue
 
-            acc_mean = float(np.nanmean(accs))
-            acc_std  = float(np.nanstd(accs))
-            drift_m  = float(np.nanmean(drifts))
-            interf_m = float(np.nanmean(interfs))
-            fair_m   = float(np.nanmean(fairs))
-            conv_m   = int(round(float(np.nanmean(conv_rounds)))) if conv_rounds else -1
+            acc_mean  = float(np.nanmean(accs))
+            acc_std   = float(np.nanstd(accs))
+            raw_d     = float(np.nanmean(raw_drifts))
+            norm_d    = float(np.nanmean(norm_drifts))
+            interf_m  = float(np.nanmean(interfs))
+            fair_m    = float(np.nanmean(fairs))
+            conv_m    = int(round(float(np.nanmean(conv_rounds)))) if conv_rounds else -1
+
+            norm_d_str = f"{norm_d:>13.4f}" if not np.isnan(norm_d) else f"{'n/a':>13}"
 
             rows.append(
                 f"{MODEL_LABELS[model]:<20} {alpha:<8} "
                 f"{acc_mean:>6.1f}±{acc_std:<6.1f} "
                 f"{conv_m:>8}   "
-                f"{drift_m:>10.4f}   "
+                f"{raw_d:>12.4f}   "
+                f"{norm_d_str}   "
                 f"{interf_m:>12.4f}   "
                 f"{fair_m:>8.1f}"
             )
         rows.append("")  # blank line between alpha groups
 
     rows.append(sep)
+    rows.append("")
+    rows.append("Columns:")
+    rows.append("  RawDrift-norm   = ||Δθ_norm||₂              (scale-dependent; varies with parameter count)")
+    rows.append("  NormDrift-norm  = ||Δθ_norm||₂ / √N_norm    (RMS per parameter; use for cross-arch comparison)")
+    rows.append("  Interference    = mean pairwise cosine similarity of pseudo-gradients (feature layers)")
+    rows.append("  Fairness        = max − min per-client accuracy (%)")
+
     fname = out_dir / f"table1_comparison_{dataset}_{method}.txt"
     fname.write_text("\n".join(rows), encoding="utf-8")
     print(f"  [OK] {fname.name}")
@@ -548,10 +638,25 @@ def plot_b0_vs_b1(
         ax_acc.grid(True, linestyle="--", alpha=0.4)
         ax_acc.legend(frameon=False)
 
-        # ── Row 1: Norm-layer drift ───────────────────────────────────────
+        # ── Row 1: Norm-layer drift (normalised, fallback to raw) ────────────────
         ax_drift = axes[1][col]
+        drift_col = "drift_norm_norm_mean"  # normalised RMS drift
+        # Check if normalised data exists for any seed of either model
+        has_norm = any(
+            get_series(runs, dataset, alpha, m, method, drift_col) is not None
+            for m in [b0, b1]
+        )
+        if not has_norm:
+            drift_col = "drift_norm_mean"  # fall back to raw L2
+
+        drift_ylabel = (
+            "RMS Drift (||Δθ||₂/√N)"
+            if has_norm else
+            "Raw L2 Drift (||Δθ||₂)"
+        )
+
         for model in [b0, b1]:
-            result = get_series(runs, dataset, alpha, model, method, "drift_norm_mean")
+            result = get_series(runs, dataset, alpha, model, method, drift_col)
             if result is None:
                 continue
             rounds, mean, std = result
@@ -561,12 +666,12 @@ def plot_b0_vs_b1(
                                   alpha=0.15, color=colors[model])
         ax_drift.set_title(f"Norm-Layer Drift — {alpha_label}")
         ax_drift.set_xlabel("Communication Round")
-        ax_drift.set_ylabel("L2 Drift")
+        ax_drift.set_ylabel(drift_ylabel)
         ax_drift.grid(True, linestyle="--", alpha=0.4)
         ax_drift.legend(frameon=False)
 
     axes[0][0].set_ylabel("Global Test Accuracy (%)")
-    axes[1][0].set_ylabel("L2 Drift (norm layers)")
+    axes[1][0].set_ylabel("Norm-Layer Drift  (RMS if available, else L2)")
 
     # Parameter count annotation
     b0_params = 4.01   # base params in M (brain_tumor head)
@@ -599,7 +704,7 @@ def main() -> None:
     parser.add_argument("--alpha",    default="all",
                         help="Alpha value to plot (e.g. 0.03), or 'all'.")
     parser.add_argument("--method",   default="driftfedavg",
-                        choices=["driftfedavg", "driftfedprox", "all"])
+                        choices=["driftfedavg", "driftfedprox", "ckadriftfedavg", "all"])
     args = parser.parse_args()
 
     logs_dir = Path(args.logs_dir)

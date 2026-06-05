@@ -3,10 +3,10 @@ Generate all data partitions required for the drift experiment.
 
 Experiment matrix (Section 1.2 of methodology):
   - Datasets  : cifar10, brain_tumor
-  - α values  : 1000 (IID baseline), 1.0, 0.3, 0.03
+  - α values  : 1000 (IID baseline), 1.0, 0.3, 0.1, 0.03
   - Seeds     : 42, 123, 456
   - Clients   : 10
-  Total       : 2 × 4 × 3 = 24 partition runs
+  Total       : 2 × 5 × 3 = 30 partition runs
 
 Output layout (per run):
   data/{dataset}/partitions/alpha_{α}/seed_{seed}/
@@ -36,7 +36,7 @@ from pathlib import Path
 # Experiment matrix
 # ---------------------------------------------------------------------------
 DATASETS = ["cifar10", "brain_tumor"]
-ALPHAS = [1000, 1.0, 0.3, 0.03]
+ALPHAS = [1000, 1.0, 0.3, 0.1, 0.03]
 SEEDS = [42, 123, 456]
 CLIENT_NUM = 10
 
