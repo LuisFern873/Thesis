@@ -695,6 +695,81 @@ class ViGTiny(DecoupledModel):
         return func(self.base(x))
 
 
+class ResNet9(DecoupledModel):
+    """ResNet-9: a compact 9-layer residual network.
+
+    Architecture (no pretrained weights — trained from scratch):
+      base:
+        conv_block1  : Conv(C_in→64,  k=3, s=1, p=1) → BN → ReLU
+        conv_block2  : Conv(64→128,   k=3, s=1, p=1) → BN → ReLU → MaxPool(2)
+        res_block1   : [Conv(128→128, k=3, s=1, p=1) → BN → ReLU] × 2  (skip)
+        conv_block3  : Conv(128→256,  k=3, s=1, p=1) → BN → ReLU → MaxPool(2)
+        conv_block4  : Conv(256→512,  k=3, s=1, p=1) → BN → ReLU → MaxPool(2)
+        res_block2   : [Conv(512→512, k=3, s=1, p=1) → BN → ReLU] × 2  (skip)
+        pool         : AdaptiveAvgPool2d(1) → Flatten  → 512-d vector
+      classifier:
+        Linear(512 → num_classes)
+
+    Normalization: BatchNorm2d throughout (same family as efficient0 / res18).
+    Works with any spatial input size ≥ 32 × 32 (AdaptiveAvgPool makes it
+    resolution-agnostic, so 224×224 inputs used in this project are fine).
+
+    Usage in config:  ``common.model=res9``
+    """
+
+    class _ResBlock(nn.Module):
+        """Two-layer residual block with BN + ReLU, identity skip."""
+
+        def __init__(self, channels: int):
+            super().__init__()
+            self.block = nn.Sequential(
+                nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=False),
+                nn.BatchNorm2d(channels),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=False),
+                nn.BatchNorm2d(channels),
+                nn.ReLU(inplace=True),
+            )
+
+        def forward(self, x: Tensor) -> Tensor:
+            return x + self.block(x)
+
+    def __init__(self, dataset: str, pretrained: bool):
+        super().__init__()
+        # pretrained is ignored — no public ResNet-9 pretrained weights exist
+        in_ch = INPUT_CHANNELS[dataset]
+
+        self.base = nn.Sequential(
+            # conv_block1
+            nn.Conv2d(in_ch, 64, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            # conv_block2
+            nn.Conv2d(64, 128, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # res_block1
+            self._ResBlock(128),
+            # conv_block3
+            nn.Conv2d(128, 256, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # conv_block4
+            nn.Conv2d(256, 512, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # res_block2
+            self._ResBlock(512),
+            # global pool → feature vector
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+        )
+        self.classifier = nn.Linear(512, NUM_CLASSES[dataset])
+
+
 class VimTiny(DecoupledModel):
     def __init__(self, dataset: str, pretrained: bool):
         super().__init__()
@@ -774,6 +849,7 @@ MODELS = {
     "vgg13": partial(VGG, version="13"),
     "vgg16": partial(VGG, version="16"),
     "vgg19": partial(VGG, version="19"),
+    "res9": ResNet9,
     "vit_tiny": ViTTiny,
     "vig_tiny": ViGTiny,
     "vim_tiny": VimTiny,

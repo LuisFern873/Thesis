@@ -109,6 +109,12 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
         "base.features.6", "base.features.7", "base.features.8",
         "classifier",
     ],  # 10 layers
+    "efficient1": [
+        "base.features.0", "base.features.1", "base.features.2",
+        "base.features.3", "base.features.4", "base.features.5",
+        "base.features.6", "base.features.7", "base.features.8",
+        "classifier",
+    ],  # 10 layers
     # -----------------------------------------------------------------------
     # vit_tiny -- 15 layers
     # patch_embed + 12 transformer blocks + final LayerNorm + classifier head.
@@ -205,6 +211,39 @@ ARCHITECTURE_LAYER_MAP: dict[str, list[str]] = {
     #   vit_tiny  base.norm          <->  (BN is inside each block, not separate)
     #   vit_tiny  classifier         <->  vig_tiny  classifier
     # -----------------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # res9 -- 10 layers
+    # self.base is an un-named nn.Sequential, so PyTorch assigns integer
+    # indices (base.0, base.1, …).  We group by semantic stage, hooking at
+    # the *last* sub-module of each stage so the activation captured is the
+    # stage output (same convention used for efficient0 base.features.N).
+    #
+    # Stage → last index mapping (18 total sub-modules in base):
+    #   conv_block1  : Conv(in→64)  + BN + ReLU           → hook base.2  (ReLU)
+    #   conv_block2  : Conv(64→128) + BN + ReLU + MaxPool  → hook base.6  (MaxPool)
+    #   res_block1   : _ResBlock(128)                      → hook base.7  (_ResBlock)
+    #   conv_block3  : Conv(128→256)+ BN + ReLU + MaxPool  → hook base.11 (MaxPool)
+    #   conv_block4  : Conv(256→512)+ BN + ReLU + MaxPool  → hook base.15 (MaxPool)
+    #   res_block2   : _ResBlock(512)                      → hook base.16 (_ResBlock)
+    #   pool         : AdaptiveAvgPool2d                   → hook base.17 (AvgPool)
+    #   flatten      : Flatten                             → hook base.18 (Flatten)
+    #
+    # Only stages that produce a meaningful feature map / vector are hooked.
+    # AdaptiveAvgPool (base.17) and Flatten (base.18) are collapsed into
+    # a single "pool" entry (base.17) to keep the count at 9 base layers,
+    # matching efficient0's 9 feature-extractor entries + 1 classifier = 10.
+    # -----------------------------------------------------------------------
+    "res9": [
+        "base.2",   # conv_block1  (ReLU after Conv 3→64)
+        "base.6",   # conv_block2  (MaxPool after Conv 64→128)
+        "base.7",   # res_block1   (_ResBlock 128)
+        "base.11",  # conv_block3  (MaxPool after Conv 128→256)
+        "base.15",  # conv_block4  (MaxPool after Conv 256→512)
+        "base.16",  # res_block2   (_ResBlock 512)
+        "base.17",  # global pool  (AdaptiveAvgPool2d → 512-d vector)
+        "base.18",  # flatten      (Flatten)
+        "classifier",
+    ],  # 9 layers (8 feature stages + 1 head)
     "vig_tiny": [
         "_vig_stem",
         "_vig_blocks.0",
