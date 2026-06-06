@@ -36,7 +36,13 @@ lr_scheduler:
   name: null
   eta_min: 1.0e-5   # read by DriftFedAvgServer for cosine schedule
 
-mode: serial
+mode: parallel
+
+parallel:
+  ray_cluster_addr: null
+  num_cpus: 40
+  num_gpus: 0
+  num_workers: 5
 
 common:
   # Seeds 42, 123, and 456 are used for the three replicate runs of the thesis study.
