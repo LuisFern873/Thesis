@@ -115,7 +115,7 @@ hydra:
     task:
     - method=ckadriftfedavg
     - dataset.name=brain_tumor
-    - dataset.partition_dir=partitions/alpha_1000.0/seed_42
+    - dataset.partition_dir=partitions/alpha_0.3/seed_42
     - model.name=res9
     - common.seed=42
     - common.global_epoch=50
@@ -123,7 +123,7 @@ hydra:
   job:
     name: main
     chdir: null
-    override_dirname: common.global_epoch=50,common.seed=42,dataset.name=brain_tumor,dataset.partition_dir=partitions/alpha_1000.0/seed_42,method=ckadriftfedavg,mode=serial,model.name=res9
+    override_dirname: common.global_epoch=50,common.seed=42,dataset.name=brain_tumor,dataset.partition_dir=partitions/alpha_0.3/seed_42,method=ckadriftfedavg,mode=serial,model.name=res9
     id: ???
     num: ???
     config_name: ckadriftfedavg

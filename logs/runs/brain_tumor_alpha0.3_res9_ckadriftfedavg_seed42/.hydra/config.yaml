@@ -1,7 +1,7 @@
 method: ckadriftfedavg
 dataset:
   name: brain_tumor
-  partition_dir: partitions/alpha_1000.0/seed_42
+  partition_dir: partitions/alpha_0.3/seed_42
 model:
   name: res9
   use_torchvision_pretrained_weights: false
@@ -64,3 +64,4 @@ cka:
   - 50
   client_sample: 10
   probe_batches: 20
+  probe_batch_size: 16
