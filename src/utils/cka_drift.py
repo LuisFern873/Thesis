@@ -488,35 +488,26 @@ def compute_cka_diagonal(
     """
     try:
         with torch.no_grad():
-            # CKA is a pure analysis step — always run on CPU to avoid
-            # competing with the training process for GPU memory.
-            # Both model copies and all probe batches are moved to CPU here;
-            # the training-side models (on GPU) are untouched because
-            # _run_cka_round already passes deepcopy instances.
-            cka_device = torch.device("cpu")
-
-            global_model.cpu()
-            client_model.cpu()
+            # Determine device from the model copies passed in.
+            # _run_cka_round offloads self.model to CPU before calling here,
+            # so the GPU has enough headroom for the two CKA copies + activations.
+            try:
+                device = next(global_model.parameters()).device
+            except StopIteration:
+                device = torch.device("cpu")
 
             # Wrap both models in SimilarityModel (Requirement 3.3)
-            sim_global = SimilarityModel(global_model, layers_to_include=layer_spec, device=cka_device)
-            sim_client = SimilarityModel(client_model, layers_to_include=layer_spec, device=cka_device)
+            sim_global = SimilarityModel(global_model, layers_to_include=layer_spec, device=device)
+            sim_client = SimilarityModel(client_model, layers_to_include=layer_spec, device=device)
 
             # Instantiate CKA and select the data iterator (Requirements 3.4, 4.4, 4.5)
-            cka = CKA(sim_global, sim_client, device=cka_device)
-
-            # Move batches to CPU before building the list so simtorch never
-            # sees GPU tensors (probe_loader may have pin_memory=True).
+            cka = CKA(sim_global, sim_client, device=device)
             if probe_batches >= 1:
-                raw_iter = islice(probe_loader, probe_batches)
+                # Convert to list so simtorch can call len() on it
+                data_iter = list(islice(probe_loader, probe_batches))
             else:
-                raw_iter = iter(probe_loader)  # type: ignore[assignment]
-
-            data_iter = [
-                x.cpu() if isinstance(x, torch.Tensor) else
-                (x[0].cpu(), x[1].cpu()) if isinstance(x, (list, tuple)) else x
-                for x in raw_iter
-            ]
+                # probe_batches == -1 or 0 -- consume the full loader
+                data_iter = list(probe_loader)  # type: ignore[assignment]
 
             matrix: np.ndarray = cka.compute(data_iter)
 

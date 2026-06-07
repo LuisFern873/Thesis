@@ -374,6 +374,7 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
         import random as _random
 
         round_idx = self.current_epoch + 1  # 1-based round index
+        is_cuda = self.device.type == "cuda"
 
         # ------------------------------------------------------------------
         # Step 1: Build probe loader (Requirement 4.1–4.3)
@@ -388,9 +389,8 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
             batch_size = self.args.common.batch_size
         dataset_name = self.args.dataset.name
         num_workers = self.args.common.dataloader_num_workers
-        # pin_memory=False: CKA runs on CPU, so pinned memory buys nothing
-        # and wastes GPU-accessible RAM.
-        pin_memory = False
+        # pin_memory=True accelerates host→GPU transfer for probe batches.
+        pin_memory = is_cuda
 
         try:
             probe_loader = build_probe_loader(
@@ -408,99 +408,106 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
             return
 
         # ------------------------------------------------------------------
-        # Step 2: Construct Global_Model_Copy (Requirements 3.1, 8.1, 8.3)
+        # Step 2: Offload training model to CPU and flush GPU cache.
+        # (Requirements 3.1, 8.1, 8.3)
         # ------------------------------------------------------------------
-        # Flush the GPU allocator cache before building copies so that
-        # fragmented reserved-but-unallocated blocks are returned to the
-        # pool.  CKA runs on CPU (see compute_cka_diagonal), so the GPU
-        # memory freed here is immediately available to the trainer again.
-        if self.device.type == "cuda":
+        # self.model (~6.5 GB for res9, ~4 GB for efficient0) stays on GPU
+        # during training but is not needed while CKA runs.  Moving it to
+        # CPU frees that VRAM so that the two CKA model copies + intermediate
+        # activations can live on GPU, keeping forward passes fast.
+        # The model is moved back to self.device unconditionally in the
+        # finally block below.
+        if is_cuda:
+            self.model.cpu()
             torch.cuda.empty_cache()
 
-        Global_Model_Copy = deepcopy(self.model)
-        Global_Model_Copy.load_state_dict(self.public_model_params, strict=False)
-        Global_Model_Copy.eval()
+        try:
+            Global_Model_Copy = deepcopy(self.model).to(self.device)
+            Global_Model_Copy.load_state_dict(self.public_model_params, strict=False)
+            Global_Model_Copy.eval()
 
-        # ------------------------------------------------------------------
-        # Step 3: Sample clients (Requirements 5.3, 10.4)
-        # ------------------------------------------------------------------
-        k = min(self.args.cka.client_sample, len(self.selected_clients))
-        sampled_clients = _random.sample(self.selected_clients, k)
+            # ------------------------------------------------------------------
+            # Step 3: Sample clients (Requirements 5.3, 10.4)
+            # ------------------------------------------------------------------
+            k = min(self.args.cka.client_sample, len(self.selected_clients))
+            sampled_clients = _random.sample(self.selected_clients, k)
 
-        # ------------------------------------------------------------------
-        # Step 4: Per-client CKA loop (Requirements 3.2, 3.3, 8.2, 10.1)
-        # ------------------------------------------------------------------
-        all_diagonals: list = []
-        probe_batches = self.args.cka.probe_batches
+            # ------------------------------------------------------------------
+            # Step 4: Per-client CKA loop (Requirements 3.2, 3.3, 8.2, 10.1)
+            # ------------------------------------------------------------------
+            all_diagonals: list = []
+            probe_batches = self.args.cka.probe_batches
 
-        for client_id in sampled_clients:
-            # 4a. Construct Client_Model_Copy (Requirement 3.2, 8.1, 8.3)
-            Client_Model_Copy = deepcopy(self.model)
-            client_params = client_packages[client_id]["regular_model_params"]
-            Client_Model_Copy.load_state_dict(client_params, strict=False)
-            Client_Model_Copy.eval()
+            for client_id in sampled_clients:
+                # 4a. Construct Client_Model_Copy (Requirement 3.2, 8.1, 8.3)
+                Client_Model_Copy = deepcopy(self.model).to(self.device)
+                client_params = client_packages[client_id]["regular_model_params"]
+                Client_Model_Copy.load_state_dict(client_params, strict=False)
+                Client_Model_Copy.eval()
 
-            # 4b. Resolve layer_spec (Requirement 3.3)
-            layer_spec = get_layer_spec(self.args.model.name, Global_Model_Copy)
+                # 4b. Resolve layer_spec (Requirement 3.3)
+                layer_spec = get_layer_spec(self.args.model.name, Global_Model_Copy)
 
-            # 4c. Compute CKA diagonal + full matrix (Requirements 3.3–3.5, 3.7, 10.2)
-            diagonal, matrix, layer_names = compute_cka_diagonal(
-                global_model=Global_Model_Copy,
-                client_model=Client_Model_Copy,
-                layer_spec=layer_spec,
-                probe_loader=probe_loader,
-                probe_batches=probe_batches,
-            )
-
-            if diagonal is not None:
-                # 4d. Write diagonal rows to cka_metrics.csv (Requirement 6.4)
-                self._write_cka_rows(
-                    round_idx=round_idx,
-                    client_id=client_id,
-                    diagonal=diagonal,
-                    layer_names=layer_names,
+                # 4c. Compute CKA diagonal + full matrix (Requirements 3.3–3.5, 3.7, 10.2)
+                diagonal, matrix, layer_names = compute_cka_diagonal(
+                    global_model=Global_Model_Copy,
+                    client_model=Client_Model_Copy,
+                    layer_spec=layer_spec,
+                    probe_loader=probe_loader,
+                    probe_batches=probe_batches,
                 )
 
-                # 4e. Persist full N×N matrix for offline heatmap generation.
-                #     Stored as compressed NumPy archive:
-                #       matrix      — float32 array, shape (N, N)
-                #       layer_names — object array of strings, shape (N,)
-                #     Load with: np.load(path, allow_pickle=True)
-                npz_path = (
-                    self.cka_matrices_dir
-                    / f"round_{round_idx:04d}_client_{client_id:03d}.npz"
-                )
-                try:
-                    np.savez_compressed(
-                        npz_path,
-                        matrix=matrix.astype(np.float32),
-                        layer_names=np.array(layer_names, dtype=object),
-                    )
-                except Exception as e:
-                    self.logger.log(
-                        f"WARNING: Failed to save CKA matrix for round {round_idx} "
-                        f"client {client_id}: {e}"
+                if diagonal is not None:
+                    # 4d. Write diagonal rows to cka_metrics.csv (Requirement 6.4)
+                    self._write_cka_rows(
+                        round_idx=round_idx,
+                        client_id=client_id,
+                        diagonal=diagonal,
+                        layer_names=layer_names,
                     )
 
-                all_diagonals.append(diagonal)
+                    # 4e. Persist full N×N matrix for offline heatmap generation.
+                    npz_path = (
+                        self.cka_matrices_dir
+                        / f"round_{round_idx:04d}_client_{client_id:03d}.npz"
+                    )
+                    try:
+                        np.savez_compressed(
+                            npz_path,
+                            matrix=matrix.astype(np.float32),
+                            layer_names=np.array(layer_names, dtype=object),
+                        )
+                    except Exception as e:
+                        self.logger.log(
+                            f"WARNING: Failed to save CKA matrix for round {round_idx} "
+                            f"client {client_id}: {e}"
+                        )
 
-            # 4f. Clean up client copy (Requirements 8.2, 10.3)
-            del Client_Model_Copy
-            if self.device.type == "cuda":
+                    all_diagonals.append(diagonal)
+
+                # 4f. Clean up client copy (Requirements 8.2, 10.3)
+                del Client_Model_Copy
+                if is_cuda:
+                    torch.cuda.empty_cache()
+
+            # ------------------------------------------------------------------
+            # Step 5: Clean up global copy (Requirement 8.2)
+            # ------------------------------------------------------------------
+            del Global_Model_Copy
+            if is_cuda:
                 torch.cuda.empty_cache()
 
-        # ------------------------------------------------------------------
-        # Step 5: Clean up global copy (Requirement 8.2)
-        # ------------------------------------------------------------------
-        del Global_Model_Copy
-        if self.device.type == "cuda":
-            torch.cuda.empty_cache()
+            # ------------------------------------------------------------------
+            # Step 6: TensorBoard logging (Requirements 7.1, 7.2, 7.3)
+            # ------------------------------------------------------------------
+            if all_diagonals:
+                self._log_cka_tensorboard(round_idx, all_diagonals)
 
-        # ------------------------------------------------------------------
-        # Step 6: TensorBoard logging (Requirements 7.1, 7.2, 7.3)
-        # ------------------------------------------------------------------
-        if all_diagonals:
-            self._log_cka_tensorboard(round_idx, all_diagonals)
+        finally:
+            # Always restore the training model to its original device so
+            # subsequent training rounds are unaffected.
+            if is_cuda:
+                self.model.to(self.device)
 
     # ------------------------------------------------------------------
     # Scheduling helper
