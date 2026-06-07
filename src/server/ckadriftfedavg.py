@@ -378,10 +378,19 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
         # ------------------------------------------------------------------
         # Step 1: Build probe loader (Requirement 4.1–4.3)
         # ------------------------------------------------------------------
-        batch_size = self.args.common.batch_size
+        # Use a dedicated probe_batch_size (smaller than training batch_size)
+        # to keep activation tensors manageable.  Falls back to
+        # common.batch_size if probe_batch_size is not set in config.
+        cka_cfg = self.args.cka
+        if hasattr(cka_cfg, "probe_batch_size") and cka_cfg.probe_batch_size:
+            batch_size = int(cka_cfg.probe_batch_size)
+        else:
+            batch_size = self.args.common.batch_size
         dataset_name = self.args.dataset.name
         num_workers = self.args.common.dataloader_num_workers
-        pin_memory = bool(self.args.common.use_cuda)
+        # pin_memory=False: CKA runs on CPU, so pinned memory buys nothing
+        # and wastes GPU-accessible RAM.
+        pin_memory = False
 
         try:
             probe_loader = build_probe_loader(
@@ -401,6 +410,13 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
         # ------------------------------------------------------------------
         # Step 2: Construct Global_Model_Copy (Requirements 3.1, 8.1, 8.3)
         # ------------------------------------------------------------------
+        # Flush the GPU allocator cache before building copies so that
+        # fragmented reserved-but-unallocated blocks are returned to the
+        # pool.  CKA runs on CPU (see compute_cka_diagonal), so the GPU
+        # memory freed here is immediately available to the trainer again.
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+
         Global_Model_Copy = deepcopy(self.model)
         Global_Model_Copy.load_state_dict(self.public_model_params, strict=False)
         Global_Model_Copy.eval()
