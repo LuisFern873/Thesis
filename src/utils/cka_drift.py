@@ -496,26 +496,50 @@ def compute_cka_diagonal(
             except StopIteration:
                 device = torch.device("cpu")
 
-            # Wrap both models in SimilarityModel (Requirement 3.3)
-            sim_global = SimilarityModel(global_model, layers_to_include=layer_spec, device=device)
-            sim_client = SimilarityModel(client_model, layers_to_include=layer_spec, device=device)
+            is_cuda = device.type == "cuda"
 
-            # Instantiate CKA and select the data iterator (Requirements 3.4, 4.4, 4.5)
-            cka = CKA(sim_global, sim_client, device=device)
+            # Build the data_iter list here so it is scoped to this function
+            # call and gets released (along with any pinned/GPU tensors) as
+            # soon as we del it below — before the caller restores the
+            # training model to GPU.
             if probe_batches >= 1:
-                # Convert to list so simtorch can call len() on it
+                # Convert to list so simtorch can call len() on it.
+                # islice avoids loading the full dataset into memory.
                 data_iter = list(islice(probe_loader, probe_batches))
             else:
                 # probe_batches == -1 or 0 -- consume the full loader
                 data_iter = list(probe_loader)  # type: ignore[assignment]
 
-            matrix: np.ndarray = cka.compute(data_iter)
+            try:
+                # Wrap both models in SimilarityModel (Requirement 3.3)
+                sim_global = SimilarityModel(global_model, layers_to_include=layer_spec, device=device)
+                sim_client = SimilarityModel(client_model, layers_to_include=layer_spec, device=device)
 
-            # Extract the diagonal (Requirement 3.5)
-            diagonal: np.ndarray = np.diag(matrix)
-            layer_names = list(sim_client.model_activations.keys())
+                # Instantiate CKA and compute the similarity matrix
+                # (Requirements 3.4, 4.4, 4.5)
+                cka = CKA(sim_global, sim_client, device=device)
+                matrix: np.ndarray = cka.compute(data_iter)
 
-            return diagonal, matrix, layer_names
+                # Extract the diagonal (Requirement 3.5)
+                diagonal: np.ndarray = np.diag(matrix)
+                layer_names = list(sim_client.model_activations.keys())
+
+                return diagonal, matrix, layer_names
+
+            finally:
+                # Release the batch list and all intermediate activation
+                # tensors captured by simtorch hooks before returning to the
+                # caller.  This is critical: the caller's finally block
+                # restores self.model to GPU right after this function returns,
+                # so VRAM must be free at that point.
+                del data_iter
+                # Remove simtorch hook references if they were created
+                try:
+                    del sim_global, sim_client, cka
+                except NameError:
+                    pass
+                if is_cuda:
+                    torch.cuda.empty_cache()
 
     except (KeyboardInterrupt, SystemExit):
         # Re-raise signals that should terminate the process

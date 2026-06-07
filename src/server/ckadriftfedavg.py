@@ -504,6 +504,19 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
                 self._log_cka_tensorboard(round_idx, all_diagonals)
 
         finally:
+            # Ensure any leftover CKA model copies are released before we
+            # restore the training model to GPU.  Under normal execution these
+            # are already deleted inside the per-client loop, but if an
+            # exception was raised mid-loop they may still be alive.
+            for _name in ("Global_Model_Copy", "Client_Model_Copy"):
+                try:
+                    _obj = locals().get(_name)
+                    if _obj is not None:
+                        del _obj
+                except Exception:
+                    pass
+            if is_cuda:
+                torch.cuda.empty_cache()
             # Always restore the training model to its original device so
             # subsequent training rounds are unaffected.
             if is_cuda:
