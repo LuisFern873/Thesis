@@ -389,8 +389,8 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
             batch_size = self.args.common.batch_size
         dataset_name = self.args.dataset.name
         num_workers = self.args.common.dataloader_num_workers
-        # pin_memory=True accelerates host→GPU transfer for probe batches.
-        pin_memory = is_cuda
+        # CKA runs on CPU, so pin_memory is not needed and should be False.
+        pin_memory = False
 
         try:
             probe_loader = build_probe_loader(
@@ -411,19 +411,23 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
         # Step 2: Offload training model to CPU and flush GPU cache.
         # (Requirements 3.1, 8.1, 8.3)
         # ------------------------------------------------------------------
-        # self.model (~6.5 GB for res9, ~4 GB for efficient0) stays on GPU
-        # during training but is not needed while CKA runs.  Moving it to
-        # CPU frees that VRAM so that the two CKA model copies + intermediate
-        # activations can live on GPU, keeping forward passes fast.
-        # The model is moved back to self.device unconditionally in the
+        # CKA forward passes now run on CPU (see compute_cka_diagonal), so
+        # we do not need GPU headroom for model copies.  We still move
+        # self.model to CPU to free VRAM for the test_global_model() call
+        # that immediately follows this method.  It is restored in the
         # finally block below.
         if is_cuda:
             self.model.cpu()
             torch.cuda.empty_cache()
 
         try:
-            Global_Model_Copy = deepcopy(self.model).to(self.device)
-            Global_Model_Copy.load_state_dict(self.public_model_params, strict=False)
+            # Build model copies on CPU — compute_cka_diagonal runs on CPU
+            # to avoid competing with training for VRAM on shared clusters.
+            cpu = torch.device("cpu")
+            Global_Model_Copy = deepcopy(self.model)  # self.model is already on CPU
+            Global_Model_Copy.load_state_dict(
+                {k: v.cpu() for k, v in self.public_model_params.items()}, strict=False
+            )
             Global_Model_Copy.eval()
 
             # ------------------------------------------------------------------
@@ -439,10 +443,12 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
             probe_batches = self.args.cka.probe_batches
 
             for client_id in sampled_clients:
-                # 4a. Construct Client_Model_Copy (Requirement 3.2, 8.1, 8.3)
-                Client_Model_Copy = deepcopy(self.model).to(self.device)
+                # 4a. Construct Client_Model_Copy on CPU (Requirement 3.2, 8.1, 8.3)
+                Client_Model_Copy = deepcopy(self.model)  # self.model is on CPU
                 client_params = client_packages[client_id]["regular_model_params"]
-                Client_Model_Copy.load_state_dict(client_params, strict=False)
+                Client_Model_Copy.load_state_dict(
+                    {k: v.cpu() for k, v in client_params.items()}, strict=False
+                )
                 Client_Model_Copy.eval()
 
                 # 4b. Resolve layer_spec (Requirement 3.3)
@@ -487,15 +493,11 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
 
                 # 4f. Clean up client copy (Requirements 8.2, 10.3)
                 del Client_Model_Copy
-                if is_cuda:
-                    torch.cuda.empty_cache()
 
             # ------------------------------------------------------------------
             # Step 5: Clean up global copy (Requirement 8.2)
             # ------------------------------------------------------------------
             del Global_Model_Copy
-            if is_cuda:
-                torch.cuda.empty_cache()
 
             # ------------------------------------------------------------------
             # Step 6: TensorBoard logging (Requirements 7.1, 7.2, 7.3)

@@ -488,36 +488,39 @@ def compute_cka_diagonal(
     """
     try:
         with torch.no_grad():
-            # Determine device from the model copies passed in.
-            # _run_cka_round offloads self.model to CPU before calling here,
-            # so the GPU has enough headroom for the two CKA copies + activations.
-            try:
-                device = next(global_model.parameters()).device
-            except StopIteration:
-                device = torch.device("cpu")
-
-            is_cuda = device.type == "cuda"
-
-            # Build the data_iter list here so it is scoped to this function
-            # call and gets released (along with any pinned/GPU tensors) as
-            # soon as we del it below — before the caller restores the
-            # training model to GPU.
+            # Build the data_iter list once.  We use CPU tensors so the list
+            # never occupies VRAM — this avoids OOM when the GPU is near
+            # capacity from concurrent training processes.
             if probe_batches >= 1:
-                # Convert to list so simtorch can call len() on it.
-                # islice avoids loading the full dataset into memory.
-                data_iter = list(islice(probe_loader, probe_batches))
+                data_iter = [
+                    (x.cpu(), *rest)
+                    for x, *rest in islice(probe_loader, probe_batches)
+                ]
             else:
-                # probe_batches == -1 or 0 -- consume the full loader
-                data_iter = list(probe_loader)  # type: ignore[assignment]
+                data_iter = [
+                    (x.cpu(), *rest)
+                    for x, *rest in probe_loader
+                ]
+
+            # CKA is pure linear algebra (HSIC / matrix multiply).  Running on
+            # CPU avoids competing with the training models for VRAM and
+            # produces numerically identical results.  On a shared cluster the
+            # GPU is typically ~98% full during FL training, leaving no
+            # headroom for two additional model copies + activation tensors.
+            cpu = torch.device("cpu")
+
+            # Move model copies to CPU for CKA forward passes.
+            global_model.cpu()
+            client_model.cpu()
 
             try:
                 # Wrap both models in SimilarityModel (Requirement 3.3)
-                sim_global = SimilarityModel(global_model, layers_to_include=layer_spec, device=device)
-                sim_client = SimilarityModel(client_model, layers_to_include=layer_spec, device=device)
+                sim_global = SimilarityModel(global_model, layers_to_include=layer_spec, device=cpu)
+                sim_client = SimilarityModel(client_model, layers_to_include=layer_spec, device=cpu)
 
                 # Instantiate CKA and compute the similarity matrix
                 # (Requirements 3.4, 4.4, 4.5)
-                cka = CKA(sim_global, sim_client, device=device)
+                cka = CKA(sim_global, sim_client, device=cpu)
                 matrix: np.ndarray = cka.compute(data_iter)
 
                 # Extract the diagonal (Requirement 3.5)
@@ -527,19 +530,14 @@ def compute_cka_diagonal(
                 return diagonal, matrix, layer_names
 
             finally:
-                # Release the batch list and all intermediate activation
-                # tensors captured by simtorch hooks before returning to the
-                # caller.  This is critical: the caller's finally block
-                # restores self.model to GPU right after this function returns,
-                # so VRAM must be free at that point.
+                # Release all objects that hold activation tensors before
+                # returning, so the caller's GPU restore is not competing
+                # with leftover CPU memory either.
                 del data_iter
-                # Remove simtorch hook references if they were created
                 try:
                     del sim_global, sim_client, cka
                 except NameError:
                     pass
-                if is_cuda:
-                    torch.cuda.empty_cache()
 
     except (KeyboardInterrupt, SystemExit):
         # Re-raise signals that should terminate the process
