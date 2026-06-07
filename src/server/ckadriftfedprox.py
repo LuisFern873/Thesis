@@ -1,37 +1,21 @@
-"""CKADriftFedProxServer — FedProx with CKA representation-drift measurement.
+"""CKADriftFedProxServer — FedProx with checkpoint saving for offline CKA.
 
-This module implements :class:`CKADriftFedProxServer`, which combines:
-
-- **FedProx proximal penalty** (from :class:`DriftFedProxServer` /
-  :class:`DriftFedProxClient`) — adds μ‖w − w_t‖² to each client's local loss.
-- **L2 drift + gradient alignment** (from :class:`DriftFedAvgServer`) — measures
-  per-layer weight drift and gradient cosine similarity each round.
-- **CKA representation-drift measurement** (from :class:`CKADriftFedAvgServer`) —
-  measures per-layer CKA between the global model and sampled client models.
+Combines:
+- **FedProx proximal penalty** (from :class:`DriftFedProxServer`) — adds μ‖w − w_t‖² to local loss.
+- **L2 drift + gradient alignment** (from :class:`DriftFedAvgServer`).
+- **CKA checkpoint saving** (from :class:`CKADriftFedAvgServer`) — saves global
+  and client state dicts at scheduled rounds for offline CKA computation via
+  ``scripts/compute_cka_offline.py``.
 
 MRO (Python C3 linearisation)
 ------------------------------
 ``CKADriftFedProxServer(DriftFedProxServer, CKADriftFedAvgServer)`` resolves to:
 
     CKADriftFedProxServer
-    → DriftFedProxServer          (adds FedProx client + get_hyperparams --mu)
-    → CKADriftFedAvgServer        (adds CKA measurement + aggregate override)
-    → DriftFedAvgServer           (adds L2 drift + gradient alignment)
-    → FedAvgServer                (base FedAvg aggregation)
-
-Why no method overrides are needed
-------------------------------------
-- ``aggregate_client_updates``: resolved from ``CKADriftFedAvgServer`` — runs
-  the CKA block then calls ``super().aggregate_client_updates()`` which chains
-  through ``DriftFedAvgServer`` (drift metrics) and finally ``FedAvgServer``
-  (weighted average).  This is the correct order.
-- ``client_cls``: resolved from ``DriftFedProxServer`` — uses
-  :class:`DriftFedProxClient` which applies the proximal penalty.
-- ``get_hyperparams``: resolved from ``DriftFedProxServer`` — adds ``--mu``.
-- All CKA helpers (``_run_cka_round``, ``_init_cka_csv``, etc.): resolved from
-  ``CKADriftFedAvgServer``.
-
-Requirements addressed: 9.2
+    → DriftFedProxServer      (FedProx client + get_hyperparams --mu)
+    → CKADriftFedAvgServer    (checkpoint saving + aggregate override)
+    → DriftFedAvgServer       (L2 drift + gradient alignment)
+    → FedAvgServer            (base FedAvg aggregation)
 """
 
 from src.client.driftfedprox import DriftFedProxClient

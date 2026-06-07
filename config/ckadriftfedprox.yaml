@@ -79,13 +79,10 @@ common:
 fedprox:
   mu: 0.01  # proximal term weight (μ); controls the strength of the FedProx regularisation
 
-# CKA measurement scheduling
-# rounds       : explicit list of 1-based round indices at which to measure CKA.
-#                Dense at the start (rapid drift phase) and sparser later.
-#                Alternatively, use the legacy `interval: N` for every-N-rounds scheduling.
-# client_sample: max clients to measure per CKA round (≥ 1)
-# probe_batches: max probe-loader batches consumed per CKA computation (≥ 1)
+# CKA checkpoint configuration — same offline approach as ckadriftfedavg.
+# Training saves checkpoints; run scripts/compute_cka_offline.py afterwards.
 cka:
   rounds: [1, 2, 5, 10, 20, 30, 40]
   client_sample: 10
   probe_batches: 20
+  probe_batch_size: 16

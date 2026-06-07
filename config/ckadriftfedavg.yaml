@@ -80,17 +80,20 @@ common:
   save_metrics: true
   delete_useless_run: true
 
-# CKA measurement configuration.
-# rounds          : explicit list of 1-based round indices at which to measure CKA.
-#                   Dense at the start (rapid drift phase) and sparser later.
-#                   Alternatively, use the legacy `interval: N` for every-N-rounds scheduling.
-# client_sample   : max number of clients to measure per CKA round (sampled without replacement)
-# probe_batches   : max batches of the probe dataloader consumed per CKA computation;
-#                   set to -1 or 0 to consume the full dataloader
-# probe_batch_size: batch size used exclusively for the CKA probe forward passes.
-#                   Kept small (16) because CKA runs on CPU with two model copies
-#                   collecting intermediate activations simultaneously.
-#                   Independently of common.batch_size (used for training).
+# CKA checkpoint configuration.
+# Training ONLY saves model checkpoints at the specified rounds — CKA is
+# computed offline by scripts/compute_cka_offline.py after training finishes.
+# This completely decouples CKA analysis from training, eliminating all
+# GPU memory pressure and training-time overhead from the CKA step.
+#
+# rounds          : 1-based round indices at which to save global + client checkpoints.
+#                   Dense at the start (rapid drift phase), sparser later.
+#                   Alternatively use the legacy `interval: N` for every-N-rounds.
+# client_sample   : max clients to checkpoint per round (all 10 by default).
+#                   The offline script respects this when sampling for CKA.
+# probe_batches   : forwarded to run_metadata.json; used by the offline script.
+#                   Set to -1 or 0 to consume the full probe dataloader.
+# probe_batch_size: forwarded to run_metadata.json; used by the offline script.
 cka:
   rounds: [1, 2, 5, 10, 20, 30, 40, 50]
   client_sample: 10
