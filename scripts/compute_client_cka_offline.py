@@ -27,7 +27,7 @@ Usage examples
 --------------
   # Single run directory
   python scripts/compute_client_cka_offline.py \\
-      --run-dir logs/runs/brain_tumor_alpha0.1_efficient1_ckadriftfedavg_seed42
+      --run-dir logs/runs/brain_tumor_alpha0.1_vim_tiny_ckadriftfedprox_seed42
 
   # All runs under a parent directory
   python scripts/compute_client_cka_offline.py --logs-dir logs/runs
@@ -49,7 +49,6 @@ Usage examples
 from __future__ import annotations
 
 import argparse
-import copy
 import json
 import random
 import sys
@@ -57,6 +56,7 @@ from itertools import combinations, islice
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+import gc
 import numpy as np
 import torch
 import torch.nn as nn
@@ -76,21 +76,10 @@ sys.path.insert(0, str(FLBENCH_ROOT / "simtorch"))
 # ---------------------------------------------------------------------------
 from src.utils.models import MODELS  # noqa: E402
 from src.utils.cka_drift import (  # noqa: E402
-    SIMTORCH_AVAILABLE,
     build_probe_loader,
     get_layer_spec,
 )
 from data.utils.datasets import DATASETS  # noqa: E402
-
-if SIMTORCH_AVAILABLE:
-    from simtorch.model.sim_model import SimilarityModel
-    from simtorch.similarity.cka import CKA
-else:
-    print(
-        "ERROR: simtorch not found. Install it before running this script.\n"
-        f"  Expected location: {FLBENCH_ROOT / 'simtorch'}"
-    )
-    sys.exit(1)
 
 # ---------------------------------------------------------------------------
 # CSV schema
@@ -170,6 +159,142 @@ def _build_testset(dataset_name: str):
 # Pairwise CKA computation
 # ---------------------------------------------------------------------------
 
+_MAX_PROBE_ROWS = 512  # default cap; overridable via --max-probe-rows CLI arg
+
+
+def _collect_activations_gpu(
+    model: nn.Module,
+    layer_spec: List[str],
+    data_iter: list,
+    device: torch.device,
+    max_probe_rows: int = _MAX_PROBE_ROWS,
+) -> Tuple[Dict[str, torch.Tensor], List[str]]:
+    """Run forward passes on *device* and return a single concatenated CPU tensor
+    per layer, capped at ``_MAX_PROBE_ROWS`` rows.
+
+    Memory strategy
+    ---------------
+    - Only one batch lives on GPU at a time (activations are moved to CPU
+      immediately inside each hook).
+    - Spatial dimensions are flattened right away so we don't retain the
+      original 4-D feature maps (which dominate RAM for early CNN layers).
+    - Total stored rows are capped at ``_MAX_PROBE_ROWS`` (default 512).
+      Early CNN layers like res9's ``base.2`` would otherwise produce
+      ~100 MB per batch × 20 batches = 2 GB just for that one layer.
+      512 rows is more than sufficient for a stable CKA estimate.
+
+    Returns
+    -------
+    (activations_cpu, layer_names)
+        activations_cpu : dict mapping layer name → [min(N_total, MAX_ROWS), d] CPU tensor
+        layer_names     : layer names in forward-pass order
+    """
+    layer_spec_set = set(layer_spec)
+    # Accumulate flat [batch, d] CPU tensors; stop collecting once we reach the cap.
+    activations_per_layer: Dict[str, List[torch.Tensor]] = {name: [] for name in layer_spec}
+    rows_collected: Dict[str, int] = {name: 0 for name in layer_spec}
+
+    hooks = []
+    fired_order: List[str] = []
+
+    def make_hook(name: str):
+        def hook_fn(module, inp, output):
+            if rows_collected[name] >= max_probe_rows:
+                return  # already have enough rows — skip this batch
+
+            def _extract(x):
+                if isinstance(x, torch.Tensor):
+                    return x
+                if isinstance(x, (tuple, list)):
+                    return _extract(x[0])
+                if hasattr(x, "last_hidden_state"):
+                    return x.last_hidden_state
+                return x
+
+            tensor = _extract(output)
+            if not isinstance(tensor, torch.Tensor):
+                return
+
+            batch_size = tensor.shape[0]
+            # Flatten spatial dims immediately on GPU (cheap), then move to CPU.
+            flat = tensor.detach().reshape(batch_size, -1).cpu()
+
+            # Only keep as many rows as needed to reach the cap.
+            remaining = max_probe_rows - rows_collected[name]
+            if flat.shape[0] > remaining:
+                flat = flat[:remaining]
+
+            activations_per_layer[name].append(flat)
+            rows_collected[name] += flat.shape[0]
+
+            if name not in fired_order:
+                fired_order.append(name)
+        return hook_fn
+
+    model.to(device).eval()
+
+    for name, module in model.named_modules():
+        if name in layer_spec_set:
+            hooks.append(module.register_forward_hook(make_hook(name)))
+
+    try:
+        with torch.no_grad():
+            for batch in data_iter:
+                # Stop early if all layers are already at cap
+                if all(rows_collected[n] >= max_probe_rows for n in layer_spec_set):
+                    break
+                x = batch[0].to(device)
+                model(x)
+                del x
+                if device.type == "cuda":
+                    torch.cuda.empty_cache()
+    finally:
+        for h in hooks:
+            h.remove()
+        model.cpu()
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+
+    # Concatenate per-layer lists into a single tensor each.
+    ordered_names = [n for n in layer_spec if n in fired_order]
+    result: Dict[str, torch.Tensor] = {}
+    for name in ordered_names:
+        chunks = activations_per_layer[name]
+        if chunks:
+            result[name] = torch.cat(chunks, dim=0)  # [N_rows, d]
+
+    return result, ordered_names
+
+
+def _linear_cka_from_activations(
+    X: torch.Tensor,
+    Y: torch.Tensor,
+) -> float:
+    """Compute linear CKA between two [N, d] CPU activation matrices.
+
+    Operates entirely on CPU, avoiding any GPU allocation during the
+    similarity computation phase.
+    """
+    def _centering(K: torch.Tensor) -> torch.Tensor:
+        n = K.shape[0]
+        H = torch.eye(n) - torch.ones(n, n) / n
+        return H @ K @ H
+
+    def _normalize(M: torch.Tensor) -> torch.Tensor:
+        M = M - M.mean(0, keepdim=True)
+        return M / (torch.linalg.norm(M) + 1e-8)
+
+    X, Y = _normalize(X), _normalize(Y)
+    L_X = X @ X.T
+    L_Y = Y @ Y.T
+    cX = _centering(L_X)
+    cY = _centering(L_Y)
+    hsic_xy = (cX * cY).sum()
+    hsic_xx = torch.sqrt((cX * cX).sum().clamp(min=0))
+    hsic_yy = torch.sqrt((cY * cY).sum().clamp(min=0))
+    return (hsic_xy / (hsic_xx * hsic_yy + 1e-8)).item()
+
+
 def compute_cka_for_pair(
     model_i: nn.Module,
     model_j: nn.Module,
@@ -177,44 +302,72 @@ def compute_cka_for_pair(
     probe_loader: DataLoader,
     probe_batches: int,
     device: torch.device,
+    max_probe_rows: int = _MAX_PROBE_ROWS,
 ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[List[str]]]:
     """Compute the CKA similarity matrix between two client models.
+
+    Memory-efficient strategy
+    -------------------------
+    1. Forward-pass model_i on GPU (if device=cuda) one batch at a time,
+       immediately moving each activation to CPU after the hook fires.
+       Only one batch of activations ever lives on GPU at once.
+    2. Repeat for model_j.
+    3. Compute the full L×L CKA matrix on CPU from the collected tensors.
+       No GPU memory is needed during the similarity computation phase.
+
+    This keeps peak VRAM to roughly ``max(sizeof(model_i), sizeof(model_j))``
+    plus one probe batch — instead of both models + all probe activations
+    simultaneously, which caused OOM with res9 on a 10 GiB GPU.
 
     Returns
     -------
     (diagonal, matrix, layer_names) — or (None, None, None) on failure.
     """
     try:
-        model_i.to(device).eval()
-        model_j.to(device).eval()
+        # Build data_iter with tensors kept on CPU (device transfer happens
+        # inside _collect_activations_gpu, per batch).
+        if probe_batches >= 1:
+            data_iter = [
+                (x.cpu(), *rest)
+                for x, *rest in islice(probe_loader, probe_batches)
+            ]
+        else:
+            data_iter = [(x.cpu(), *rest) for x, *rest in probe_loader]
 
-        with torch.no_grad():
-            if probe_batches >= 1:
-                data_iter = [
-                    (x.cpu(), *rest)
-                    for x, *rest in islice(probe_loader, probe_batches)
-                ]
-            else:
-                data_iter = list(probe_loader)
+        # --- Phase 1: collect activations for model_i (one batch at a time) ---
+        acts_i, layer_names_i = _collect_activations_gpu(
+            model_i, layer_spec, data_iter, device, max_probe_rows
+        )
 
-        try:
-            sim_i = SimilarityModel(model_i, layers_to_include=layer_spec, device=device)
-            sim_j = SimilarityModel(model_j, layers_to_include=layer_spec, device=device)
-            cka = CKA(sim_i, sim_j, device=device)
-            matrix: np.ndarray = cka.compute(data_iter)
+        # --- Phase 2: collect activations for model_j ---
+        acts_j, layer_names_j = _collect_activations_gpu(
+            model_j, layer_spec, data_iter, device, max_probe_rows
+        )
 
-            diagonal: np.ndarray = np.diag(matrix)
-            layer_names = list(sim_j.model_activations.keys())
-            return diagonal, matrix, layer_names
+        del data_iter
 
-        finally:
-            del data_iter
-            try:
-                del sim_i, sim_j, cka
-            except NameError:
-                pass
-            if device.type == "cuda":
-                torch.cuda.empty_cache()
+        # Use the intersection of fired layer names (same order as layer_spec)
+        fired_set_j = set(layer_names_j)
+        layer_names = [n for n in layer_names_i if n in fired_set_j]
+
+        if not layer_names:
+            print("    [WARN] CKA pair failed: no matching layers fired in both models")
+            return None, None, None
+
+        n_layers = len(layer_names)
+
+        # --- Phase 3: compute L×L CKA matrix entirely on CPU ---
+        matrix = np.zeros((n_layers, n_layers), dtype=np.float32)
+        for row_idx, name_i in enumerate(layer_names):
+            for col_idx, name_j in enumerate(layer_names):
+                matrix[row_idx, col_idx] = _linear_cka_from_activations(
+                    acts_i[name_i], acts_j[name_j]
+                )
+
+        del acts_i, acts_j  # free activation tensors before returning
+
+        diagonal = np.diag(matrix)
+        return diagonal, matrix, layer_names
 
     except (KeyboardInterrupt, SystemExit):
         raise
@@ -223,8 +376,11 @@ def compute_cka_for_pair(
         return None, None, None
 
     finally:
+        # Ensure models are back on CPU regardless of what happened
         model_i.cpu()
         model_j.cpu()
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +438,7 @@ def process_run(
     client_sample_override: Optional[int],
     probe_batches_override: Optional[int],
     probe_batch_size_override: Optional[int],
+    max_probe_rows: int,
     device: torch.device,
     skip_existing: bool,
     save_matrices: bool,
@@ -384,31 +541,28 @@ def process_run(
             print(" | skipped (need ≥ 2 clients)")
             continue
 
-        # Pre-load all sampled client models for this round to avoid
-        # reloading model_j multiple times across pairs.
-        loaded_models: Dict[int, nn.Module] = {}
-        for cid in sampled_clients:
-            ckpt = round_dir / f"client_{cid:03d}.pt"
-            try:
-                loaded_models[cid] = _load_model(model_name, dataset_name, ckpt, use_pretrained)
-            except Exception as e:
-                print(f"\n    [WARN] Client {cid}: load failed: {e}")
-
         all_diagonals: List[np.ndarray] = []
 
         for ci, cj in pairs:
-            if ci not in loaded_models or cj not in loaded_models:
-                print("x", end="", flush=True)
-                continue
-
             # Skip already-computed pairs when --skip-existing is set
             if skip_existing and _already_computed(csv_path, round_idx, ci, cj):
                 print(".", end="", flush=True)
                 continue
 
-            # Deep-copy so CKA hooks don't accumulate across pairs
-            mi = copy.deepcopy(loaded_models[ci])
-            mj = copy.deepcopy(loaded_models[cj])
+            ckpt_i = round_dir / f"client_{ci:03d}.pt"
+            ckpt_j = round_dir / f"client_{cj:03d}.pt"
+
+            if not ckpt_i.exists() or not ckpt_j.exists():
+                print("x", end="", flush=True)
+                continue
+
+            try:
+                mi = _load_model(model_name, dataset_name, ckpt_i, use_pretrained)
+                mj = _load_model(model_name, dataset_name, ckpt_j, use_pretrained)
+            except Exception as e:
+                print(f"\n    [WARN] Load failed ({ci},{cj}): {e}")
+                print("x", end="", flush=True)
+                continue
 
             diagonal, matrix, layer_names = compute_cka_for_pair(
                 model_i=mi,
@@ -417,9 +571,13 @@ def process_run(
                 probe_loader=probe_loader,
                 probe_batches=probe_batches,
                 device=device,
+                max_probe_rows=max_probe_rows,
             )
 
             del mi, mj
+            gc.collect()
+            if device.type == "cuda":
+                torch.cuda.empty_cache()
 
             if diagonal is None:
                 print("x", end="", flush=True)
@@ -451,11 +609,6 @@ def process_run(
             all_diagonals.append(diagonal)
             total_computed += 1
             print(".", end="", flush=True)
-
-        # Free all pre-loaded models for this round
-        for m in loaded_models.values():
-            del m
-        loaded_models.clear()
 
         if device.type == "cuda":
             torch.cuda.empty_cache()
@@ -541,6 +694,15 @@ def main() -> None:
              "in <run_dir>/client_cka_matrices/.",
     )
     parser.add_argument(
+        "--max-probe-rows",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Max activation rows stored per layer across all probe batches "
+             f"(default: {_MAX_PROBE_ROWS}). Lower values use less RAM; "
+             "512 rows is sufficient for stable CKA estimates.",
+    )
+    parser.add_argument(
         "--quiet", "-q",
         action="store_true",
         help="Suppress per-pair progress dots.",
@@ -550,6 +712,7 @@ def main() -> None:
 
     device = torch.device(args.device)
     rounds_override = set(args.rounds) if args.rounds else None
+    max_probe_rows = args.max_probe_rows if args.max_probe_rows is not None else _MAX_PROBE_ROWS
 
     if args.run_dir is not None:
         run_dirs = [args.run_dir.resolve()]
@@ -569,6 +732,7 @@ def main() -> None:
             client_sample_override=args.client_sample,
             probe_batches_override=args.probe_batches,
             probe_batch_size_override=args.probe_batch_size,
+            max_probe_rows=max_probe_rows,
             device=device,
             skip_existing=args.skip_existing,
             save_matrices=args.save_matrices,
