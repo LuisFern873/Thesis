@@ -80,6 +80,11 @@ common:
   save_metrics: true
   delete_useless_run: true
 
+  # Path to a previously saved training_state.pt (or its parent directory).
+  # Set via CLI to resume an interrupted run:
+  #   common.resume_checkpoint=logs/runs/<run_name>/checkpoints/training_state.pt
+  resume_checkpoint: null
+
 # CKA checkpoint configuration.
 # Training ONLY saves model checkpoints at the specified rounds — CKA is
 # computed offline by scripts/compute_cka_offline.py after training finishes.
