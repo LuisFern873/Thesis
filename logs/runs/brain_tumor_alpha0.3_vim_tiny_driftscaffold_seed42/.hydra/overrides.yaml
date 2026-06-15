@@ -1,6 +1,0 @@
-- method=driftscaffold
-- dataset.name=brain_tumor
-- dataset.partition_dir=partitions/alpha_0.3/seed_42
-- model.name=vim_tiny
-- common.seed=42
-- common.global_epoch=40
