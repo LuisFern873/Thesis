@@ -63,6 +63,7 @@ cka:
   - 20
   - 30
   - 40
+  - 50
   client_sample: 10
   probe_batches: 20
   probe_batch_size: 16

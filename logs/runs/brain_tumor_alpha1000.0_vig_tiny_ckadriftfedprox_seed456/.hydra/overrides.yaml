@@ -1,0 +1,7 @@
+- method=ckadriftfedprox
+- dataset.name=brain_tumor
+- dataset.partition_dir=partitions/alpha_1000.0/seed_456
+- model.name=vig_tiny
+- common.seed=456
+- common.global_epoch=50
+- mode=serial

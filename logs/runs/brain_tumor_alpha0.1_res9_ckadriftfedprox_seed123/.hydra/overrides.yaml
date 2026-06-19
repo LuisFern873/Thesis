@@ -1,0 +1,7 @@
+- method=ckadriftfedprox
+- dataset.name=brain_tumor
+- dataset.partition_dir=partitions/alpha_0.1/seed_123
+- model.name=res9
+- common.seed=123
+- common.global_epoch=50
+- mode=serial
