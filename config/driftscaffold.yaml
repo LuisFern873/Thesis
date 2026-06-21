@@ -60,6 +60,7 @@ common:
   save_learning_curve_plot: true
   save_metrics: true
   delete_useless_run: true
+  resume_checkpoint: null
 
 # SCAFFOLD global learning rate (scales the aggregated y_delta update)
 # Key must match the method name so main.py's parse_args wires it into

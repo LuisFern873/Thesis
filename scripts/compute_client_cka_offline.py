@@ -200,7 +200,7 @@ def _collect_activations_gpu(
     def make_hook(name: str):
         def hook_fn(module, inp, output):
             if rows_collected[name] >= max_probe_rows:
-                return  # already have enough rows — skip this batch
+                return
 
             def _extract(x):
                 if isinstance(x, torch.Tensor):
@@ -216,10 +216,18 @@ def _collect_activations_gpu(
                 return
 
             batch_size = tensor.shape[0]
-            # Flatten spatial dims immediately on GPU (cheap), then move to CPU.
-            flat = tensor.detach().reshape(batch_size, -1).cpu()
 
-            # Only keep as many rows as needed to reach the cap.
+            # Reduce spatial dims via global average pooling before moving to CPU.
+            # [B, C, H, W] → [B, C]  (CNN feature maps)
+            # [B, T, D]    → [B, D]  (ViT / Mamba token sequences)
+            # [B, D]       → [B, D]  (classifiers, already flat)
+            if tensor.ndim == 4:
+                flat = tensor.detach().mean(dim=(-2, -1)).cpu()
+            elif tensor.ndim == 3:
+                flat = tensor.detach().mean(dim=1).cpu()
+            else:
+                flat = tensor.detach().reshape(batch_size, -1).cpu()
+
             remaining = max_probe_rows - rows_collected[name]
             if flat.shape[0] > remaining:
                 flat = flat[:remaining]
@@ -494,7 +502,7 @@ def process_run(
             testset,
             batch_size=probe_batch_size,
             dataset_name=dataset_name,
-            num_workers=2,
+            num_workers=1   ,
             pin_memory=(device.type == "cuda"),
         )
         print("OK")
@@ -508,6 +516,11 @@ def process_run(
     rng = random.Random(seed)
 
     for round_idx in sorted(cka_rounds):
+
+        import psutil, os
+        mem = psutil.Process(os.getpid()).memory_info().rss / 1024**3
+        print(f"  [RAM] {mem:.2f} GB before round {round_idx}")
+
         round_dir = checkpoints_dir / f"round_{round_idx:04d}"
 
         client_ckpts = sorted(round_dir.glob("client_*.pt"))

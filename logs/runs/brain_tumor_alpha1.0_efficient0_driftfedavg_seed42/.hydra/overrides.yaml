@@ -1,6 +1,0 @@
-- method=driftfedavg
-- dataset.name=brain_tumor
-- dataset.partition_dir=partitions/alpha_1.0/seed_42
-- model.name=efficient0
-- common.seed=42
-- common.global_epoch=40

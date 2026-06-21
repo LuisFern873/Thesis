@@ -75,6 +75,11 @@ common:
   save_metrics: true
   delete_useless_run: true
 
+  # Path to a previously saved training_state.pt (or its parent directory).
+  # Set via CLI to resume an interrupted run:
+  #   common.resume_checkpoint=logs/runs/<run_name>/checkpoints/training_state.pt
+  resume_checkpoint: null
+
 # proximal coefficient — penalises client model deviation from the global model
 fedprox:
   mu: 0.01  # proximal term weight (μ); controls the strength of the FedProx regularisation

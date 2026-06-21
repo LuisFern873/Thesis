@@ -4,26 +4,32 @@ plot_results.py — Phase 8.3–8.7
 Generates all figures described in methodology Section 8.
 Run this after all experiments complete.
 
-Figures produced (saved to logs/figures/):
+Reads data from the nested logs/runs/ hierarchy:
+    logs/runs/<dataset>/<method>/<model>/alpha<X>/seed<N>/
+
+Figures are saved to a mirrored nested structure:
+    logs/figures/<dataset>/<method>/
+
+Figures produced:
   fig1_accuracy_vs_round_{dataset}_{method}.png
-      Accuracy vs. round for all 5 models × 4 α values.
+      Accuracy vs. round for all models × α values.
       One subplot per α, mean ± std shading across 3 seeds.
 
   fig2_drift_vs_round_{dataset}_alpha{α}_{method}.png
       Per-layer drift (norm / feature / head) vs. round for all models.
-      One subplot per layer group.
 
   fig3_interference_vs_round_{dataset}_alpha{α}_{method}.png
       Gradient cosine similarity vs. round for all models.
-      One subplot per layer group.
 
   fig4_normalization_ablation_{dataset}_{method}.png
       Bar chart: drift@final and accuracy@final for
       EfficientNet-BN vs. GN vs. LN at each α level.
 
   fig5_fairness_vs_alpha_{dataset}_{method}.png
-      Fairness gap (max-min per-client accuracy) vs. α,
-      one line per model.
+      Fairness gap (max-min per-client accuracy) vs. α, one line per model.
+
+  fig6_b0_vs_b1_{dataset}_{method}.png
+      EfficientNet-B0 vs B1 side-by-side comparison.
 
   table1_comparison_{dataset}_{method}.txt
       Primary comparison table (methodology Section 5.5) as plain text.
@@ -32,13 +38,12 @@ Usage:
     python scripts/plot_results.py
     python scripts/plot_results.py --logs-dir logs/runs --out-dir logs/figures
     python scripts/plot_results.py --dataset cifar10
-    python scripts/plot_results.py --dataset cifar10 --alpha 0.03 --method driftfedavg
+    python scripts/plot_results.py --dataset brain_tumor --alpha 0.03 --method fedavg
 """
 
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -59,16 +64,23 @@ DATASETS = ["cifar10", "brain_tumor"]
 ALPHAS   = ["1000.0", "1.0", "0.3", "0.1", "0.03"]
 SEEDS    = [42, 123, 456]
 
+# Method names as they appear in logs/runs/<dataset>/<method>/
+# Primary study runs (ckadrift* → fedavg / fedprox)
+# No-CKA preliminary runs get the _nodcka suffix
+METHODS_ALL = ["fedavg", "fedprox", "fedavg_nodcka", "fedprox_nodcka", "scaffold_nodcka"]
+METHODS_PRIMARY = ["fedavg", "fedprox"]  # default for --method all
+
 MODEL_LABELS: Dict[str, str] = {
-    "efficient0":    "EfficientNet-B0 (BN)",
+    "efficient0":    "EfficientNet-B0",
     "efficient0_gn": "EfficientNet-B0 (GN)",
     "efficient0_ln": "EfficientNet-B0 (LN)",
-    "efficient1":    "EfficientNet-B1 (BN)",
+    "efficient1":    "EfficientNet-B1",
     "efficient1_gn": "EfficientNet-B1 (GN)",
     "efficient1_ln": "EfficientNet-B1 (LN)",
     "vit_tiny":      "ViT-Tiny",
     "vim_tiny":      "Vim-Tiny",
     "vig_tiny":      "ViG-Tiny",
+    "res9":          "ResNet-9",
 }
 
 # Consistent colour palette across all figures
@@ -76,12 +88,15 @@ MODEL_COLORS: Dict[str, str] = {
     "efficient0":    "#e41a1c",   # red
     "efficient0_gn": "#ff7f00",   # orange
     "efficient0_ln": "#f0c040",   # yellow
-    "efficient1":    "#984ea3",   # purple
+
+    "efficient1":    "#CC79A7",   # reddish purple
     "efficient1_gn": "#a65628",   # brown
     "efficient1_ln": "#f781bf",   # pink
-    "vit_tiny":      "#0072B2",  # blue
-    "vim_tiny":      "#009E73",  # green
-    "vig_tiny":      "#D55E00",  # orange
+
+    "vit_tiny":      "#0072B2",   # blue
+    "vim_tiny":      "#009E73",   # bluish green
+    "vig_tiny":      "#E69F00",   # orange
+    "res9":          "#D55E00",   # vermillion
 }
 
 ALPHA_LABELS: Dict[str, str] = {
@@ -97,14 +112,9 @@ LAYER_LABELS = {"norm": "Norm layers", "feature": "Feature layers", "head": "Hea
 
 # Convergence thresholds (methodology Section 5.2)
 CONVERGENCE_THRESHOLDS: Dict[str, float] = {
-    "cifar10": 70.0,
+    "cifar10":     70.0,
     "brain_tumor": 80.0,
 }
-
-RUN_PATTERN = re.compile(
-    r"^(?P<dataset>.+)_alpha(?P<alpha>[^_]+)_(?P<model>.+)"
-    r"_(?P<method>drift\w+)_seed(?P<seed>\d+)$"
-)
 
 plt.rcParams.update({
     "font.size": 10,
@@ -116,51 +126,77 @@ plt.rcParams.update({
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Helpers
+# Data loading — nested hierarchy
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _convergence_round(
-    acc_series: pd.Series, threshold: float, window: int = 5
-) -> int:
-    """First round where accuracy stays >= threshold for `window` consecutive rounds."""
-    vals = acc_series.tolist()
-    for t in range(len(vals) - window + 1):
-        if all(v >= threshold for v in vals[t: t + window]):
-            return t + 1  # 1-indexed
-    return -1
-
 
 def load_all_runs(logs_dir: Path) -> Dict[Tuple, pd.DataFrame]:
     """
-    Scan logs_dir for run subdirectories and load their drift_metrics.csv.
-    Returns {(dataset, alpha, model, method, seed): DataFrame}.
+    Scan the nested logs/runs/ hierarchy and load CSV data for each run.
+
+    Expected layout:
+        logs_dir/<dataset>/<method>/<model>/alpha<X>/seed<N>/
+
+    Returns:
+        { (dataset, alpha, model, method, seed): DataFrame }
+
+    The DataFrame is loaded from drift_metrics.csv if present, else metrics.csv.
+    Only DataFrames with a 'round' column are included.
     """
     runs: Dict[Tuple, pd.DataFrame] = {}
     if not logs_dir.exists():
+        print(f"[WARN] logs_dir not found: {logs_dir}", file=sys.stderr)
         return runs
 
-    for run_dir in sorted(logs_dir.iterdir()):
-        if not run_dir.is_dir():
+    for dataset_dir in sorted(logs_dir.iterdir()):
+        if not dataset_dir.is_dir():
             continue
-        m = RUN_PATTERN.match(run_dir.name)
-        if not m:
-            continue
-        key = (
-            m.group("dataset"), m.group("alpha"),
-            m.group("model"),   m.group("method"),
-            int(m.group("seed")),
-        )
-        # Prefer drift_metrics.csv (primary); fall back to metrics.csv
-        for fname in ("drift_metrics.csv", "metrics.csv"):
-            p = run_dir / fname
-            if p.exists():
-                try:
-                    df = pd.read_csv(p)
-                    if not df.empty and "round" in df.columns:
-                        runs[key] = df
-                        break
-                except Exception:
-                    pass
+        dataset = dataset_dir.name
+
+        for method_dir in sorted(dataset_dir.iterdir()):
+            if not method_dir.is_dir():
+                continue
+            method = method_dir.name
+
+            for model_dir in sorted(method_dir.iterdir()):
+                if not model_dir.is_dir():
+                    continue
+                model = model_dir.name
+
+                for alpha_dir in sorted(model_dir.iterdir()):
+                    if not alpha_dir.is_dir():
+                        continue
+                    # Expect "alpha<value>" — strip the prefix
+                    alpha_raw = alpha_dir.name
+                    if not alpha_raw.startswith("alpha"):
+                        continue
+                    alpha = alpha_raw[len("alpha"):]  # e.g. "0.1", "1000.0"
+
+                    for seed_dir in sorted(alpha_dir.iterdir()):
+                        if not seed_dir.is_dir():
+                            continue
+                        seed_raw = seed_dir.name
+                        if not seed_raw.startswith("seed"):
+                            continue
+                        try:
+                            seed = int(seed_raw[len("seed"):])
+                        except ValueError:
+                            continue
+
+                        # Load CSV: prefer drift_metrics, fall back to metrics
+                        for fname in ("drift_metrics.csv", "metrics.csv"):
+                            csv_path = seed_dir / fname
+                            if csv_path.exists():
+                                try:
+                                    df = pd.read_csv(csv_path)
+                                    if not df.empty and "round" in df.columns:
+                                        key = (dataset, alpha, model, method, seed)
+                                        runs[key] = df
+                                        break
+                                except Exception as exc:
+                                    print(
+                                        f"[WARN] Could not read {csv_path}: {exc}",
+                                        file=sys.stderr,
+                                    )
     return runs
 
 
@@ -174,7 +210,7 @@ def get_series(
 ) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """
     Return (rounds, mean, std) across seeds for a given column.
-    Returns None if no data is available for any seed.
+    Returns None if no seed has data for this column.
     """
     seed_series: List[pd.Series] = []
     for seed in SEEDS:
@@ -190,6 +226,24 @@ def get_series(
     mean   = combined.mean(axis=1).values
     std    = combined.std(axis=1).fillna(0).values
     return rounds, mean, std
+
+
+def _convergence_round(
+    acc_series: pd.Series, threshold: float, window: int = 5
+) -> int:
+    """First round where accuracy stays >= threshold for `window` consecutive rounds."""
+    vals = acc_series.tolist()
+    for t in range(len(vals) - window + 1):
+        if all(v >= threshold for v in vals[t : t + window]):
+            return t + 1  # 1-indexed
+    return -1
+
+
+def _method_out_dir(out_dir: Path, dataset: str, method: str) -> Path:
+    """Return (and create) the output subdirectory for a dataset/method pair."""
+    d = out_dir / dataset / method
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -216,7 +270,7 @@ def plot_accuracy_vs_round(
             rounds, mean, std = result
             color = MODEL_COLORS[model]
             ax.plot(rounds, mean, label=MODEL_LABELS[model], color=color, linewidth=1.8)
-            ax.fill_between(rounds, mean - std, mean + std, alpha=0.15, color=color)
+            ax.fill_between(rounds, mean - std, mean + std, alpha=0.10, color=color)
 
         ax.set_title(ALPHA_LABELS.get(alpha, f"α={alpha}"))
         ax.set_xlabel("Communication Round")
@@ -231,10 +285,11 @@ def plot_accuracy_vs_round(
     fig.suptitle(f"Accuracy vs. Round — {dataset} ({method})", fontsize=12, y=1.01)
     fig.tight_layout()
 
-    fname = out_dir / f"fig1_accuracy_vs_round_{dataset}_{method}.png"
+    dest = _method_out_dir(out_dir, dataset, method)
+    fname = dest / f"fig1_accuracy_vs_round_{dataset}_{method}.png"
     fig.savefig(fname, bbox_inches="tight")
     plt.close(fig)
-    print(f"  [OK] {fname.name}")
+    print(f"  [OK] {fname.relative_to(out_dir)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -248,7 +303,7 @@ def plot_drift_vs_round(
     method: str,
     out_dir: Path,
 ) -> None:
-    """Three subplots (one per layer group) showing normalised RMS drift only.
+    """Three subplots (one per layer group) showing normalised RMS drift.
 
     All three axes share the same Y scale so magnitudes are directly comparable
     across layer groups. Falls back to raw L2 drift with a note in the title
@@ -267,7 +322,7 @@ def plot_drift_vs_round(
     ylabel     = "RMS Drift  ||Δθ||₂ / √N  (per-parameter)" if has_norm else "Raw L2 Drift  ||Δθ||₂"
     title_tag  = "Normalised RMS Drift" if has_norm else "Raw L2 Drift (no norm data)"
 
-    # ── First pass: collect all data so we can compute a shared Y limit ──
+    # First pass: collect data for a shared Y limit
     all_upper: List[float] = []
     series_cache: Dict[Tuple[str, str], Optional[Tuple]] = {}
     for group in LAYER_GROUPS:
@@ -281,7 +336,6 @@ def plot_drift_vs_round(
 
     y_max = max(all_upper) * 1.12 if all_upper else 1.0  # 12 % headroom
 
-    # ── Plot ─────────────────────────────────────────────────────────────
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.5), sharey=True)
 
     for ax, group in zip(axes, LAYER_GROUPS):
@@ -319,10 +373,11 @@ def plot_drift_vs_round(
                  fontsize=12, y=1.02)
     fig.tight_layout()
 
-    fname = out_dir / f"fig2_drift_vs_round_{dataset}_alpha{alpha}_{method}.png"
+    dest = _method_out_dir(out_dir, dataset, method)
+    fname = dest / f"fig2_drift_vs_round_{dataset}_alpha{alpha}_{method}.png"
     fig.savefig(fname, bbox_inches="tight")
     plt.close(fig)
-    print(f"  [OK] {fname.name}")
+    print(f"  [OK] {fname.relative_to(out_dir)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -366,10 +421,11 @@ def plot_interference_vs_round(
                  fontsize=12, y=1.01)
     fig.tight_layout()
 
-    fname = out_dir / f"fig3_interference_vs_round_{dataset}_alpha{alpha}_{method}.png"
+    dest = _method_out_dir(out_dir, dataset, method)
+    fname = dest / f"fig3_interference_vs_round_{dataset}_alpha{alpha}_{method}.png"
     fig.savefig(fname, bbox_inches="tight")
     plt.close(fig)
-    print(f"  [OK] {fname.name}")
+    print(f"  [OK] {fname.relative_to(out_dir)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -388,10 +444,8 @@ def plot_normalization_ablation(
       Row 1 (B0): EfficientNet-B0 BN vs GN vs LN — accuracy and norm-layer drift
       Row 2 (B1): EfficientNet-B1 BN vs GN vs LN — accuracy and norm-layer drift
 
-    The drift bars show **normalised (RMS) drift** (`drift_norm_norm_mean`),
-    falling back to raw L2 drift (`drift_norm_mean`) for older CSV files.
-    Normalised drift is scale-independent and directly comparable across
-    normalization variants.
+    The drift bars show normalised (RMS) drift, falling back to raw L2 for
+    older CSV files.
     """
     backbone_groups = [
         ("B0", ["efficient0",    "efficient0_gn", "efficient0_ln"]),
@@ -406,15 +460,13 @@ def plot_normalization_ablation(
         ax_acc   = axes[row][0]
         ax_drift = axes[row][1]
 
-        # Prefer normalised drift; fall back to raw when absent
         norm_col = "drift_norm_norm_mean"
         raw_col  = "drift_norm_mean"
 
         for i, model in enumerate(ablation_models):
             accs, drifts = [], []
             for alpha in ALPHAS:
-                r_acc = get_series(runs, dataset, alpha, model, method, "global_acc")
-                # Try normalised first, fall back to raw
+                r_acc   = get_series(runs, dataset, alpha, model, method, "global_acc")
                 r_drift = get_series(runs, dataset, alpha, model, method, norm_col)
                 if r_drift is None:
                     r_drift = get_series(runs, dataset, alpha, model, method, raw_col)
@@ -428,7 +480,6 @@ def plot_normalization_ablation(
             ax_acc.bar(x + offset,   accs,   width, label=label, color=color, alpha=0.85)
             ax_drift.bar(x + offset, drifts, width, label=label, color=color, alpha=0.85)
 
-        # Determine which drift label was actually used
         any_norm = any(
             get_series(runs, dataset, alpha, model, method, norm_col) is not None
             for alpha in ALPHAS
@@ -458,10 +509,11 @@ def plot_normalization_ablation(
     fig.suptitle(f"Normalization Ablation: B0 vs B1 — {dataset}", fontsize=12)
     fig.tight_layout()
 
-    fname = out_dir / f"fig4_normalization_ablation_{dataset}_{method}.png"
+    dest = _method_out_dir(out_dir, dataset, method)
+    fname = dest / f"fig4_normalization_ablation_{dataset}_{method}.png"
     fig.savefig(fname, bbox_inches="tight")
     plt.close(fig)
-    print(f"  [OK] {fname.name}")
+    print(f"  [OK] {fname.relative_to(out_dir)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -475,7 +527,6 @@ def plot_fairness_vs_alpha(
     out_dir: Path,
 ) -> None:
     models = list(MODEL_LABELS.keys())
-    # Sort alphas by numeric value for a meaningful x-axis
     sorted_pairs = sorted(zip([float(a) for a in ALPHAS], ALPHAS))
 
     fig, ax = plt.subplots(figsize=(7, 5))
@@ -484,7 +535,6 @@ def plot_fairness_vs_alpha(
         gaps: List[float] = []
         for _, alpha in sorted_pairs:
             result = get_series(runs, dataset, alpha, model, method, "fairness_gap")
-            # Use mean at final round
             gaps.append(float(result[1][-1]) if result is not None else float("nan"))
 
         x_vals = [p[0] for p in sorted_pairs]
@@ -499,97 +549,11 @@ def plot_fairness_vs_alpha(
     ax.grid(True, linestyle="--", alpha=0.4)
     fig.tight_layout()
 
-    fname = out_dir / f"fig5_fairness_vs_alpha_{dataset}_{method}.png"
+    dest = _method_out_dir(out_dir, dataset, method)
+    fname = dest / f"fig5_fairness_vs_alpha_{dataset}_{method}.png"
     fig.savefig(fname, bbox_inches="tight")
     plt.close(fig)
-    print(f"  [OK] {fname.name}")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Table 1 — Primary Comparison Table (Section 5.5)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def write_comparison_table(
-    runs: Dict[Tuple, pd.DataFrame],
-    dataset: str,
-    method: str,
-    out_dir: Path,
-) -> None:
-    """Primary comparison table (methodology Section 5.5).
-
-    Shows raw L2 drift AND normalised (RMS) drift per-group for the norm layer.
-    Normalised drift column falls back to 'n/a' for older CSV files.
-    """
-    header = (
-        f"{'Model':<20} {'α':<8} {'Acc@final±std':>15} {'Conv.Rnd':>10} "
-        f"{'RawDrift-norm':>14} {'NormDrift-norm':>15} "
-        f"{'Interference':>14} {'Fairness':>10}"
-    )
-    sep = "-" * len(header)
-    rows: List[str] = [
-        f"Primary Comparison Table — {dataset} ({method})", sep, header, sep
-    ]
-
-    threshold = CONVERGENCE_THRESHOLDS.get(dataset, 70.0)
-
-    for alpha in ALPHAS:
-        for model in list(MODEL_LABELS.keys()):
-            accs, raw_drifts, norm_drifts, interfs, fairs, conv_rounds = \
-                [], [], [], [], [], []
-
-            for seed in SEEDS:
-                key = (dataset, alpha, model, method, seed)
-                if key not in runs:
-                    continue
-                df = runs[key]
-                if df.empty:
-                    continue
-                final = df.iloc[-1]
-                accs.append(      float(final.get("global_acc",                float("nan"))))
-                raw_drifts.append(float(final.get("drift_norm_mean",           float("nan"))))
-                # Normalised column may not exist in older CSVs
-                nd_val = final.get("drift_norm_norm_mean", None)
-                norm_drifts.append(float(nd_val) if nd_val is not None else float("nan"))
-                interfs.append(   float(final.get("interference_feature",      float("nan"))))
-                fairs.append(     float(final.get("fairness_gap",              float("nan"))))
-                if "global_acc" in df.columns:
-                    conv_rounds.append(_convergence_round(df["global_acc"], threshold))
-
-            if not accs:
-                continue
-
-            acc_mean  = float(np.nanmean(accs))
-            acc_std   = float(np.nanstd(accs))
-            raw_d     = float(np.nanmean(raw_drifts))
-            norm_d    = float(np.nanmean(norm_drifts))
-            interf_m  = float(np.nanmean(interfs))
-            fair_m    = float(np.nanmean(fairs))
-            conv_m    = int(round(float(np.nanmean(conv_rounds)))) if conv_rounds else -1
-
-            norm_d_str = f"{norm_d:>13.4f}" if not np.isnan(norm_d) else f"{'n/a':>13}"
-
-            rows.append(
-                f"{MODEL_LABELS[model]:<20} {alpha:<8} "
-                f"{acc_mean:>6.1f}±{acc_std:<6.1f} "
-                f"{conv_m:>8}   "
-                f"{raw_d:>12.4f}   "
-                f"{norm_d_str}   "
-                f"{interf_m:>12.4f}   "
-                f"{fair_m:>8.1f}"
-            )
-        rows.append("")  # blank line between alpha groups
-
-    rows.append(sep)
-    rows.append("")
-    rows.append("Columns:")
-    rows.append("  RawDrift-norm   = ||Δθ_norm||₂              (scale-dependent; varies with parameter count)")
-    rows.append("  NormDrift-norm  = ||Δθ_norm||₂ / √N_norm    (RMS per parameter; use for cross-arch comparison)")
-    rows.append("  Interference    = mean pairwise cosine similarity of pseudo-gradients (feature layers)")
-    rows.append("  Fairness        = max − min per-client accuracy (%)")
-
-    fname = out_dir / f"table1_comparison_{dataset}_{method}.txt"
-    fname.write_text("\n".join(rows), encoding="utf-8")
-    print(f"  [OK] {fname.name}")
+    print(f"  [OK] {fname.relative_to(out_dir)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -604,14 +568,11 @@ def plot_b0_vs_b1(
 ) -> None:
     """Side-by-side comparison of EfficientNet-B0 (BN) and EfficientNet-B1 (BN).
 
-    Four panels per figure:
+    Four panels:
       Row 1: Accuracy vs. round at α=0.03 (extreme) and α=1000 (IID)
       Row 2: Norm-layer drift vs. round at the same two α levels
-
-    This directly answers: does scaling from B0 → B1 (+2.5M params) change
-    the drift profile or convergence behaviour under non-IID FL?
     """
-    compare_alphas = ["1000.0", "0.03"]   # IID baseline + extreme non-IID
+    compare_alphas = ["1000.0", "0.03"]
     b0, b1 = "efficient0", "efficient1"
     colors  = {b0: MODEL_COLORS[b0], b1: MODEL_COLORS[b1]}
     labels  = {b0: MODEL_LABELS[b0],  b1: MODEL_LABELS[b1]}
@@ -621,7 +582,7 @@ def plot_b0_vs_b1(
     for col, alpha in enumerate(compare_alphas):
         alpha_label = ALPHA_LABELS.get(alpha, f"α={alpha}")
 
-        # ── Row 0: Accuracy ──────────────────────────────────────────────
+        # Row 0: Accuracy
         ax_acc = axes[0][col]
         for model in [b0, b1]:
             result = get_series(runs, dataset, alpha, model, method, "global_acc")
@@ -638,21 +599,18 @@ def plot_b0_vs_b1(
         ax_acc.grid(True, linestyle="--", alpha=0.4)
         ax_acc.legend(frameon=False)
 
-        # ── Row 1: Norm-layer drift (normalised, fallback to raw) ────────────────
+        # Row 1: Norm-layer drift (normalised, fallback to raw)
         ax_drift = axes[1][col]
-        drift_col = "drift_norm_norm_mean"  # normalised RMS drift
-        # Check if normalised data exists for any seed of either model
+        drift_col = "drift_norm_norm_mean"
         has_norm = any(
             get_series(runs, dataset, alpha, m, method, drift_col) is not None
             for m in [b0, b1]
         )
         if not has_norm:
-            drift_col = "drift_norm_mean"  # fall back to raw L2
+            drift_col = "drift_norm_mean"
 
         drift_ylabel = (
-            "RMS Drift (||Δθ||₂/√N)"
-            if has_norm else
-            "Raw L2 Drift (||Δθ||₂)"
+            "RMS Drift (||Δθ||₂/√N)" if has_norm else "Raw L2 Drift (||Δθ||₂)"
         )
 
         for model in [b0, b1]:
@@ -673,8 +631,7 @@ def plot_b0_vs_b1(
     axes[0][0].set_ylabel("Global Test Accuracy (%)")
     axes[1][0].set_ylabel("Norm-Layer Drift  (RMS if available, else L2)")
 
-    # Parameter count annotation
-    b0_params = 4.01   # base params in M (brain_tumor head)
+    b0_params = 4.01
     b1_params = 6.51
     fig.suptitle(
         f"EfficientNet-B0 ({b0_params:.2f}M params) vs. "
@@ -683,10 +640,121 @@ def plot_b0_vs_b1(
     )
     fig.tight_layout()
 
-    fname = out_dir / f"fig6_b0_vs_b1_{dataset}_{method}.png"
+    dest = _method_out_dir(out_dir, dataset, method)
+    fname = dest / f"fig6_b0_vs_b1_{dataset}_{method}.png"
     fig.savefig(fname, bbox_inches="tight")
     plt.close(fig)
-    print(f"  [OK] {fname.name}")
+    print(f"  [OK] {fname.relative_to(out_dir)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Table 1 — Primary Comparison Table (Section 5.5)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def write_comparison_table(
+    runs: Dict[Tuple, pd.DataFrame],
+    dataset: str,
+    method: str,
+    out_dir: Path,
+) -> None:
+    """Primary comparison table (methodology Section 5.5).
+
+    Columns:
+      Acc@final±std, Conv.Rnd,
+      NormDrift per layer group (norm / feature / head),
+      Interference per layer group,
+      Fairness gap.
+    """
+    header = (
+        f"{'Model':<20} {'α':<8} {'Acc@final±std':>15} {'Conv.Rnd':>10} "
+        f"{'NormDrift-norm':>15} {'NormDrift-feat':>15} {'NormDrift-head':>15} "
+        f"{'Interf-norm':>13} {'Interf-feat':>13} {'Interf-head':>13} "
+        f"{'Fairness':>10}"
+    )
+    sep = "-" * len(header)
+    rows: List[str] = [
+        f"Primary Comparison Table — {dataset} ({method})", sep, header, sep
+    ]
+
+    threshold = CONVERGENCE_THRESHOLDS.get(dataset, 70.0)
+
+    def _final_mean(seed_dfs: List[pd.DataFrame], col: str) -> float:
+        vals = []
+        for df in seed_dfs:
+            v = df.iloc[-1].get(col, None)
+            if v is not None:
+                try:
+                    vals.append(float(v))
+                except (TypeError, ValueError):
+                    pass
+        return float(np.nanmean(vals)) if vals else float("nan")
+
+    def _fmt(v: float, width: int = 13, decimals: int = 4) -> str:
+        return f"{v:>{width}.{decimals}f}" if not np.isnan(v) else f"{'n/a':>{width}}"
+
+    for alpha in ALPHAS:
+        for model in list(MODEL_LABELS.keys()):
+            seed_dfs: List[pd.DataFrame] = []
+            conv_rounds: List[int] = []
+
+            for seed in SEEDS:
+                key = (dataset, alpha, model, method, seed)
+                if key not in runs:
+                    continue
+                df = runs[key]
+                if df.empty:
+                    continue
+                seed_dfs.append(df)
+                if "global_acc" in df.columns:
+                    conv_rounds.append(_convergence_round(df["global_acc"], threshold))
+
+            if not seed_dfs:
+                continue
+
+            accs     = [float(df.iloc[-1].get("global_acc", float("nan"))) for df in seed_dfs]
+            acc_mean = float(np.nanmean(accs))
+            acc_std  = float(np.nanstd(accs))
+            conv_m   = int(round(float(np.nanmean(conv_rounds)))) if conv_rounds else -1
+
+            nd_norm    = _final_mean(seed_dfs, "drift_norm_norm_mean")
+            nd_feature = _final_mean(seed_dfs, "drift_feature_norm_mean")
+            nd_head    = _final_mean(seed_dfs, "drift_head_norm_mean")
+
+            interf_norm    = _final_mean(seed_dfs, "interference_norm")
+            interf_feature = _final_mean(seed_dfs, "interference_feature")
+            interf_head    = _final_mean(seed_dfs, "interference_head")
+
+            fair_m = _final_mean(seed_dfs, "fairness_gap")
+
+            rows.append(
+                f"{MODEL_LABELS[model]:<20} {alpha:<8} "
+                f"{acc_mean:>6.1f}±{acc_std:<6.1f} "
+                f"{conv_m:>8}   "
+                f"{_fmt(nd_norm, 13, 4)}   "
+                f"{_fmt(nd_feature, 13, 4)}   "
+                f"{_fmt(nd_head, 13, 4)}   "
+                f"{_fmt(interf_norm, 11, 4)}   "
+                f"{_fmt(interf_feature, 11, 4)}   "
+                f"{_fmt(interf_head, 11, 4)}   "
+                f"{fair_m:>8.1f}"
+            )
+        rows.append("")  # blank line between alpha groups
+
+    rows.append(sep)
+    rows.append("")
+    rows.append("Columns:")
+    rows.append("  NormDrift-norm  = ||Δθ_norm||₂    / √N_norm    (RMS per parameter — norm layers)")
+    rows.append("  NormDrift-feat  = ||Δθ_feature||₂ / √N_feature (RMS per parameter — feature layers)")
+    rows.append("  NormDrift-head  = ||Δθ_head||₂    / √N_head    (RMS per parameter — head layers)")
+    rows.append("  Interf-norm     = mean pairwise cosine similarity of pseudo-gradients (norm layers)")
+    rows.append("  Interf-feat     = mean pairwise cosine similarity of pseudo-gradients (feature layers)")
+    rows.append("  Interf-head     = mean pairwise cosine similarity of pseudo-gradients (head layers)")
+    rows.append("  Fairness        = max − min per-client accuracy (%)")
+
+    dest = _method_out_dir(out_dir, dataset, method)
+    fname = dest / f"table1_comparison_{dataset}_{method}.txt"
+    fname.write_text("\n".join(rows), encoding="utf-8")
+    print(f"  [OK] {fname.relative_to(out_dir)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -695,16 +763,32 @@ def plot_b0_vs_b1(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate all result figures.")
-    parser.add_argument("--logs-dir", default=str(FLBENCH_ROOT / "logs" / "runs"),
-                        help="Directory containing per-run subdirectories.")
-    parser.add_argument("--out-dir",  default=str(FLBENCH_ROOT / "logs" / "figures"),
-                        help="Output directory for figures and tables.")
-    parser.add_argument("--dataset",  default="all",
-                        choices=DATASETS + ["all"])
-    parser.add_argument("--alpha",    default="all",
-                        help="Alpha value to plot (e.g. 0.03), or 'all'.")
-    parser.add_argument("--method",   default="driftfedavg",
-                        choices=["driftfedavg", "driftfedprox", "ckadriftfedavg", "all"])
+    parser.add_argument(
+        "--logs-dir", default=str(FLBENCH_ROOT / "logs" / "runs"),
+        help="Root of the nested logs/runs/ hierarchy.",
+    )
+    parser.add_argument(
+        "--out-dir", default=str(FLBENCH_ROOT / "logs" / "figures"),
+        help="Root output directory. Figures are placed in <out-dir>/<dataset>/<method>/.",
+    )
+    parser.add_argument(
+        "--dataset", default="all",
+        choices=DATASETS + ["all"],
+    )
+    parser.add_argument(
+        "--alpha", default="all",
+        help="Alpha value to plot (e.g. 0.03), or 'all'.",
+    )
+    parser.add_argument(
+        "--method", default="all",
+        choices=METHODS_ALL + ["all"],
+        help=(
+            "Method folder name as it appears in logs/runs/<dataset>/<method>/. "
+            "Primary runs: fedavg, fedprox. "
+            "Preliminary (no CKA): fedavg_nodcka, fedprox_nodcka, scaffold_nodcka. "
+            "Use 'all' to generate figures for every method that has data."
+        ),
+    )
     args = parser.parse_args()
 
     logs_dir = Path(args.logs_dir)
@@ -714,17 +798,35 @@ def main() -> None:
     print(f"Loading runs from {logs_dir} ...")
     runs = load_all_runs(logs_dir)
     if not runs:
-        print("[ERROR] No runs found. Run experiments first.")
+        print("[ERROR] No runs found. Check that experiments have been run and "
+              "that logs_dir points to the correct location.")
         sys.exit(1)
-    print(f"Loaded {len(runs)} run(s).\n")
+
+    # Report what was found
+    found_keys = set((d, m) for d, _a, _mo, m, _s in runs)
+    print(f"Loaded {len(runs)} run(s) across {len(found_keys)} (dataset, method) pairs:")
+    for d, m in sorted(found_keys):
+        count = sum(1 for k in runs if k[0] == d and k[3] == m)
+        print(f"  {d}/{m}: {count} seed-run(s)")
+    print()
 
     datasets = DATASETS if args.dataset == "all" else [args.dataset]
-    methods  = ["driftfedavg", "driftfedprox"] if args.method == "all" else [args.method]
-    alphas   = ALPHAS if args.alpha == "all" else [args.alpha]
+    alphas   = ALPHAS   if args.alpha   == "all" else [args.alpha]
+
+    # When --method all, iterate only methods that actually have data
+    if args.method == "all":
+        available_methods = sorted({m for _d, _a, _mo, m, _s in runs})
+    else:
+        available_methods = [args.method]
 
     for dataset in datasets:
-        for method in methods:
-            print(f"── {dataset} / {method} " + "─" * 30)
+        for method in available_methods:
+            # Check if there is any data for this (dataset, method) pair
+            pair_runs = {k: v for k, v in runs.items() if k[0] == dataset and k[3] == method}
+            if not pair_runs:
+                continue
+
+            print(f"-- {dataset} / {method} " + "-" * 30)
 
             plot_accuracy_vs_round(runs, dataset, method, out_dir)
 
@@ -737,7 +839,8 @@ def main() -> None:
             plot_b0_vs_b1(runs, dataset, method, out_dir)
             write_comparison_table(runs, dataset, method, out_dir)
 
-    print(f"\nAll outputs saved to {out_dir}/")
+    print(f"\nAll outputs saved under {out_dir}/")
+    print("Structure: <out-dir>/<dataset>/<method>/<figure_file>")
 
 
 if __name__ == "__main__":

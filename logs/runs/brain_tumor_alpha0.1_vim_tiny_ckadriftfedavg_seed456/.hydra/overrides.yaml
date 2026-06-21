@@ -1,6 +1,0 @@
-- method=ckadriftfedavg
-- dataset.name=brain_tumor
-- dataset.partition_dir=partitions/alpha_0.1/seed_456
-- model.name=vim_tiny
-- common.seed=456
-- common.global_epoch=50

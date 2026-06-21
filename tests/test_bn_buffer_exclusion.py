@@ -147,9 +147,9 @@ def test_compute_layer_drift_excludes_bn_buffers():
 
     # The injected buffers have huge values (999) but must not affect norm drift
     # because is_bn_buffer() filters them out.
-    assert drift_injected["norm"] == drift_clean["norm"], (
+    assert drift_injected["norm"]["raw"] == drift_clean["norm"]["raw"], (
         f"BN buffers contaminated norm drift: "
-        f"clean={drift_clean['norm']:.4f}, injected={drift_injected['norm']:.4f}"
+        f"clean={drift_clean['norm']['raw']:.4f}, injected={drift_injected['norm']['raw']:.4f}"
     )
 
 

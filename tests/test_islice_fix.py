@@ -87,7 +87,7 @@ class TestIsliceFix:
         with patch('src.utils.cka_drift.SimilarityModel', _fake_similarity_model_class()), \
              patch('src.utils.cka_drift.CKA', _fake_cka_class(captured)):
 
-            result, _ = compute_cka_diagonal(
+            result, _, _ = compute_cka_diagonal(
                 global_model=model,
                 client_model=model,
                 layer_spec=["0"],
@@ -115,7 +115,7 @@ class TestIsliceFix:
         with patch('src.utils.cka_drift.SimilarityModel', _fake_similarity_model_class()), \
              patch('src.utils.cka_drift.CKA', _fake_cka_class(captured)):
 
-            result, _ = compute_cka_diagonal(
+            result, _, _ = compute_cka_diagonal(
                 global_model=model,
                 client_model=model,
                 layer_spec=["0"],
@@ -141,7 +141,7 @@ class TestIsliceFix:
         with patch('src.utils.cka_drift.SimilarityModel', _fake_similarity_model_class()), \
              patch('src.utils.cka_drift.CKA', _fake_cka_class(captured)):
 
-            result, _ = compute_cka_diagonal(
+            result, _, _ = compute_cka_diagonal(
                 global_model=model,
                 client_model=model,
                 layer_spec=["0"],
@@ -183,7 +183,7 @@ class TestIsliceFix:
         with patch('src.utils.cka_drift.SimilarityModel', _fake_similarity_model_class()), \
              patch('src.utils.cka_drift.CKA', _fake_cka_class(captured)):
 
-            result, _ = compute_cka_diagonal(
+            result, _, _ = compute_cka_diagonal(
                 global_model=model,
                 client_model=model,
                 layer_spec=["0"],
