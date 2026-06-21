@@ -14,6 +14,7 @@ Directory layout written by this server
     <output_dir>/
     ├── checkpoints/
     │   ├── run_metadata.json          # all config needed by the offline script
+    │   ├── training_state.pt          # resume checkpoint (overwritten each round)
     │   ├── round_0001/
     │   │   ├── global.pt              # global model state dict (CPU tensors)
     │   │   ├── client_000.pt
@@ -30,14 +31,26 @@ The offline script then writes:
     └── cka_matrices/
         ├── round_0001_client_000.npz
         └── ...
+
+Resume training
+---------------
+Pass ``common.resume_checkpoint=<path_to_training_state.pt>`` (or the
+directory containing it) on the CLI to resume an interrupted run::
+
+    python main.py --config-name ckadriftfedavg method=ckadriftfedavg \\
+        ... \\
+        "hydra.run.dir=logs/runs/<same_run_name>" \\
+        common.resume_checkpoint=logs/runs/<same_run_name>/checkpoints/training_state.pt
 """
 
 import json
 import os
+import time
 from collections import OrderedDict
 from typing import Any, Dict
 
 import torch
+from rich.progress import track
 
 from src.server.driftfedavg import DriftFedAvgServer
 
@@ -242,6 +255,98 @@ class CKADriftFedAvgServer(DriftFedAvgServer):
         self.logger.log(
             f"  [CKA] Saved checkpoints for round {round_idx} "
             f"({len(client_packages)} clients) → {round_dir}"
+        )
+
+    # ------------------------------------------------------------------
+    # Resume-aware training loop
+    # ------------------------------------------------------------------
+
+    def train(self) -> None:
+        """Training loop with per-round resume checkpointing.
+
+        Behaviour
+        ---------
+        * **Fresh run**: identical to :meth:`FedAvgServer.train` but also
+          writes ``checkpoints/training_state.pt`` at the end of every round.
+        * **Resumed run**: detects ``common.resume_checkpoint`` in the config
+          (a path to ``training_state.pt`` or its parent directory), restores
+          all server state, skips already-completed rounds, and continues from
+          where training stopped.
+
+        The resume checkpoint is overwritten atomically after each round, so
+        only *one* ``training_state.pt`` file is kept on disk at any time —
+        space usage is O(model_size), not O(model_size × rounds).
+        """
+        # ---- resolve resume path ----------------------------------------
+        resume_path = getattr(self.args.common, "resume_checkpoint", None)
+        start_round = 0  # 0-based index of the first round to execute
+
+        if resume_path and str(resume_path).lower() not in ("", "null", "none"):
+            from pathlib import Path as _Path
+
+            rp = _Path(resume_path)
+            # Accept either the directory or the .pt file itself
+            if rp.is_dir():
+                rp = rp / "training_state.pt"
+            if rp.is_file():
+                start_round = self.load_training_checkpoint(rp)
+            else:
+                self.logger.log(
+                    f"  [Resume] WARNING: resume_checkpoint '{resume_path}' not found "
+                    f"— starting from scratch."
+                )
+
+        # ---- main round loop --------------------------------------------
+        avg_round_time = 0
+        for E in self.train_progress_bar:
+            # Skip rounds already completed in a previous run
+            if E < start_round:
+                continue
+
+            self.current_epoch = E
+            self.verbose = (
+                (self.current_epoch + 1) % self.args.common.verbose_gap == 0
+            )
+
+            self.logger.log(
+                "-" * 28,
+                f"ROUND {E + 1}/{self.args.common.global_epoch} START",
+                "-" * 28,
+            )
+            self.selected_clients = self.client_sample_stream[E]
+            self.logger.log(f"Selected clients: {self.selected_clients}")
+
+            begin = time.time()
+            self.train_one_round()
+            end = time.time()
+            round_duration = end - begin
+            avg_round_time = (
+                avg_round_time * (E - start_round) + round_duration
+            ) / (E - start_round + 1)
+            self.logger.log(
+                f"ROUND {E + 1} FINISHED in {round_duration:.2f}s "
+                f"(Avg: {avg_round_time:.2f}s)"
+            )
+
+            if (
+                self.args.common.test.server.interval > 0
+                and (E + 1) % self.args.common.test.server.interval == 0
+            ):
+                self.test_global_model()
+            if (
+                self.args.common.test.client.interval > 0
+                and (E + 1) % self.args.common.test.client.interval == 0
+            ):
+                self.test_client_models()
+
+            self.display_metrics()
+
+            # Persist resume checkpoint (overwrites previous one atomically)
+            self.save_training_checkpoint(self.checkpoints_dir)
+
+        self.logger.log(
+            f"{self.algorithm_name}'s average time taken by each global epoch: "
+            f"{int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
         )
 
     # ------------------------------------------------------------------

@@ -995,6 +995,88 @@ class FedAvgServer:
                 "So the saving is skipped."
             )
 
+    # ------------------------------------------------------------------
+    # Training-resume checkpoint helpers
+    # ------------------------------------------------------------------
+
+    def save_training_checkpoint(self, checkpoint_dir: "Path") -> None:
+        """Persist the minimal server state needed to resume training.
+
+        The checkpoint is saved atomically: we write to a ``.tmp`` file
+        first and rename it only after ``torch.save`` succeeds, so a
+        crash mid-save never leaves a corrupted checkpoint.
+
+        State persisted
+        ---------------
+        - ``current_epoch``        : last *completed* round (0-based)
+        - ``public_model_params``  : global model weights
+        - ``clients_personal_model_params``: per-client personalised params
+        - ``client_optimizer_states``      : per-client optimiser state dicts
+        - ``client_lr_scheduler_states``   : per-client LR-scheduler states
+        - ``client_sample_stream``         : deterministic round→client mapping
+        - ``aggregated_client_metrics``    : accumulated metric history
+
+        Args:
+            checkpoint_dir: Directory in which ``training_state.pt`` is written.
+        """
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        state = {
+            "current_epoch": self.current_epoch,
+            "public_model_params": {
+                k: v.detach().cpu() for k, v in self.public_model_params.items()
+            },
+            "clients_personal_model_params": self.clients_personal_model_params,
+            "client_optimizer_states": self.client_optimizer_states,
+            "client_lr_scheduler_states": self.client_lr_scheduler_states,
+            "client_sample_stream": self.client_sample_stream,
+            "aggregated_client_metrics": self.aggregated_client_metrics,
+        }
+        dest = checkpoint_dir / "training_state.pt"
+        tmp = checkpoint_dir / "training_state.pt.tmp"
+        torch.save(state, tmp)
+        os.replace(tmp, dest)  # atomic on POSIX; best-effort on Windows
+        self.logger.log(
+            f"  [Resume] Saved training checkpoint after round "
+            f"{self.current_epoch + 1} → {dest}"
+        )
+
+    def load_training_checkpoint(self, checkpoint_path: "Path") -> int:
+        """Restore server state from a previously saved checkpoint.
+
+        Loads all fields saved by :meth:`save_training_checkpoint` back
+        into ``self``.  The global model is also reloaded into
+        ``self.model`` so that :meth:`package` immediately reflects the
+        restored weights.
+
+        Args:
+            checkpoint_path: Path to ``training_state.pt``.
+
+        Returns:
+            The 0-based index of the *next* round to execute (i.e.
+            ``state["current_epoch"] + 1``).
+        """
+        self.logger.log(f"  [Resume] Loading training checkpoint from {checkpoint_path}")
+        state = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+
+        self.current_epoch = state["current_epoch"]
+        # Restore global model params and sync into self.model
+        for k, v in state["public_model_params"].items():
+            self.public_model_params[k].data.copy_(v)
+        self.model.load_state_dict(self.public_model_params, strict=False)
+
+        self.clients_personal_model_params = state["clients_personal_model_params"]
+        self.client_optimizer_states = state["client_optimizer_states"]
+        self.client_lr_scheduler_states = state["client_lr_scheduler_states"]
+        self.client_sample_stream = state["client_sample_stream"]
+        self.aggregated_client_metrics = state["aggregated_client_metrics"]
+
+        resume_from = self.current_epoch + 1  # next round to run (0-based)
+        self.logger.log(
+            f"  [Resume] Restored state. Resuming from round "
+            f"{resume_from + 1}/{self.args.common.global_epoch}."
+        )
+        return resume_from
+
     def save_learning_curve_plot(self):
         """Save the learning curves of FL-bench experiment."""
         import matplotlib

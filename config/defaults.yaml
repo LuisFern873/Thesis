@@ -139,6 +139,12 @@ common:
   # which indicates that the run is removable.
   delete_useless_run: true
 
+  # Path to a previously saved training_state.pt (or its parent directory)
+  # from which to resume an interrupted run.  Set to null to start fresh.
+  # Example CLI usage:
+  #   common.resume_checkpoint=logs/runs/<run_name>/checkpoints/training_state.pt
+  resume_checkpoint: null
+
 # You can set specific arguments for advanced FL methods also.
 # FL-bench uses FL method arguments by args.<method>.<arg>.
 # You need to follow the key set in `get_hyperparams()` in class <method>Server, src/server/<method>.py
