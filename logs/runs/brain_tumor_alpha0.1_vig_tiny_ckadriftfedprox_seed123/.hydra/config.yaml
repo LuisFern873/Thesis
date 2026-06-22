@@ -52,6 +52,7 @@ common:
   save_learning_curve_plot: true
   save_metrics: true
   delete_useless_run: true
+  resume_checkpoint: null
 fedprox:
   mu: 0.01
 cka:

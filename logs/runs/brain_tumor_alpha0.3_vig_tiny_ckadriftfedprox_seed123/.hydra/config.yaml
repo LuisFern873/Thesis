@@ -52,6 +52,7 @@ common:
   save_learning_curve_plot: true
   save_metrics: true
   delete_useless_run: true
+  resume_checkpoint: null
 fedprox:
   mu: 0.01
 cka:
@@ -63,6 +64,7 @@ cka:
   - 20
   - 30
   - 40
+  - 50
   client_sample: 10
   probe_batches: 20
   probe_batch_size: 16
