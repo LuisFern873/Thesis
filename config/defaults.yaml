@@ -161,3 +161,14 @@ cka:
   interval: 5
   client_sample: 5
   probe_batches: 20
+
+fedlategram:
+  lam: 0.1                        # Gram penalty weight λ
+  tau_cka: 0.85                   # CKA threshold for late-layer detection (informational)
+  late_fraction: 0.4              # Fallback: fraction of backbone submodules treated as "late"
+  freeze_strategy: warm_then_freeze  # [full_freeze, slow_update, warm_then_freeze]
+  T_warm: 20                      # Warm-up rounds before gram penalty / freezing activate
+  alpha_early_lr: 0.05            # Gradient scale factor for early layers (slow_update only)
+  freq_early: 5                   # Aggregate early layers every N rounds (slow_update only)
+  gram_ref: proxy                 # [proxy, avg_local]
+  proxy_size: 256                 # Number of proxy samples for global gram reference

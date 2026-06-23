@@ -5,7 +5,9 @@
     "seed": 456,
     "split": "sample",
     "IID_ratio": 0.0,
-    "monitor_window_name_suffix": "cifar10-10clients-0%IID-Dir(0.1)-seed456",
     "alpha": 0.1,
-    "min_samples_per_client": 10
+    "min_samples_per_client": 10,
+    "sample_fraction": 0.1,
+    "subset_seed": 42,
+    "monitor_window_name_suffix": "cifar10-10clients-0%IID-Dir(0.1)-seed456-10pct"
 }
