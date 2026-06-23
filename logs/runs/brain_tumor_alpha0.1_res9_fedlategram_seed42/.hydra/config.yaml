@@ -1,0 +1,94 @@
+method: fedlategram
+dataset:
+  name: brain_tumor
+  partition_dir: partitions/alpha_0.1/seed_42
+model:
+  name: res9
+  use_torchvision_pretrained_weights: false
+  external_model_weights_path: null
+lr_scheduler:
+  name: null
+  step_size: 10
+  gamma: 0.1
+  T_max: 10
+  eta_min: 0
+  factor: 0.3334
+  total_iters: 5
+  mode: min
+  patience: 10
+  threshold: 0.0001
+  threshold_mode: rel
+  cooldown: 0
+  min_lr: 0
+  eps: 1.0e-08
+  last_epoch: -1
+optimizer:
+  name: sgd
+  lr: 0.01
+  dampening: 0
+  weight_decay: 0
+  momentum: 0
+  alpha: 0.99
+  nesterov: false
+  betas:
+  - 0.9
+  - 0.999
+  amsgrad: false
+mode: serial
+parallel:
+  ray_cluster_addr: null
+  num_cpus: null
+  num_gpus: null
+  num_workers: 4
+common:
+  seed: 42
+  join_ratio: 0.5
+  global_epoch: 50
+  local_epoch: 5
+  batch_size: 32
+  dataloader_num_workers: 2
+  reset_optimizer_on_global_epoch: true
+  straggler_ratio: 0
+  straggler_min_local_epoch: 0
+  buffers: global
+  client_side_evaluation: true
+  test:
+    client:
+      interval: 1
+      finetune_epoch: 0
+      train: false
+      val: false
+      test: true
+    server:
+      interval: 1
+      train: false
+      val: false
+      test: true
+      model_in_train_mode: false
+  verbose_gap: 10
+  monitor: tensorboard
+  use_cuda: true
+  save_log: true
+  save_model: false
+  save_learning_curve_plot: true
+  save_metrics: true
+  delete_useless_run: true
+  resume_checkpoint: null
+fedprox:
+  mu: 0.01
+pfedsim:
+  warmup_round: 0.5
+cka:
+  interval: 5
+  client_sample: 5
+  probe_batches: 20
+fedlategram:
+  lam: 0.1
+  tau_cka: 0.85
+  late_fraction: 0.4
+  freeze_strategy: warm_then_freeze
+  T_warm: 20
+  alpha_early_lr: 0.05
+  freq_early: 5
+  gram_ref: proxy
+  proxy_size: 256
