@@ -5,7 +5,11 @@ FedLateGram client: local training with gram-matrix regularization on late layer
 Key behaviors:
 - During warm-up (warming_up=True): identical to FedAvgClient.fit().
 - After warm-up:
-    - Computes gram penalty on late-layer activations vs. global reference.
+    - Captures late-layer activations during the SINGLE task-loss forward pass
+      (no second forward — hooks are registered before the forward and removed
+      immediately after, so no extra compute).
+    - Computes gram penalty vs. global reference, normalized by D² to keep
+      loss magnitude O(1) regardless of feature dimension.
     - Zeroes / scales gradients of early-layer parameters per freeze_strategy.
 - Sends per-round loss statistics (task + gram) back to the server.
 """
@@ -36,17 +40,14 @@ class FedLateGramClient(FedAvgClient):
         return any(name.startswith(prefix) for prefix in self.late_layer_names)
 
     # ------------------------------------------------------------------
-    # Gram computation (inline, hooks registered and removed per batch)
+    # Hook helpers
     # ------------------------------------------------------------------
 
-    def _compute_gram_inline(
-        self, x: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
+    def _register_gram_hooks(self) -> tuple[dict, list]:
         """
-        Register forward hooks on late submodules, run a second forward
-        pass on `x`, and return gram matrices for each hooked layer.
-
-        Hooks are always removed after the forward, even on exception.
+        Register forward hooks on late submodules (excluding classifier).
+        Returns (activations_dict, handles_list).
+        Caller is responsible for removing handles after the forward.
         """
         target_names = [n for n in self.late_layer_names if n != "classifier"]
         activations: dict[str, torch.Tensor] = {}
@@ -58,26 +59,32 @@ class FedLateGramClient(FedAvgClient):
                 for part in full_name.split("."):
                     module = getattr(module, part)
             except AttributeError:
-                continue  # submodule not present in this architecture
+                continue
 
             def make_hook(n):
                 def hook(mod, inp, out):
-                    # Keep computation graph for backward through gram loss
-                    activations[n] = out.flatten(start_dim=1)
+                    t = out
+                    # Global average pool spatial dims to keep D = C_out
+                    # This prevents O(C²H²W²) gram matrices.
+                    if t.dim() == 4:
+                        t = t.mean(dim=(2, 3))      # (N, C, H, W) → (N, C)
+                    elif t.dim() > 2:
+                        t = t.flatten(start_dim=1)  # (N, ...) → (N, D)
+                    activations[n] = t              # keep grad graph intact
                 return hook
 
             handles.append(module.register_forward_hook(make_hook(full_name)))
 
-        try:
-            self.model(x)   # second forward — activations are captured
-        finally:
-            for h in handles:
-                h.remove()
+        return activations, handles
 
-        grams: dict[str, torch.Tensor] = {}
+    def _compute_grams(
+        self, activations: dict[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        """Compute (D, D) gram matrices from captured activations."""
+        grams = {}
         for name, Phi in activations.items():
-            grams[name] = (Phi @ Phi.T) / Phi.shape[0]   # (B, B)
-
+            # Phi: (N, D)  →  gram: (D, D),  normalised by N
+            grams[name] = (Phi.T @ Phi) / Phi.shape[0]
         return grams
 
     def _gram_loss(
@@ -85,13 +92,21 @@ class FedLateGramClient(FedAvgClient):
         grams_local: dict[str, torch.Tensor],
         grams_global: dict[str, torch.Tensor],
     ) -> torch.Tensor:
-        """Frobenius-norm penalty: Σ_ℓ ‖G_ℓ^local − G_ℓ^global‖_F²"""
+        """
+        Frobenius-norm penalty, normalised by D² per layer so the loss
+        magnitude is O(1) regardless of feature dimension:
+
+            loss = Σ_ℓ  ‖G_ℓ^local − G_ℓ^global‖_F²  /  D_ℓ²
+        """
         loss = torch.tensor(0.0, device=self.device)
         for name in grams_local:
             if name in grams_global:
+                G_loc = grams_local[name]
                 G_ref = grams_global[name].to(self.device).detach()
-                diff = grams_local[name] - G_ref
-                loss = loss + torch.norm(diff, p="fro") ** 2
+                D = G_loc.shape[0]
+                diff = G_loc - G_ref
+                # Divide by D² so the loss stays ~O(1) for any channel count
+                loss = loss + torch.norm(diff, p="fro") ** 2 / (D * D)
         return loss
 
     # ------------------------------------------------------------------
@@ -102,10 +117,16 @@ class FedLateGramClient(FedAvgClient):
         self.model.train()
         self.dataset.train()
 
-        # Accumulators for logging
         loss_task_accum = 0.0
         loss_gram_accum = 0.0
         steps = 0
+        last_local_grams: dict[str, torch.Tensor] = {}
+
+        active_gram = (
+            not self.warming_up
+            and self.lam > 0.0
+            and bool(self.global_grams)
+        )
 
         for _ in range(self.local_epoch):
             pbar = tqdm(
@@ -120,22 +141,30 @@ class FedLateGramClient(FedAvgClient):
 
                 x, y = x.to(self.device), y.to(self.device)
 
-                # ---- Task loss (standard forward) ----
+                loss_gram = torch.tensor(0.0, device=self.device)
+
+                if active_gram:
+                    # Register hooks BEFORE the forward so activations are
+                    # captured during the task-loss forward (single pass).
+                    activations, handles = self._register_gram_hooks()
+
+                # ---- Single forward pass ----
                 logit = self.model(x)
                 loss_task = self.criterion(logit, y)
-                loss = loss_task
 
-                # ---- Gram penalty (active after warm-up) ----
-                loss_gram = torch.tensor(0.0, device=self.device)
-                if (
-                    not self.warming_up
-                    and self.lam > 0.0
-                    and self.global_grams
-                ):
-                    grams_local = self._compute_gram_inline(x)
-                    if grams_local:
+                if active_gram:
+                    # Remove hooks immediately after the forward
+                    for h in handles:
+                        h.remove()
+
+                    if activations:
+                        grams_local = self._compute_grams(activations)
                         loss_gram = self._gram_loss(grams_local, self.global_grams)
-                        loss = loss + self.lam * loss_gram
+                        last_local_grams = {
+                            k: v.detach().cpu() for k, v in grams_local.items()
+                        }
+
+                loss = loss_task + self.lam * loss_gram
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -143,50 +172,32 @@ class FedLateGramClient(FedAvgClient):
                 # ---- Gradient modification for early layers ----
                 if not self.warming_up:
                     if self.freeze_strategy == "full_freeze":
-                        # Zero out gradients for early params entirely
-                        for name, param in self.model.named_parameters():
-                            if not self._is_late_param(name) and param.grad is not None:
+                        for pname, param in self.model.named_parameters():
+                            if not self._is_late_param(pname) and param.grad is not None:
                                 param.grad = None
                     elif self.freeze_strategy == "slow_update":
-                        # Scale down gradients for early params
-                        for name, param in self.model.named_parameters():
-                            if (
-                                not self._is_late_param(name)
-                                and param.grad is not None
-                            ):
+                        for pname, param in self.model.named_parameters():
+                            if not self._is_late_param(pname) and param.grad is not None:
                                 param.grad.mul_(self.alpha_early_lr)
 
                 self.optimizer.step()
 
-                # Accumulate for logging
                 loss_task_accum += loss_task.item()
                 loss_gram_accum += loss_gram.item()
                 steps += 1
 
                 pbar.set_postfix(
                     task=f"{loss_task.item():.4f}",
-                    gram=f"{loss_gram.item():.4f}",
+                    gram=f"{loss_gram.item():.6f}",
                 )
 
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 
-        # Store for package()
         self._steps = max(steps, 1)
         self._loss_task_accum = loss_task_accum
         self._loss_gram_accum = loss_gram_accum
-
-        # Cache local grams from last batch for avg_local strategy
-        # (only relevant when gram_ref=avg_local; server ignores otherwise)
-        if not self.warming_up and self.lam > 0.0 and steps > 0:
-            try:
-                last_x = x  # noqa: F821 — x is defined inside the loop
-                with torch.no_grad():
-                    self._last_local_grams = self._compute_gram_inline(last_x)
-            except Exception:
-                self._last_local_grams = {}
-        else:
-            self._last_local_grams = {}
+        self._last_local_grams = last_local_grams
 
     # ------------------------------------------------------------------
     # Package override: include loss stats and local grams
@@ -194,13 +205,8 @@ class FedLateGramClient(FedAvgClient):
 
     def package(self) -> dict:
         pkg = super().package()
-
         steps = getattr(self, "_steps", 1)
         pkg["loss_task_mean"] = getattr(self, "_loss_task_accum", 0.0) / steps
         pkg["loss_gram_mean"] = getattr(self, "_loss_gram_accum", 0.0) / steps
-        pkg["local_grams"] = {
-            k: v.detach().cpu()
-            for k, v in getattr(self, "_last_local_grams", {}).items()
-        }
-
+        pkg["local_grams"] = getattr(self, "_last_local_grams", {})
         return pkg

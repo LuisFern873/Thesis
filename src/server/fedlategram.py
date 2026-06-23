@@ -169,7 +169,14 @@ class FedLateGramServer(FedAvgServer):
 
             def make_hook(n):
                 def hook(mod, inp, out):
-                    activations[n].append(out.detach().flatten(start_dim=1).cpu())
+                    t = out.detach()
+                    # Spatial tensors (N,C,H,W): global-avg-pool → (N,C)
+                    # to keep D = C regardless of spatial resolution.
+                    if t.dim() == 4:
+                        t = t.mean(dim=(2, 3))
+                    elif t.dim() > 2:
+                        t = t.flatten(start_dim=1)
+                    activations[n].append(t.cpu())
                 return hook
 
             handles.append(module.register_forward_hook(make_hook(full_name)))
@@ -186,7 +193,8 @@ class FedLateGramServer(FedAvgServer):
         for name, acts in activations.items():
             if acts:
                 Phi = torch.cat(acts, dim=0)          # (N, D)
-                grams[name] = (Phi @ Phi.T) / Phi.shape[0]  # (N, N)
+                # (D, D) gram in feature space — independent of proxy_size
+                grams[name] = (Phi.T @ Phi) / Phi.shape[0]
 
         self.model.train()
         return grams
