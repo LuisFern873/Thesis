@@ -111,18 +111,50 @@ class FedLateGramServer(CKADriftFedAvgServer):
 
     def _detect_late_layers(self) -> list[str]:
         """Return submodule names considered 'late': last `late_fraction`
-        of top-level children of self.model.base, plus 'classifier'."""
-        base_modules = [
-            name
-            for name, _ in self.model.base.named_modules()
+        of meaningful sub-modules of self.model.base, plus 'classifier'.
+
+        Granularity strategy — handles both flat CNNs and hierarchical
+        transformer/GNN architectures:
+
+        1. Start from depth-1 children of base (no '.' in name).
+        2. Expand any child that is an nn.Sequential (or similar container)
+           with >= MIN_BLOCK_SIZE direct children. This replaces e.g. 'blocks'
+           with 'blocks.0', 'blocks.1', …, 'blocks.11' so that each transformer
+           or GNN block counts as one unit for the late_fraction cutoff.
+        3. Apply cutoff on the resulting flat list.
+        """
+        MIN_BLOCK_SIZE = 4  # expand a container if it has >= this many direct children
+
+        depth1 = [
+            name for name, _ in self.model.base.named_modules()
             if name and "." not in name
         ]
-        if not base_modules:
+        if not depth1:
             return ["base", "classifier"]
 
+        expanded: list[str] = []
+        for top_name in depth1:
+            top_module = getattr(self.model.base, top_name)
+            direct_children = [
+                n for n, _ in top_module.named_modules()
+                if n and "." not in n
+            ]
+            if len(direct_children) >= MIN_BLOCK_SIZE:
+                # Expand: replace 'blocks' with 'blocks.0' … 'blocks.N'
+                expanded.extend(f"{top_name}.{c}" for c in direct_children)
+            else:
+                expanded.append(top_name)
+
         fraction = self.args.fedlategram.late_fraction
-        cutoff = max(0, int(len(base_modules) * (1 - fraction)))
-        return [f"base.{n}" for n in base_modules[cutoff:]] + ["classifier"]
+        cutoff = max(0, int(len(expanded) * (1 - fraction)))
+        late = [f"base.{n}" for n in expanded[cutoff:]] + ["classifier"]
+
+        self.logger.log(
+            f"[FedLateGram] _detect_late_layers: {len(expanded)} units "
+            f"(expanded from {len(depth1)} depth-1 children), "
+            f"cutoff={cutoff} → {len(late)} late prefixes"
+        )
+        return late
 
     def _is_late_param(self, param_name: str) -> bool:
         return any(param_name.startswith(p) for p in self.late_layer_names)
@@ -150,6 +182,7 @@ class FedLateGramServer(CKADriftFedAvgServer):
     @torch.no_grad()
     def _compute_global_grams(self) -> dict[str, torch.Tensor]:
         """Compute (D,D) gram matrices from global model on proxy dataset."""
+        self.model.to(self.device)
         self.model.eval()
         self.dataset.eval()
 
@@ -187,8 +220,10 @@ class FedLateGramServer(CKADriftFedAvgServer):
         grams = {}
         for name, acts in activations.items():
             if acts:
-                Phi = torch.cat(acts, dim=0)          # (N, D)
-                grams[name] = (Phi.T @ Phi) / Phi.shape[0]  # (D, D)
+                Phi = torch.cat(acts, dim=0)               # (N, D)
+                G = (Phi.T @ Phi) / Phi.shape[0]           # (D, D)
+                G = G / G.norm(p="fro").clamp(min=1e-8)    # unit-normalise
+                grams[name] = G
 
         self.model.train()
         return grams

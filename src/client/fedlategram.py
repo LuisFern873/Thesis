@@ -80,11 +80,21 @@ class FedLateGramClient(FedAvgClient):
     def _compute_grams(
         self, activations: dict[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
-        """Compute (D, D) gram matrices from captured activations."""
+        """Compute normalised (D, D) gram matrices from captured activations.
+
+        Each gram G = (Phi.T @ Phi) / N is then divided by its own Frobenius
+        norm (clamped to 1e-8) so that every gram lives on the unit sphere.
+        This keeps the gram-loss magnitude O(1) regardless of activation scale
+        or feature dimension, preventing NaN explosions at round 1 when the
+        model is far from convergence.
+        """
         grams = {}
         for name, Phi in activations.items():
-            # Phi: (N, D)  →  gram: (D, D),  normalised by N
-            grams[name] = (Phi.T @ Phi) / Phi.shape[0]
+            # Phi: (N, D)  →  gram: (D, D), normalised by N
+            G = (Phi.T @ Phi) / Phi.shape[0]
+            # Unit-normalise so ‖G‖_F = 1  (safe against zero-norm)
+            G = G / G.norm(p="fro").clamp(min=1e-8)
+            grams[name] = G
         return grams
 
     def _gram_loss(
@@ -93,20 +103,23 @@ class FedLateGramClient(FedAvgClient):
         grams_global: dict[str, torch.Tensor],
     ) -> torch.Tensor:
         """
-        Frobenius-norm penalty, normalised by D² per layer so the loss
-        magnitude is O(1) regardless of feature dimension:
+        Frobenius-norm penalty between unit-normalised gram matrices:
 
-            loss = Σ_ℓ  ‖G_ℓ^local − G_ℓ^global‖_F²  /  D_ℓ²
+            loss = Σ_ℓ  ‖Ĝ_ℓ^local − Ĝ_ℓ^global‖_F²
+
+        Because both grams are unit-normalised, the max possible value per
+        layer is 4.0, keeping the total loss comfortably O(1) regardless of
+        feature dimension or activation magnitude.
         """
         loss = torch.tensor(0.0, device=self.device)
         for name in grams_local:
             if name in grams_global:
                 G_loc = grams_local[name]
                 G_ref = grams_global[name].to(self.device).detach()
-                D = G_loc.shape[0]
+                # Unit-normalise the reference gram to match the local norm
+                G_ref = G_ref / G_ref.norm(p="fro").clamp(min=1e-8)
                 diff = G_loc - G_ref
-                # Divide by D² so the loss stays ~O(1) for any channel count
-                loss = loss + torch.norm(diff, p="fro") ** 2 / (D * D)
+                loss = loss + torch.norm(diff, p="fro") ** 2
         return loss
 
     # ------------------------------------------------------------------
