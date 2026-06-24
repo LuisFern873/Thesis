@@ -1,0 +1,109 @@
+# config/fedlategram.yaml
+# FedLateGram experiment configuration — matches ckadriftfedavg.yaml exactly
+# so that warm-up phase (rounds 1..T_warm) is bit-for-bit comparable to the
+# FedAvg / CKADriftFedAvg baseline (same optimizer, join_ratio, seed, etc.).
+#
+# Key parameters aligned with ckadriftfedavg.yaml:
+#   optimizer    : SGD, lr=0.01, momentum=0.9, weight_decay=1e-4  (same)
+#   join_ratio   : 1.0  — 100% client participation every round   (same)
+#   global_epoch : 50                                              (same)
+#   local_epoch  : 5                                               (same)
+#   batch_size   : 32                                              (same)
+#   mode         : serial  (changed from parallel for single-GPU runs)
+#
+# Override dataset / model / seed via CLI:
+#   python main.py --config-name fedlategram \
+#       dataset.name=brain_tumor \
+#       dataset.partition_dir=partitions/alpha_0.1/seed_42 \
+#       model.name=res9 \
+#       common.seed=42
+
+method: fedlategram
+
+dataset:
+  name: brain_tumor
+  partition_dir: partitions/alpha_0.1/seed_42
+
+model:
+  name: res9
+  use_torchvision_pretrained_weights: false
+
+# Identical to ckadriftfedavg.yaml
+optimizer:
+  name: sgd
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 1.0e-4
+  nesterov: false
+
+lr_scheduler:
+  name: null
+  eta_min: 1.0e-5
+
+mode: serial
+
+parallel:
+  ray_cluster_addr: null
+  num_cpus: null
+  num_gpus: null
+  num_workers: 4
+
+common:
+  seed: 42
+  join_ratio: 1.0          # 100% participation — matches ckadriftfedavg baseline
+  global_epoch: 50
+  local_epoch: 5
+  batch_size: 32
+  dataloader_num_workers: 2
+  reset_optimizer_on_global_epoch: true
+  buffers: global
+  straggler_ratio: 0
+  straggler_min_local_epoch: 0
+  client_side_evaluation: true
+
+  test:
+    client:
+      interval: 1
+      finetune_epoch: 0
+      train: false
+      val: false
+      test: true
+    server:
+      interval: 1
+      train: false
+      val: false
+      test: true
+      model_in_train_mode: false
+
+  verbose_gap: 10
+  monitor: tensorboard
+  use_cuda: true
+  save_log: true
+  save_model: false
+  save_learning_curve_plot: true
+  save_metrics: true
+  delete_useless_run: true
+  resume_checkpoint: null
+
+# FedLateGram hyperparameters
+# T_warm=10 is recommended for 50-round experiments (20% warm-up).
+# During warm-up, behaviour is identical to FedAvg.
+fedlategram:
+  lam: 0.1
+  tau_cka: 0.85
+  late_fraction: 0.4
+  freeze_strategy: warm_then_freeze
+  T_warm: 10
+  alpha_early_lr: 0.05
+  freq_early: 5
+  gram_ref: proxy
+  proxy_size: 256
+
+# CKA checkpoint configuration — identical to ckadriftfedavg.yaml.
+# Checkpoints are saved at these rounds for offline CKA computation via
+# scripts/compute_cka_offline.py.
+cka:
+  rounds: [1, 2, 5, 10, 20, 30, 40, 50]
+  client_sample: 10
+  probe_batches: 20
+  probe_batch_size: 16

@@ -8,6 +8,9 @@ config/*
 !config/driftfedavg.yaml
 !config/driftfedprox.yaml
 !config/driftscaffold.yaml
+!config/ckadriftfedavg.yaml
+!config/ckadriftfedprox.yaml
+!config/fedlategram.yaml
 
 # IDE configurations
 .idea

@@ -2,23 +2,36 @@
 """
 FedLateGram: Federated Learning with Late-Layer Gram Matrix Regularization.
 
-Differentiates early vs late layers based on CKA analysis findings:
-- Early layers (CKA ≈ 1.0): frozen or slowed after warm-up
-- Late layers (CKA collapses under heterogeneity): aggregated normally + gram penalty
+Inherits from CKADriftFedAvgServer to get:
+  - drift_metrics.csv (L2 drift + gradient alignment per layer group)
+  - CKA checkpoints (global + client state dicts at scheduled rounds)
+  - resume training support
+  - server-side cosine LR schedule
+
+Adds on top:
+  - Late-layer detection (last `late_fraction` of backbone + classifier)
+  - Global gram matrix reference (proxy dataset or avg of client grams)
+  - Selective FedAvg aggregation (only late layers after warm-up)
+  - Gram penalty broadcast to clients via package()
+
+MRO:
+  FedLateGramServer
+    → CKADriftFedAvgServer   (CKA checkpoints + resume train loop)
+      → DriftFedAvgServer    (drift CSV + cosine LR + gradient alignment)
+        → FedAvgServer       (base FL loop)
 """
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
-from copy import deepcopy
 from typing import Any, Dict
 
 import torch
 from omegaconf import DictConfig
 
 from src.client.fedlategram import FedLateGramClient
-from src.server.fedavg import FedAvgServer
+from src.server.ckadriftfedavg import CKADriftFedAvgServer
 
 
-class FedLateGramServer(FedAvgServer):
+class FedLateGramServer(CKADriftFedAvgServer):
 
     algorithm_name = "FedLateGram"
     client_cls = FedLateGramClient
@@ -45,7 +58,7 @@ class FedLateGramServer(FedAvgServer):
             help="How to handle early layers after warm-up",
         )
         parser.add_argument(
-            "--T_warm", type=int, default=20,
+            "--T_warm", type=int, default=10,
             help="Warm-up rounds before activating gram penalty / freezing",
         )
         parser.add_argument(
@@ -68,22 +81,24 @@ class FedLateGramServer(FedAvgServer):
         return parser.parse_args(args_list)
 
     def __init__(self, args: DictConfig):
+        # CKADriftFedAvgServer.__init__ → DriftFedAvgServer.__init__ → FedAvgServer.__init__
+        # This sets up: drift CSV, cosine LR, layer taxonomy, CKA checkpoint dir,
+        # run_metadata.json, and all FL-bench base infrastructure.
         super().__init__(args)
 
-        # Detect which parameter names belong to "late" layers
+        # Late-layer names (relative to self.model)
         self.late_layer_names: list[str] = self._detect_late_layers()
         self.logger.log(
             f"[FedLateGram] Late layers ({len(self.late_layer_names)}): "
             f"{self.late_layer_names}"
         )
 
-        # Global gram matrices updated each round (keyed by submodule name)
+        # Global gram matrices, updated each round after warm-up
         self.global_grams: dict[str, torch.Tensor] = {}
 
-        # Proxy dataloader for gram_ref=proxy
+        # Proxy dataloader built lazily (after warm-up) to avoid consuming
+        # random numbers during __init__ and displacing client_sample_stream.
         self._proxy_loader = None
-        if self.args.fedlategram.gram_ref == "proxy":
-            self._proxy_loader = self._build_proxy_loader()
 
         # Warm-up state
         self._warming_up = (
@@ -95,30 +110,22 @@ class FedLateGramServer(FedAvgServer):
     # ------------------------------------------------------------------
 
     def _detect_late_layers(self) -> list[str]:
-        """
-        Return the submodule names (relative to self.model) that are
-        considered 'late'.  Uses the last `late_fraction` of direct
-        named submodules inside self.model.base, plus 'classifier'.
-        """
-        # Collect immediate named submodules of base (depth-1 names only)
+        """Return submodule names considered 'late': last `late_fraction`
+        of top-level children of self.model.base, plus 'classifier'."""
         base_modules = [
             name
             for name, _ in self.model.base.named_modules()
-            if name and "." not in name  # top-level children only
+            if name and "." not in name
         ]
-
         if not base_modules:
-            # Fallback: all-base treated as late
             return ["base", "classifier"]
 
         fraction = self.args.fedlategram.late_fraction
         cutoff = max(0, int(len(base_modules) * (1 - fraction)))
-        late_base = [f"base.{n}" for n in base_modules[cutoff:]]
-        return late_base + ["classifier"]
+        return [f"base.{n}" for n in base_modules[cutoff:]] + ["classifier"]
 
     def _is_late_param(self, param_name: str) -> bool:
-        """True if a named parameter belongs to a late layer."""
-        return any(param_name.startswith(prefix) for prefix in self.late_layer_names)
+        return any(param_name.startswith(p) for p in self.late_layer_names)
 
     # ------------------------------------------------------------------
     # Proxy dataloader
@@ -126,12 +133,10 @@ class FedLateGramServer(FedAvgServer):
 
     def _build_proxy_loader(self):
         from torch.utils.data import DataLoader, Subset
-
         proxy_size = self.args.fedlategram.proxy_size
         indices = list(range(min(proxy_size, len(self.dataset))))
-        subset = Subset(self.dataset, indices)
         return DataLoader(
-            subset,
+            Subset(self.dataset, indices),
             batch_size=min(64, proxy_size),
             shuffle=False,
             num_workers=self.args.common.dataloader_num_workers,
@@ -144,36 +149,27 @@ class FedLateGramServer(FedAvgServer):
 
     @torch.no_grad()
     def _compute_global_grams(self) -> dict[str, torch.Tensor]:
-        """
-        Compute gram matrices from the current global model using the
-        proxy dataset.  Only late submodules (excluding 'classifier')
-        are hooked because we care about feature-space gram similarity.
-        """
+        """Compute (D,D) gram matrices from global model on proxy dataset."""
         self.model.eval()
         self.dataset.eval()
 
-        # Only hook submodules that are inside self.model (not 'classifier' itself —
-        # classifier activations = logits which are less informative for style).
-        target_module_names = [n for n in self.late_layer_names if n != "classifier"]
-
-        activations: dict[str, list[torch.Tensor]] = {n: [] for n in target_module_names}
+        target_names = [n for n in self.late_layer_names if n != "classifier"]
+        activations: dict[str, list[torch.Tensor]] = {n: [] for n in target_names}
         handles = []
 
-        for full_name in target_module_names:
+        for full_name in target_names:
             module = self.model
             try:
                 for part in full_name.split("."):
                     module = getattr(module, part)
             except AttributeError:
-                continue  # skip if submodule path doesn't exist
+                continue
 
             def make_hook(n):
                 def hook(mod, inp, out):
                     t = out.detach()
-                    # Spatial tensors (N,C,H,W): global-avg-pool → (N,C)
-                    # to keep D = C regardless of spatial resolution.
                     if t.dim() == 4:
-                        t = t.mean(dim=(2, 3))
+                        t = t.mean(dim=(2, 3))   # (N,C,H,W) → (N,C)
                     elif t.dim() > 2:
                         t = t.flatten(start_dim=1)
                     activations[n].append(t.cpu())
@@ -183,230 +179,132 @@ class FedLateGramServer(FedAvgServer):
 
         for batch in self._proxy_loader:
             x = batch[0] if isinstance(batch, (list, tuple)) else batch
-            x = x.to(self.device)
-            self.model(x)
+            self.model(x.to(self.device))
 
         for h in handles:
             h.remove()
 
-        grams: dict[str, torch.Tensor] = {}
+        grams = {}
         for name, acts in activations.items():
             if acts:
                 Phi = torch.cat(acts, dim=0)          # (N, D)
-                # (D, D) gram in feature space — independent of proxy_size
-                grams[name] = (Phi.T @ Phi) / Phi.shape[0]
+                grams[name] = (Phi.T @ Phi) / Phi.shape[0]  # (D, D)
 
         self.model.train()
         return grams
 
     # ------------------------------------------------------------------
-    # FL-bench overrides
+    # train_one_round — merges DriftFedAvg LR injection + FedLateGram logic
     # ------------------------------------------------------------------
 
-    def train(self) -> None:
-        """Training loop with resume-checkpoint support.
-
-        Writes ``<output_dir>/checkpoints/training_state.pt`` after every
-        round (atomic overwrite).  Pass
-        ``common.resume_checkpoint=<path>`` on the CLI to resume.
-        Also persists ``global_grams`` so the gram reference is restored
-        correctly after a resume.
-        """
-        from pathlib import Path as _Path
-
-        self._checkpoints_dir = self.output_dir / "checkpoints"
-        import os
-        os.makedirs(self._checkpoints_dir, exist_ok=True)
-
-        # ---- resolve resume path ----------------------------------------
-        resume_path = getattr(self.args.common, "resume_checkpoint", None)
-        start_round = 0
-
-        if resume_path and str(resume_path).lower() not in ("", "null", "none"):
-            rp = _Path(resume_path)
-            if rp.is_dir():
-                rp = rp / "training_state.pt"
-            if rp.is_file():
-                start_round = self._load_flg_checkpoint(rp)
-            else:
-                self.logger.log(
-                    f"[FedLateGram] WARNING: resume_checkpoint '{resume_path}' "
-                    "not found — starting from scratch."
-                )
-
-        # ---- main round loop (mirrors FedAvgServer.train) ---------------
-        import time
-        avg_round_time = 0
-        for E in self.train_progress_bar:
-            if E < start_round:
-                continue
-
-            self.current_epoch = E
-            self.verbose = (self.current_epoch + 1) % self.args.common.verbose_gap == 0
-
-            self.logger.log(
-                "-" * 28,
-                f"ROUND {E + 1}/{self.args.common.global_epoch} START",
-                "-" * 28,
-            )
-            self.selected_clients = self.client_sample_stream[E]
-            self.logger.log(f"Selected clients: {self.selected_clients}")
-
-            begin = time.time()
-            self.train_one_round()
-            end = time.time()
-            round_duration = end - begin
-            avg_round_time = (
-                avg_round_time * (E - start_round) + round_duration
-            ) / (E - start_round + 1)
-            self.logger.log(
-                f"ROUND {E + 1} FINISHED in {round_duration:.2f}s "
-                f"(Avg: {avg_round_time:.2f}s)"
-            )
-
-            if (
-                self.args.common.test.server.interval > 0
-                and (E + 1) % self.args.common.test.server.interval == 0
-            ):
-                self.test_global_model()
-            if (
-                self.args.common.test.client.interval > 0
-                and (E + 1) % self.args.common.test.client.interval == 0
-            ):
-                self.test_client_models()
-
-            self.display_metrics()
-
-            # Persist resume checkpoint (atomic overwrite)
-            self._save_flg_checkpoint(self._checkpoints_dir)
-
-        self.logger.log(
-            f"{self.algorithm_name}'s average time taken by each global epoch: "
-            f"{int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
-        )
-
-    def _save_flg_checkpoint(self, checkpoint_dir) -> None:
-        """Save training state including FedLateGram-specific fields."""
-        import os
-        os.makedirs(checkpoint_dir, exist_ok=True)
-        state = {
-            "current_epoch": self.current_epoch,
-            "public_model_params": {
-                k: v.detach().cpu() for k, v in self.public_model_params.items()
-            },
-            "clients_personal_model_params": self.clients_personal_model_params,
-            "client_optimizer_states": self.client_optimizer_states,
-            "client_lr_scheduler_states": self.client_lr_scheduler_states,
-            "client_sample_stream": self.client_sample_stream,
-            "aggregated_client_metrics": self.aggregated_client_metrics,
-            # FedLateGram-specific state
-            "global_grams": {k: v.cpu() for k, v in self.global_grams.items()},
-            "_warming_up": self._warming_up,
-        }
-        dest = checkpoint_dir / "training_state.pt"
-        tmp = checkpoint_dir / "training_state.pt.tmp"
-        torch.save(state, tmp)
-        import os as _os
-        _os.replace(tmp, dest)
-        self.logger.log(
-            f"  [FedLateGram] Saved checkpoint after round "
-            f"{self.current_epoch + 1} → {dest}"
-        )
-
-    def _load_flg_checkpoint(self, checkpoint_path) -> int:
-        """Restore server state from checkpoint. Returns the next round index."""
-        self.logger.log(f"  [FedLateGram] Loading checkpoint from {checkpoint_path}")
-        state = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
-
-        self.current_epoch = state["current_epoch"]
-        for k, v in state["public_model_params"].items():
-            self.public_model_params[k].data.copy_(v)
-        self.model.load_state_dict(self.public_model_params, strict=False)
-
-        self.clients_personal_model_params = state["clients_personal_model_params"]
-        self.client_optimizer_states = state["client_optimizer_states"]
-        self.client_lr_scheduler_states = state["client_lr_scheduler_states"]
-        self.client_sample_stream = state["client_sample_stream"]
-        self.aggregated_client_metrics = state["aggregated_client_metrics"]
-
-        # Restore FedLateGram-specific state
-        self.global_grams = state.get("global_grams", {})
-        self._warming_up = state.get("_warming_up", self._warming_up)
-
-        resume_from = self.current_epoch + 1
-        self.logger.log(
-            f"  [FedLateGram] Restored. Resuming from round "
-            f"{resume_from + 1}/{self.args.common.global_epoch}."
-        )
-        return resume_from
-
     def train_one_round(self):
-        # Update warm-up flag
+        # 1. Cosine LR decay (from DriftFedAvgServer)
+        self._update_client_lr()
+
+        # 2. Warm-up flag management
         if self.args.fedlategram.freeze_strategy == "warm_then_freeze":
             was_warming = self._warming_up
             self._warming_up = self.current_epoch < self.args.fedlategram.T_warm
             if was_warming and not self._warming_up:
                 self.logger.log(
-                    f"[FedLateGram] Warm-up complete at round {self.current_epoch}. "
+                    f"[FedLateGram] Warm-up complete at round {self.current_epoch + 1}. "
                     "Activating gram penalty and early-layer freezing."
                 )
         else:
             self._warming_up = False
 
-        # Refresh global gram reference before clients train
+        # 3. Build proxy loader and refresh global grams (after warm-up only)
         if self.args.fedlategram.gram_ref == "proxy" and not self._warming_up:
+            if self._proxy_loader is None:
+                self._proxy_loader = self._build_proxy_loader()
             self.global_grams = self._compute_global_grams()
 
+        # 4. Client training
         client_packages = self.trainer.train()
 
-        # Build gram reference from local grams if avg_local strategy
+        # 5. avg_local gram reference
         if self.args.fedlategram.gram_ref == "avg_local" and not self._warming_up:
             self._aggregate_local_grams(client_packages)
 
-        # Log per-round gram loss
-        gram_losses = [
-            pkg.get("loss_gram_mean", 0.0) for pkg in client_packages.values()
-        ]
-        task_losses = [
-            pkg.get("loss_task_mean", 0.0) for pkg in client_packages.values()
-        ]
+        # 6. Log gram losses
+        gram_losses = [pkg.get("loss_gram_mean", 0.0) for pkg in client_packages.values()]
+        task_losses = [pkg.get("loss_task_mean", 0.0) for pkg in client_packages.values()]
         if any(g > 0 for g in gram_losses):
-            avg_gram = sum(gram_losses) / len(gram_losses)
-            avg_task = sum(task_losses) / len(task_losses)
             self.logger.log(
                 f"[FedLateGram Round {self.current_epoch + 1}] "
-                f"avg task loss: {avg_task:.4f} | avg gram loss: {avg_gram:.4f}"
+                f"avg task: {sum(task_losses)/len(task_losses):.4f} | "
+                f"avg gram: {sum(gram_losses)/len(gram_losses):.4f}"
             )
 
+        # 7. Aggregate (triggers CKA checkpoint + drift metrics via super chain)
         self.aggregate_client_updates(client_packages)
 
-    def package(self, client_id: int) -> dict:
-        pkg = super().package(client_id)
-        pkg["late_layer_names"] = self.late_layer_names
-        # Move grams to CPU for safe serialization (Ray workers, etc.)
-        pkg["global_grams"] = {
-            k: v.clone().cpu() for k, v in self.global_grams.items()
-        }
-        pkg["lam"] = self.args.fedlategram.lam
-        pkg["freeze_strategy"] = self.args.fedlategram.freeze_strategy
-        pkg["warming_up"] = self._warming_up
-        pkg["alpha_early_lr"] = self.args.fedlategram.alpha_early_lr
-        return pkg
+    # ------------------------------------------------------------------
+    # aggregate_client_updates — CKA checkpoint → drift metrics → FLG selective agg
+    #
+    # Call order through MRO:
+    #   FedLateGramServer.aggregate_client_updates
+    #     → calls CKADriftFedAvgServer.aggregate_client_updates
+    #         which saves CKA checkpoint if scheduled, then calls
+    #       → DriftFedAvgServer.aggregate_client_updates
+    #           which computes drift + gradient alignment, then calls
+    #         → FedAvgServer.aggregate_client_updates  (standard FedAvg)
+    #
+    # We intercept AFTER drift metrics are computed but REPLACE the
+    # FedAvg weighted average with FedLateGram's selective aggregation.
+    # This is achieved by calling super() up through CKA+Drift layers
+    # (giving them their checkpoint/CSV work) but then replacing the
+    # FedAvg aggregation with our selective version.
+    # ------------------------------------------------------------------
 
     @torch.no_grad()
     def aggregate_client_updates(
         self, client_packages: OrderedDict[int, Dict[str, Any]]
     ):
-        """
-        Selective FedAvg aggregation:
-        - During warm-up: standard FedAvg on all parameters.
-        - After warm-up:
-            - Late layers: always aggregated.
-            - Early layers: handled per freeze_strategy.
-        """
+        # Let CKADriftFedAvg do: CKA checkpoint save + drift/interference
+        # computation + _last_drift_stats / _last_interference population.
+        # We call the CKA layer directly so both CKA saving and drift CSV
+        # writing happen normally.
+        #
+        # But we must NOT let FedAvgServer.aggregate_client_updates run,
+        # because we need selective aggregation instead of full FedAvg.
+        # Solution: call CKA + Drift work manually, then do FLG aggregation.
+
+        # ── CKA checkpoint (CKADriftFedAvgServer logic) ──────────────────
+        round_idx = self.current_epoch + 1
+        if self._is_cka_round(round_idx):
+            self._save_cka_checkpoint(round_idx, client_packages)
+
+        # ── Drift metrics (DriftFedAvgServer logic) ───────────────────────
+        from src.utils.drift_metrics import (
+            aggregate_drift,
+            compute_gradient_alignment,
+            compute_layer_drift,
+        )
+        global_state = self.public_model_params
+        per_client_drifts = []
+        client_grads = []
+        for package in client_packages.values():
+            local_state = package["regular_model_params"]
+            per_client_drifts.append(
+                compute_layer_drift(local_state, global_state, self.param_taxonomy)
+            )
+            client_grads.append({
+                name: global_state[name].detach().cpu().float()
+                      - local_state[name].detach().cpu().float()
+                for name in global_state if name in local_state
+            })
+        self._last_drift_stats = aggregate_drift(per_client_drifts)
+        self._last_interference = compute_gradient_alignment(
+            client_grads, self.param_taxonomy
+        )
+
+        # ── FedLateGram selective aggregation ────────────────────────────
         if self._warming_up:
-            # Standard FedAvg on everything during warm-up
-            super().aggregate_client_updates(client_packages)
+            # Warm-up: standard FedAvg on all parameters
+            # Call FedAvgServer directly to avoid re-running CKA/drift
+            from src.server.fedavg import FedAvgServer
+            FedAvgServer.aggregate_client_updates(self, client_packages)
             return
 
         client_weights = [pkg["weight"] for pkg in client_packages.values()]
@@ -417,41 +315,47 @@ class FedLateGramServer(FedAvgServer):
 
         for name, global_param in self.public_model_params.items():
             if self._is_late_param(name):
-                # Always aggregate late layers
                 stacked = torch.stack(
-                    [
-                        pkg["regular_model_params"][name]
-                        for pkg in client_packages.values()
-                    ],
+                    [pkg["regular_model_params"][name] for pkg in client_packages.values()],
                     dim=-1,
                 )
                 global_param.data = torch.sum(stacked * weights, dim=-1)
 
             elif self.args.fedlategram.freeze_strategy == "slow_update":
-                # Aggregate early layers only every freq_early rounds
                 if self.current_epoch % self.args.fedlategram.freq_early == 0:
                     stacked = torch.stack(
-                        [
-                            pkg["regular_model_params"][name]
-                            for pkg in client_packages.values()
-                        ],
+                        [pkg["regular_model_params"][name] for pkg in client_packages.values()],
                         dim=-1,
                     )
                     global_param.data = torch.sum(stacked * weights, dim=-1)
-                # else: keep current global value unchanged
+                # else: keep current global value
 
-            # full_freeze: retain current global value unconditionally (no-op)
+            # full_freeze: keep current global value (no-op)
 
         self.model.load_state_dict(self.public_model_params, strict=False)
 
     # ------------------------------------------------------------------
-    # Local gram aggregation (avg_local strategy)
+    # package — broadcast late layer names + global grams to clients
+    # ------------------------------------------------------------------
+
+    def package(self, client_id: int) -> dict:
+        pkg = super().package(client_id)
+        pkg["late_layer_names"] = self.late_layer_names
+        pkg["global_grams"] = {k: v.clone().cpu() for k, v in self.global_grams.items()}
+        pkg["lam"] = self.args.fedlategram.lam
+        pkg["freeze_strategy"] = self.args.fedlategram.freeze_strategy
+        pkg["warming_up"] = self._warming_up
+        pkg["alpha_early_lr"] = self.args.fedlategram.alpha_early_lr
+        return pkg
+
+    # ------------------------------------------------------------------
+    # avg_local gram aggregation helper
     # ------------------------------------------------------------------
 
     def _aggregate_local_grams(
         self, client_packages: OrderedDict[int, Dict[str, Any]]
     ):
-        """Compute weighted average of clients' local gram matrices."""
+        """Weighted average of clients' local gram matrices."""
         client_weights = [pkg["weight"] for pkg in client_packages.values()]
         total = sum(client_weights)
         self.global_grams = {}
@@ -460,3 +364,66 @@ class FedLateGramServer(FedAvgServer):
                 if name not in self.global_grams:
                     self.global_grams[name] = torch.zeros_like(G)
                 self.global_grams[name] += (w / total) * G.cpu()
+
+    # ------------------------------------------------------------------
+    # Resume checkpoint — extend base with FedLateGram-specific state
+    # ------------------------------------------------------------------
+
+    def save_training_checkpoint(self, checkpoint_dir) -> None:
+        """Override to also persist FedLateGram state (grams, warm-up flag)."""
+        import os
+        import torch as _torch
+        os.makedirs(checkpoint_dir, exist_ok=True)
+
+        state = {
+            "current_epoch": self.current_epoch,
+            "public_model_params": {
+                k: v.detach().cpu() for k, v in self.public_model_params.items()
+            },
+            "clients_personal_model_params": self.clients_personal_model_params,
+            "client_optimizer_states": self.client_optimizer_states,
+            "client_lr_scheduler_states": self.client_lr_scheduler_states,
+            "client_sample_stream": self.client_sample_stream,
+            "aggregated_client_metrics": self.aggregated_client_metrics,
+            # FedLateGram extras
+            "global_grams": {k: v.cpu() for k, v in self.global_grams.items()},
+            "_warming_up": self._warming_up,
+        }
+        dest = checkpoint_dir / "training_state.pt"
+        tmp  = checkpoint_dir / "training_state.pt.tmp"
+        _torch.save(state, tmp)
+        os.replace(tmp, dest)
+        self.logger.log(
+            f"  [FedLateGram] Saved checkpoint after round "
+            f"{self.current_epoch + 1} → {dest}"
+        )
+
+    def load_training_checkpoint(self, checkpoint_path) -> int:
+        """Override to also restore FedLateGram state."""
+        self.logger.log(
+            f"  [FedLateGram] Loading checkpoint from {checkpoint_path}"
+        )
+        import torch as _torch
+        state = _torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+
+        self.current_epoch = state["current_epoch"]
+        for k, v in state["public_model_params"].items():
+            self.public_model_params[k].data.copy_(v)
+        self.model.load_state_dict(self.public_model_params, strict=False)
+
+        self.clients_personal_model_params = state["clients_personal_model_params"]
+        self.client_optimizer_states       = state["client_optimizer_states"]
+        self.client_lr_scheduler_states    = state["client_lr_scheduler_states"]
+        self.client_sample_stream          = state["client_sample_stream"]
+        self.aggregated_client_metrics     = state["aggregated_client_metrics"]
+
+        # FedLateGram extras
+        self.global_grams  = state.get("global_grams", {})
+        self._warming_up   = state.get("_warming_up", self._warming_up)
+
+        resume_from = self.current_epoch + 1
+        self.logger.log(
+            f"  [FedLateGram] Restored. Resuming from round "
+            f"{resume_from + 1}/{self.args.common.global_epoch}."
+        )
+        return resume_from
