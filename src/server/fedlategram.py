@@ -200,9 +200,17 @@ class FedLateGramServer(CKADriftFedAvgServer):
 
             def make_hook(n):
                 def hook(mod, inp, out):
+                    # Vim/Mamba layers return (hidden_states, residual) tuples;
+                    # take the first element (hidden states).
+                    if isinstance(out, (tuple, list)):
+                        out = out[0]
+                    if not isinstance(out, torch.Tensor):
+                        return
                     t = out.detach()
                     if t.dim() == 4:
                         t = t.mean(dim=(2, 3))   # (N,C,H,W) → (N,C)
+                    elif t.dim() == 3:
+                        t = t.mean(dim=1)        # (N,L,D) → (N,D) for sequence models
                     elif t.dim() > 2:
                         t = t.flatten(start_dim=1)
                     activations[n].append(t.cpu())

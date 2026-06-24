@@ -63,11 +63,19 @@ class FedLateGramClient(FedAvgClient):
 
             def make_hook(n):
                 def hook(mod, inp, out):
+                    # Vim/Mamba layers return (hidden_states, residual) tuples;
+                    # take the first element (hidden states).
+                    if isinstance(out, (tuple, list)):
+                        out = out[0]
+                    if not isinstance(out, torch.Tensor):
+                        return
                     t = out
                     # Global average pool spatial dims to keep D = C_out
                     # This prevents O(C²H²W²) gram matrices.
                     if t.dim() == 4:
                         t = t.mean(dim=(2, 3))      # (N, C, H, W) → (N, C)
+                    elif t.dim() == 3:
+                        t = t.mean(dim=1)           # (N, L, D) → (N, D) for SSM/transformer
                     elif t.dim() > 2:
                         t = t.flatten(start_dim=1)  # (N, ...) → (N, D)
                     activations[n] = t              # keep grad graph intact
