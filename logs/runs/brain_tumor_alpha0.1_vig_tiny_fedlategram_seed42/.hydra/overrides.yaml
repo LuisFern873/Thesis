@@ -1,0 +1,7 @@
+- dataset.name=brain_tumor
+- dataset.partition_dir=partitions/alpha_0.1/seed_42
+- model.name=vig_tiny
+- common.seed=42
+- common.global_epoch=50
+- fedlategram.T_warm=30
+- mode=serial

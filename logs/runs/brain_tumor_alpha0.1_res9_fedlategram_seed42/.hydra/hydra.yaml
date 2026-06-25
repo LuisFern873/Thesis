@@ -113,20 +113,20 @@ hydra:
     - hydra.run.dir=logs/runs/brain_tumor_alpha0.1_res9_fedlategram_seed42
     - hydra.mode=RUN
     task:
-    - method=fedlategram
     - dataset.name=brain_tumor
     - dataset.partition_dir=partitions/alpha_0.1/seed_42
     - model.name=res9
     - common.seed=42
     - common.global_epoch=50
+    - fedlategram.T_warm=30
     - mode=serial
   job:
     name: main
     chdir: null
-    override_dirname: common.global_epoch=50,common.seed=42,dataset.name=brain_tumor,dataset.partition_dir=partitions/alpha_0.1/seed_42,method=fedlategram,mode=serial,model.name=res9
+    override_dirname: common.global_epoch=50,common.seed=42,dataset.name=brain_tumor,dataset.partition_dir=partitions/alpha_0.1/seed_42,fedlategram.T_warm=30,mode=serial,model.name=res9
     id: ???
     num: ???
-    config_name: defaults
+    config_name: fedlategram
     env_set: {}
     env_copy: []
     config:
