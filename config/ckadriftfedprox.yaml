@@ -87,7 +87,7 @@ fedprox:
 # CKA checkpoint configuration — same offline approach as ckadriftfedavg.
 # Training saves checkpoints; run scripts/compute_cka_offline.py afterwards.
 cka:
-  rounds: [1, 2, 5, 10, 20, 30, 40]
+  rounds: [1, 2, 5, 10, 20, 30, 40, 50]
   client_sample: 10
   probe_batches: 20
   probe_batch_size: 16
