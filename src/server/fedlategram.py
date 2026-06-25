@@ -241,10 +241,14 @@ class FedLateGramServer(CKADriftFedAvgServer):
     # ------------------------------------------------------------------
 
     def train_one_round(self):
-        # 1. Cosine LR decay (from DriftFedAvgServer)
+        # 1. Cosine LR decay — identical to DriftFedAvgServer.train_one_round.
+        #    Must run BEFORE trainer.train() so clients receive the decayed LR.
         self._update_client_lr()
 
-        # 2. Warm-up flag management
+        # 2. Warm-up flag management.
+        #    warm_then_freeze: warming_up=True for rounds 0..(T_warm-1),
+        #    i.e. the first T_warm communication rounds use plain FedAvg.
+        #    Any other strategy activates gram penalty from round 0.
         if self.args.fedlategram.freeze_strategy == "warm_then_freeze":
             was_warming = self._warming_up
             self._warming_up = self.current_epoch < self.args.fedlategram.T_warm
@@ -256,20 +260,22 @@ class FedLateGramServer(CKADriftFedAvgServer):
         else:
             self._warming_up = False
 
-        # 3. Build proxy loader and refresh global grams (after warm-up only)
+        # 3. Build proxy loader and refresh global grams (after warm-up only).
+        #    Lazy build avoids displacing the RNG stream during __init__.
         if self.args.fedlategram.gram_ref == "proxy" and not self._warming_up:
             if self._proxy_loader is None:
                 self._proxy_loader = self._build_proxy_loader()
             self.global_grams = self._compute_global_grams()
 
-        # 4. Client training
+        # 4. Client training — clients receive warming_up flag via package()
+        #    and behave identically to FedAvgClient during warm-up.
         client_packages = self.trainer.train()
 
-        # 5. avg_local gram reference
+        # 5. avg_local gram reference update (no-op during warm-up)
         if self.args.fedlategram.gram_ref == "avg_local" and not self._warming_up:
             self._aggregate_local_grams(client_packages)
 
-        # 6. Log gram losses
+        # 6. Log gram losses (only meaningful after warm-up)
         gram_losses = [pkg.get("loss_gram_mean", 0.0) for pkg in client_packages.values()]
         task_losses = [pkg.get("loss_task_mean", 0.0) for pkg in client_packages.values()]
         if any(g > 0 for g in gram_losses):
@@ -279,51 +285,51 @@ class FedLateGramServer(CKADriftFedAvgServer):
                 f"avg gram: {sum(gram_losses)/len(gram_losses):.4f}"
             )
 
-        # 7. Aggregate (triggers CKA checkpoint + drift metrics via super chain)
+        # 7. Aggregate — goes through FedLateGramServer.aggregate_client_updates
+        #    which handles CKA checkpoint + drift metrics + selective FedAvg.
         self.aggregate_client_updates(client_packages)
 
     # ------------------------------------------------------------------
     # aggregate_client_updates — CKA checkpoint → drift metrics → FLG selective agg
     #
-    # Call order through MRO:
-    #   FedLateGramServer.aggregate_client_updates
-    #     → calls CKADriftFedAvgServer.aggregate_client_updates
-    #         which saves CKA checkpoint if scheduled, then calls
-    #       → DriftFedAvgServer.aggregate_client_updates
-    #           which computes drift + gradient alignment, then calls
-    #         → FedAvgServer.aggregate_client_updates  (standard FedAvg)
+    # Design: the MRO chain (CKADriftFedAvg → DriftFedAvg → FedAvg) handles
+    # checkpointing and drift CSV correctly, but its terminal step always runs
+    # FedAvgServer.aggregate_client_updates (full aggregation on all params).
+    # We need to intercept AFTER drift metrics are populated but BEFORE the
+    # FedAvg weighted average so we can apply selective aggregation instead.
     #
-    # We intercept AFTER drift metrics are computed but REPLACE the
-    # FedAvg weighted average with FedLateGram's selective aggregation.
-    # This is achieved by calling super() up through CKA+Drift layers
-    # (giving them their checkpoint/CSV work) but then replacing the
-    # FedAvg aggregation with our selective version.
+    # Strategy:
+    #   1. Run CKA checkpoint saving (CKADriftFedAvgServer logic) directly.
+    #   2. Run drift + interference computation (DriftFedAvgServer logic)
+    #      directly — this populates _last_drift_stats / _last_interference
+    #      so display_metrics() can write the drift CSV every round,
+    #      INCLUDING during warm-up (consistent with the FedAvg baseline).
+    #   3. During warm-up: run full FedAvg aggregation (identical to baseline).
+    #      After warm-up: run FedLateGram selective aggregation.
+    #
+    # Importing at module level is avoided for drift_metrics to keep the
+    # import inside the method that actually uses it (matches base class style).
     # ------------------------------------------------------------------
 
     @torch.no_grad()
     def aggregate_client_updates(
         self, client_packages: OrderedDict[int, Dict[str, Any]]
     ):
-        # Let CKADriftFedAvg do: CKA checkpoint save + drift/interference
-        # computation + _last_drift_stats / _last_interference population.
-        # We call the CKA layer directly so both CKA saving and drift CSV
-        # writing happen normally.
-        #
-        # But we must NOT let FedAvgServer.aggregate_client_updates run,
-        # because we need selective aggregation instead of full FedAvg.
-        # Solution: call CKA + Drift work manually, then do FLG aggregation.
-
-        # ── CKA checkpoint (CKADriftFedAvgServer logic) ──────────────────
-        round_idx = self.current_epoch + 1
-        if self._is_cka_round(round_idx):
-            self._save_cka_checkpoint(round_idx, client_packages)
-
-        # ── Drift metrics (DriftFedAvgServer logic) ───────────────────────
         from src.utils.drift_metrics import (
             aggregate_drift,
             compute_gradient_alignment,
             compute_layer_drift,
         )
+        from src.server.fedavg import FedAvgServer
+
+        # ── Step 1: CKA checkpoint (CKADriftFedAvgServer logic) ──────────
+        round_idx = self.current_epoch + 1
+        if self._is_cka_round(round_idx):
+            self._save_cka_checkpoint(round_idx, client_packages)
+
+        # ── Step 2: Drift metrics (DriftFedAvgServer logic) ───────────────
+        # Computed every round — warm-up or not — so drift_metrics.csv is
+        # complete and directly comparable to the FedAvg/FedProx baselines.
         global_state = self.public_model_params
         per_client_drifts = []
         client_grads = []
@@ -342,14 +348,16 @@ class FedLateGramServer(CKADriftFedAvgServer):
             client_grads, self.param_taxonomy
         )
 
-        # ── FedLateGram selective aggregation ────────────────────────────
+        # ── Step 3a: Warm-up — full FedAvg on ALL parameters ─────────────
+        # Bypasses only the FedAvg layer of the MRO (CKA + drift already done
+        # above). Behaviour is bit-for-bit identical to the FedAvg baseline
+        # because: same LR (cosine from _update_client_lr), same optimizer,
+        # same join_ratio=1.0, same seed, and no gram penalty in fit().
         if self._warming_up:
-            # Warm-up: standard FedAvg on all parameters
-            # Call FedAvgServer directly to avoid re-running CKA/drift
-            from src.server.fedavg import FedAvgServer
             FedAvgServer.aggregate_client_updates(self, client_packages)
             return
 
+        # ── Step 3b: Post-warm-up — FedLateGram selective aggregation ────
         client_weights = [pkg["weight"] for pkg in client_packages.values()]
         total_weight = sum(client_weights)
         weights = torch.tensor(
@@ -358,6 +366,7 @@ class FedLateGramServer(CKADriftFedAvgServer):
 
         for name, global_param in self.public_model_params.items():
             if self._is_late_param(name):
+                # Late layers: always aggregate across all clients (FedAvg)
                 stacked = torch.stack(
                     [pkg["regular_model_params"][name] for pkg in client_packages.values()],
                     dim=-1,
@@ -365,15 +374,16 @@ class FedLateGramServer(CKADriftFedAvgServer):
                 global_param.data = torch.sum(stacked * weights, dim=-1)
 
             elif self.args.fedlategram.freeze_strategy == "slow_update":
+                # Early layers: aggregate only every freq_early rounds
                 if self.current_epoch % self.args.fedlategram.freq_early == 0:
                     stacked = torch.stack(
                         [pkg["regular_model_params"][name] for pkg in client_packages.values()],
                         dim=-1,
                     )
                     global_param.data = torch.sum(stacked * weights, dim=-1)
-                # else: keep current global value
+                # else: retain current global value (no update)
 
-            # full_freeze: keep current global value (no-op)
+            # full_freeze strategy: early layers keep current global value (no-op)
 
         self.model.load_state_dict(self.public_model_params, strict=False)
 

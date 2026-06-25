@@ -5,17 +5,25 @@
 #
 # Key parameters aligned with ckadriftfedavg.yaml:
 #   optimizer    : SGD, lr=0.01, momentum=0.9, weight_decay=1e-4  (same)
+#   lr_scheduler : null — cosine LR applied server-side per round  (same)
+#   eta_min      : 1.0e-5                                          (same)
 #   join_ratio   : 1.0  — 100% client participation every round   (same)
 #   global_epoch : 50                                              (same)
 #   local_epoch  : 5                                               (same)
 #   batch_size   : 32                                              (same)
+#   buffers      : global  — BN running stats aggregated           (same)
 #   mode         : serial  (changed from parallel for single-GPU runs)
+#
+# NOTE: T_warm should be ≤ 20% of global_epoch (≤ 10 for 50 rounds).
+#       Do NOT override T_warm to large values (e.g. 30) via CLI —
+#       the warm-up phase IS FedAvg, so a large T_warm wastes rounds
+#       where FedLateGram has no effect.
 #
 # Override dataset / model / seed via CLI:
 #   python main.py --config-name fedlategram \
 #       dataset.name=brain_tumor \
 #       dataset.partition_dir=partitions/alpha_0.1/seed_42 \
-#       model.name=res9 \
+#       model.name=vim_tiny \
 #       common.seed=42
 
 method: fedlategram
@@ -86,14 +94,16 @@ common:
   resume_checkpoint: null
 
 # FedLateGram hyperparameters
-# T_warm=10 is recommended for 50-round experiments (20% warm-up).
-# During warm-up, behaviour is identical to FedAvg.
+# T_warm=10 means the first 10 rounds (20% of 50) are pure FedAvg warm-up.
+# During warm-up, client fit() is identical to FedAvgClient and aggregation
+# is standard FedAvg on all parameters — directly comparable to the baseline.
+# Recommended range: 5–10 for global_epoch=50.
 fedlategram:
   lam: 0.1
   tau_cka: 0.85
   late_fraction: 0.4
   freeze_strategy: warm_then_freeze
-  T_warm: 10
+  T_warm: 10            # ← keep ≤ 10 for 50-round experiments
   alpha_early_lr: 0.05
   freq_early: 5
   gram_ref: proxy
