@@ -60,7 +60,7 @@ fedlategram:
   late_fraction: 0.4
   freeze_strategy: warm_then_freeze
   T_warm: 20
-  alpha_early_lr: 0.05
+  alpha_early_lr: 0.5
   freq_early: 5
   gram_ref: proxy
   proxy_size: 256

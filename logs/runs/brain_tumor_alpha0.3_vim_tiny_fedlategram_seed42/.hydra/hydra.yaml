@@ -118,11 +118,10 @@ hydra:
     - model.name=vim_tiny
     - common.seed=42
     - common.global_epoch=50
-    - mode=serial
   job:
     name: main
     chdir: null
-    override_dirname: common.global_epoch=50,common.seed=42,dataset.name=brain_tumor,dataset.partition_dir=partitions/alpha_0.3/seed_42,mode=serial,model.name=vim_tiny
+    override_dirname: common.global_epoch=50,common.seed=42,dataset.name=brain_tumor,dataset.partition_dir=partitions/alpha_0.3/seed_42,model.name=vim_tiny
     id: ???
     num: ???
     config_name: fedlategram
