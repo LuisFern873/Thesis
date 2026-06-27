@@ -1,0 +1,7 @@
+- method=ckadriftfedavg
+- dataset.name=cifar10
+- dataset.partition_dir=partitions/alpha_0.1/seed_42
+- model.name=res9
+- common.seed=42
+- common.global_epoch=50
+- mode=serial

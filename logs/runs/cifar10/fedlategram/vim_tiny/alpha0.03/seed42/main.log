@@ -1,0 +1,286 @@
+[FedLateGram] _detect_late_layers: 17 units (expanded from 6 depth-1 children), cutoff=9 → 9 late prefixes                                                  
+[FedLateGram] Late layers (9): ['base.layers.5', 'base.layers.6', 'base.layers.7', 'base.layers.8', 'base.layers.9', 'base.layers.10', 'base.layers.11',    
+'base.norm_f', 'classifier']                                                                                                                                
+==================== FedLateGram ====================                                                                                                       
+Experiment Arguments:                                                                                                                                       
+{
+│   'method': 'fedlategram',
+│   'dataset': {
+│   │   'name': 'cifar10',
+│   │   'partition_dir': 'partitions/alpha_0.03/seed_42',
+│   │   'client_num': 10,
+│   │   'test_ratio': 0.25,
+│   │   'val_ratio': 0.0,
+│   │   'seed': 42,
+│   │   'split': 'sample',
+│   │   'IID_ratio': 0.0,
+│   │   'alpha': 0.03,
+│   │   'min_samples_per_client': 10,
+│   │   'sample_fraction': 0.1,
+│   │   'subset_seed': 42,
+│   │   'monitor_window_name_suffix': 'cifar10-10clients-0%IID-Dir(0.03)-seed42-10pct'
+│   },
+│   'model': {
+│   │   'name': 'vim_tiny',
+│   │   'use_torchvision_pretrained_weights': False,
+│   │   'external_model_weights_path': None
+│   },
+│   'optimizer': {
+│   │   'lr': 0.01,
+│   │   'dampening': 0,
+│   │   'weight_decay': 0.0001,
+│   │   'momentum': 0.9,
+│   │   'nesterov': False,
+│   │   'name': 'sgd'
+│   },
+│   'mode': 'serial',
+│   'parallel': {
+│   │   'ray_cluster_addr': None,
+│   │   'num_cpus': None,
+│   │   'num_gpus': None,
+│   │   'num_workers': 4
+│   },
+│   'common': {
+│   │   'seed': 42,
+│   │   'join_ratio': 1.0,
+│   │   'global_epoch': 50,
+│   │   'local_epoch': 5,
+│   │   'batch_size': 32,
+│   │   'reset_optimizer_on_global_epoch': True,
+│   │   'straggler_ratio': 0,
+│   │   'straggler_min_local_epoch': 0,
+│   │   'buffers': 'global',
+│   │   'client_side_evaluation': True,
+│   │   'test': {
+│   │   │   'client': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'finetune_epoch': 0,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True
+│   │   │   },
+│   │   │   'server': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True,
+│   │   │   │   'model_in_train_mode': False
+│   │   │   }
+│   │   },
+│   │   'verbose_gap': 10,
+│   │   'monitor': 'tensorboard',
+│   │   'use_cuda': True,
+│   │   'save_log': True,
+│   │   'save_model': False,
+│   │   'save_learning_curve_plot': True,
+│   │   'save_metrics': True,
+│   │   'delete_useless_run': True,
+│   │   'dataloader_num_workers': 2,
+│   │   'resume_checkpoint': None
+│   },
+│   'fedlategram': {
+│   │   'lam': 0.15,
+│   │   'tau_cka': 0.85,
+│   │   'late_fraction': 0.45,
+│   │   'freeze_strategy': 'slow_update',
+│   │   'T_warm': 15,
+│   │   'alpha_early_lr': 0.05,
+│   │   'freq_early': 5,
+│   │   'gram_ref': 'proxy',
+│   │   'proxy_size': 256,
+│   │   'lam_adaptive': True
+│   },
+│   'cka': {
+│   │   'rounds': [
+│   │   │   1,
+│   │   │   2,
+│   │   │   5,
+│   │   │   10,
+│   │   │   20,
+│   │   │   30,
+│   │   │   40,
+│   │   │   50
+│   │   ],
+│   │   'client_sample': 10,
+│   │   'probe_batches': 20,
+│   │   'probe_batch_size': 16
+│   },
+│   'ckadriftfedavg': {}
+}
+---------------------------- ROUND 1/50 START ----------------------------                                                                                  
+Selected clients: [1, 0, 4, 9, 6, 5, 8, 2, 3, 7]                                                                                                            
+  [Client 1] Starting local training...                                                                                                                     
+  [Client 1] Finished training in 10.53s                                                                                                                    
+  [Client 0] Starting local training...                                                                                                                     
+  [Client 0] Finished training in 8.30s                                                                                                                     
+  [Client 4] Starting local training...                                                                                                                     
+  [Client 4] Finished training in 6.91s                                                                                                                     
+  [Client 9] Starting local training...                                                                                                                     
+  [Client 9] Finished training in 14.26s                                                                                                                    
+  [Client 6] Starting local training...                                                                                                                     
+  [Client 6] Finished training in 2.95s                                                                                                                     
+  [Client 5] Starting local training...                                                                                                                     
+  [Client 5] Finished training in 7.70s                                                                                                                     
+  [Client 8] Starting local training...                                                                                                                     
+  [Client 8] Finished training in 0.94s                                                                                                                     
+  [Client 2] Starting local training...                                                                                                                     
+  [Client 2] Finished training in 7.78s                                                                                                                     
+  [Client 3] Starting local training...                                                                                                                     
+  [Client 3] Finished training in 5.71s                                                                                                                     
+  [Client 7] Starting local training...                                                                                                                     
+  [Client 7] Finished training in 12.07s                                                                                                                    
+[Round 0] layer_lambdas: 5=0.0208, 6=0.0184, 7=0.0206, 8=0.0238, 9=0.0254, 10=0.0175, 11=0.0234, norm_f=0.0000, classifier=0.1500                           
+[FedLateGram Round 1] avg task: 0.2966 | avg gram: 0.0885                                                                                                   
+  [CKA] Saved checkpoints for round 1 (10 clients) →                                                                                                        
+/home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42/checkpoints/round_0001                                                    
+ROUND 1 FINISHED in 83.18s (Avg: 83.18s)                                                                                                                    
+  [FedLateGram] Saved checkpoint after round 1 →                                                                                                            
+/home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42/checkpoints/training_state.pt                                             
+---------------------------- ROUND 2/50 START ----------------------------                                                                                  
+Selected clients: [0, 9, 1, 7, 6, 4, 8, 2, 3, 5]                                                                                                            
+  [Client 0] Starting local training...                                                                                                                     
+  [Client 0] Finished training in 7.86s                                                                                                                     
+  [Client 9] Starting local training...                                                                                                                     
+  [Client 9] Finished training in 19.00s                                                                                                                    
+  [Client 1] Starting local training...                                                                                                                     
+  [Client 1] Finished training in 7.96s                                                                                                                     
+  [Client 7] Starting local training...                                                                                                                     
+  [Client 7] Finished training in 12.15s                                                                                                                    
+  [Client 6] Starting local training...                                                                                                                     
+  [Client 6] Finished training in 3.57s                                                                                                                     
+  [Client 4] Starting local training...                                                                                                                     
+  [Client 4] Finished training in 6.27s                                                                                                                     
+  [Client 8] Starting local training...                                                                                                                     
+  [Client 8] Finished training in 1.22s                                                                                                                     
+  [Client 2] Starting local training...                                                                                                                     
+  [Client 2] Finished training in 8.19s                                                                                                                     
+  [Client 3] Starting local training...                                                                                                                     
+  [Client 3] Finished training in 5.71s                                                                                                                     
+  [Client 5] Starting local training...                                                                                                                     
+  [Client 5] Finished training in 7.53s                                                                                                                     
+[Round 1] layer_lambdas: 5=0.0222, 6=0.0201, 7=0.0228, 8=0.0192, 9=0.0239, 10=0.0203, 11=0.0215, norm_f=0.0000, classifier=0.1500                           
+[FedLateGram Round 2] avg task: 0.3670 | avg gram: 0.0096                                                                                                   
+  [CKA] Saved checkpoints for round 2 (10 clients) →                                                                                                        
+/home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42/checkpoints/round_0002                                                    
+ROUND 2 FINISHED in 82.08s (Avg: 82.63s)                                                                                                                    
+  [FedLateGram] Saved checkpoint after round 2 →                                                                                                            
+/home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42/checkpoints/training_state.pt                                             
+---------------------------- ROUND 3/50 START ----------------------------                                                                                  
+Selected clients: [3, 7, 4, 6, 0, 1, 9, 8, 2, 5]                                                                                                            
+  [Client 3] Starting local training...                                                                                                                     
+  [Client 3] Finished training in 6.12s                                                                                                                     
+  [Client 7] Starting local training...                                                                                                                     
+  [Client 7] Finished training in 10.04s                                                                                                                    
+  [Client 4] Starting local training...                                                                                                                     
+  [Client 4] Finished training in 8.25s                                                                                                                     
+  [Client 6] Starting local training...                                                                                                                     
+  [Client 6] Finished training in 2.97s                                                                                                                     
+  [Client 0] Starting local training...                                                                                                                     
+  [Client 0] Finished training in 8.03s                                                                                                                     
+  [Client 1] Starting local training...                                                                                                                     
+  [Client 1] Finished training in 8.12s                                                                                                                     
+  [Client 9] Starting local training...                                                                                                                     
+  [Client 9] Finished training in 19.67s                                                                                                                    
+  [Client 8] Starting local training...                                                                                                                     
+  [Client 8] Finished training in 0.99s                                                                                                                     
+  [Client 2] Starting local training...                                                                                                                     
+  [Client 2] Finished training in 6.11s                                                                                                                     
+  [Client 5] Starting local training...                                                                                                                     
+  [Client 5] Finished training in 8.81s                                                                                                                     
+[Round 2] layer_lambdas: 5=0.0219, 6=0.0200, 7=0.0235, 8=0.0189, 9=0.0233, 10=0.0219, 11=0.0205, norm_f=0.0000, classifier=0.1500                           
+[FedLateGram Round 3] avg task: 0.3035 | avg gram: 0.0085                                                                                                   
+ROUND 3 FINISHED in 80.03s (Avg: 81.76s)                                                                                                                    
+  [FedLateGram] Saved checkpoint after round 3 →                                                                                                            
+/home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42/checkpoints/training_state.pt                                             
+---------------------------- ROUND 4/50 START ----------------------------                                                                                  
+Selected clients: [3, 5, 1, 0, 9, 6, 2, 7, 8, 4]                                                                                                            
+  [Client 3] Starting local training...                                                                                                                     
+  [Client 3] Finished training in 6.80s                                                                                                                     
+  [Client 5] Starting local training...                                                                                                                     
+  [Client 5] Finished training in 7.83s                                                                                                                     
+  [Client 1] Starting local training...                                                                                                                     
+  [Client 1] Finished training in 8.11s                                                                                                                     
+  [Client 0] Starting local training...                                                                                                                     
+  [Client 0] Finished training in 8.40s                                                                                                                     
+  [Client 9] Starting local training...                                                                                                                     
+  [Client 9] Finished training in 16.35s                                                                                                                    
+  [Client 6] Starting local training...                                                                                                                     
+  [Client 6] Finished training in 3.58s                                                                                                                     
+  [Client 2] Starting local training...                                                                                                                     
+  [Client 2] Finished training in 7.97s                                                                                                                     
+  [Client 7] Starting local training...                                                                                                                     
+  [Client 7] Finished training in 11.26s                                                                                                                    
+  [Client 8] Starting local training...                                                                                                                     
+  [Client 8] Finished training in 1.21s                                                                                                                     
+  [Client 4] Starting local training...                                                                                                                     
+  [Client 4] Finished training in 6.89s                                                                                                                     
+[Round 3] layer_lambdas: 5=0.0246, 6=0.0229, 7=0.0218, 8=0.0163, 9=0.0219, 10=0.0247, 11=0.0178, norm_f=0.0000, classifier=0.1500                           
+[FedLateGram Round 4] avg task: 0.3555 | avg gram: 0.0075                                                                                                   
+ROUND 4 FINISHED in 79.21s (Avg: 81.13s)                                                                                                                    
+  [FedLateGram] Saved checkpoint after round 4 →                                                                                                            
+/home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42/checkpoints/training_state.pt                                             
+---------------------------- ROUND 5/50 START ----------------------------                                                                                  
+Selected clients: [7, 8, 1, 3, 0, 4, 2, 6, 9, 5]                                                                                                            
+  [Client 7] Starting local training...                                                                                                                     
+  [Client 7] Finished training in 11.21s                                                                                                                    
+  [Client 8] Starting local training...                                                                                                                     
+  [Client 8] Finished training in 1.25s                                                                                                                     
+  [Client 1] Starting local training...                                                                                                                     
+  [Client 1] Finished training in 8.69s                                                                                                                     
+  [Client 3] Starting local training...                                                                                                                     
+  [Client 3] Finished training in 6.09s                                                                                                                     
+  [Client 0] Starting local training...                                                                                                                     
+  [Client 0] Finished training in 7.58s                                                                                                                     
+  [Client 4] Starting local training...                                                                                                                     
+  [Client 4] Finished training in 7.77s                                                                                                                     
+  [Client 2] Starting local training...                                                                                                                     
+  [Client 2] Finished training in 7.90s                                                                                                                     
+  [Client 6] Starting local training...                                                                                                                     
+  [Client 6] Finished training in 3.40s                                                                                                                     
+  [Client 9] Starting local training...                                                                                                                     
+  [Client 9] Finished training in 16.93s                                                                                                                    
+  [Client 5] Starting local training...                                                                                                                     
+  [Client 5] Finished training in 7.70s                                                                                                                     
+[Round 4] layer_lambdas: 5=0.0265, 6=0.0236, 7=0.0207, 8=0.0130, 9=0.0201, 10=0.0300, 11=0.0162, norm_f=0.0000, classifier=0.1500                           
+[FedLateGram Round 5] avg task: 0.3078 | avg gram: 0.0067                                                                                                   
+  [CKA] Saved checkpoints for round 5 (10 clients) →                                                                                                        
+/home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42/checkpoints/round_0005                                                    
+ROUND 5 FINISHED in 81.12s (Avg: 81.12s)                                                                                                                    
+  [FedLateGram] Saved checkpoint after round 5 →                                                                                                            
+/home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42/checkpoints/training_state.pt                                             
+---------------------------- ROUND 6/50 START ----------------------------                                                                                  
+Selected clients: [1, 0, 3, 6, 2, 8, 9, 4, 7, 5]                                                                                                            
+  [Client 1] Starting local training...                                                                                                                     
+  [Client 1] Finished training in 6.77s                                                                                                                     
+  [Client 0] Starting local training...                                                                                                                     
+  [Client 0] Finished training in 5.97s                                                                                                                     
+  [Client 3] Starting local training...                                                                                                                     
+  [Client 3] Finished training in 4.68s                                                                                                                     
+  [Client 6] Starting local training...                                                                                                                     
+  [Client 6] Finished training in 3.41s                                                                                                                     
+  [Client 2] Starting local training...                                                                                                                     
+  [Client 2] Finished training in 8.19s                                                                                                                     
+  [Client 8] Starting local training...                                                                                                                     
+  [Client 8] Finished training in 1.10s                                                                                                                     
+  [Client 9] Starting local training...                                                                                                                     
+  [Client 9] Finished training in 17.64s                                                                                                                    
+  [Client 4] Starting local training...                                                                                                                     
+  [Client 4] Finished training in 8.43s                                                                                                                     
+  [Client 7] Starting local training...                                                                                                                     
+  [Client 7] Finished training in 11.97s                                                                                                                    
+  [Client 5] Starting local training...                                                                                                                     
+  [Client 5] Finished training in 8.29s                                                                                                                     
+[Round 5] layer_lambdas: 5=0.0290, 6=0.0258, 7=0.0212, 8=0.0122, 9=0.0184, 10=0.0294, 11=0.0139, norm_f=0.0000, classifier=0.1500                           
+[FedLateGram Round 6] avg task: 0.3630 | avg gram: 0.0061                                                                                                   
+ROUND 6 FINISHED in 77.35s (Avg: 80.50s)                                                                                                                    
+  [FedLateGram] Saved checkpoint after round 6 →                                                                                                            
+/home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42/checkpoints/training_state.pt                                             
+---------------------------- ROUND 7/50 START ----------------------------                                                                                  
+Selected clients: [7, 5, 2, 9, 6, 1, 8, 3, 0, 4]                                                                                                            
+  [Client 7] Starting local training...                                                                                                                     
+  [Client 7] Finished training in 11.57s                                                                                                                    
+  [Client 5] Starting local training...                                                                                                                     
+  [Client 5] Finished training in 8.98s                                                                                                                     
+  [Client 2] Starting local training...                                                                                                                     
+  [Client 2] Finished training in 6.67s                                                                                                                     
+  [Client 9] Starting local training...                                                                                                                     
