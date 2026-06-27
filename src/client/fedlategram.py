@@ -35,6 +35,7 @@ class FedLateGramClient(FedAvgClient):
         self.freeze_strategy: str = package["freeze_strategy"]
         self.warming_up: bool = package["warming_up"]
         self.alpha_early_lr: float = package["alpha_early_lr"]
+        self.layer_lambdas: dict[str, float] = package.get("layer_lambdas", {})
 
     def _is_late_param(self, name: str) -> bool:
         return any(name.startswith(prefix) for prefix in self.late_layer_names)
@@ -111,9 +112,12 @@ class FedLateGramClient(FedAvgClient):
         grams_global: dict[str, torch.Tensor],
     ) -> torch.Tensor:
         """
-        Frobenius-norm penalty between unit-normalised gram matrices:
+        Frobenius-norm penalty between unit-normalised gram matrices.
 
-            loss = Σ_ℓ  ‖Ĝ_ℓ^local − Ĝ_ℓ^global‖_F²
+        When layer_lambdas is populated (adaptive mode), each layer uses its
+        own λ_ℓ. Otherwise falls back to the scalar self.lam for all layers:
+
+            loss = Σ_ℓ  λ_ℓ · ‖Ĝ_ℓ^local − Ĝ_ℓ^global‖_F²
 
         Because both grams are unit-normalised, the max possible value per
         layer is 4.0, keeping the total loss comfortably O(1) regardless of
@@ -121,13 +125,16 @@ class FedLateGramClient(FedAvgClient):
         """
         loss = torch.tensor(0.0, device=self.device)
         for name in grams_local:
-            if name in grams_global:
-                G_loc = grams_local[name]
-                G_ref = grams_global[name].to(self.device).detach()
-                # Unit-normalise the reference gram to match the local norm
-                G_ref = G_ref / G_ref.norm(p="fro").clamp(min=1e-8)
-                diff = G_loc - G_ref
-                loss = loss + torch.norm(diff, p="fro") ** 2
+            if name not in grams_global:
+                continue
+            # Use per-layer λ if available; fall back to scalar lam.
+            lam = self.layer_lambdas.get(name, self.lam) if self.layer_lambdas else self.lam
+            G_loc = grams_local[name]
+            G_ref = grams_global[name].to(self.device).detach()
+            # Unit-normalise the reference gram to match the local norm
+            G_ref = G_ref / G_ref.norm(p="fro").clamp(min=1e-8)
+            diff = G_loc - G_ref
+            loss = loss + lam * torch.norm(diff, p="fro") ** 2
         return loss
 
     # ------------------------------------------------------------------
@@ -185,7 +192,7 @@ class FedLateGramClient(FedAvgClient):
                             k: v.detach().cpu() for k, v in grams_local.items()
                         }
 
-                loss = loss_task + self.lam * loss_gram
+                loss = loss_task + loss_gram
 
                 self.optimizer.zero_grad()
                 loss.backward()

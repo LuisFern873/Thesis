@@ -1,0 +1,105 @@
+\hfill {Pág.}\par 
+\babel@toc {spanish}{}\relax 
+\babel@toc {spanish}{}\relax 
+\vspace {1.5em}
+\contentsline {section}{\bfseries RESUMEN }{1}{chapter*.1}%
+\contentsline {section}{\bfseries ABSTRACT }{2}{chapter*.2}%
+\contentsline {section}{\bfseries INTRODUCCI\'ON }{3}{chapter*.3}%
+\contentsline {section}{\bfseries Descripci\'on del problema}{7}{section*.4}%
+\contentsline {section}{\bfseries Justificaci\'on}{8}{section*.5}%
+\contentsline {section}{\bfseries Objetivos}{9}{section*.6}%
+\contentsline {subsection}{\bfseries Objetivo general}{9}{section*.7}%
+\contentsline {subsection}{\bfseries Objetivos espec\'ificos}{9}{section*.8}%
+\contentsline {chapter}{\numberline {I}REVISI\'ON CR\'ITICA DE LA LITERATURA}{11}{chapter*.14}%
+\contentsline {section}{\numberline {1.1}Estudios comparativos de arquitecturas de visión en FL}{11}{section*.15}%
+\contentsline {section}{\numberline {1.2}Arquitectura como variable de diseño en FL}{14}{section*.16}%
+\contentsline {section}{\numberline {1.3}State Space Models y Vision Mamba en FL}{16}{section*.17}%
+\contentsline {section}{\numberline {1.4}Vision GNNs en FL}{18}{section*.18}%
+\contentsline {section}{\numberline {1.5}Análisis por capas y métricas de drift}{19}{section*.19}%
+\contentsline {section}{\numberline {1.6}Normalización en FL heterogéneo}{22}{section*.20}%
+\contentsline {section}{\numberline {1.7}Síntesis y posicionamiento de la investigación}{23}{section*.21}%
+\contentsline {chapter}{\numberline {II}MARCO TE\'ORICO}{25}{chapter*.22}%
+\contentsline {section}{\numberline {2.1}Aprendizaje Federado}{25}{section*.23}%
+\contentsline {subsection}{\numberline {2.1.1}Definición y motivación}{25}{subsection*.24}%
+\contentsline {subsection}{\numberline {2.1.2}Arquitectura cliente-servidor}{26}{subsection*.25}%
+\contentsline {subsection}{\numberline {2.1.3}Proceso de optimización federada}{27}{subsection*.27}%
+\contentsline {subsection}{\numberline {2.1.4}Desafíos del aprendizaje federado}{28}{subsection*.29}%
+\contentsline {section}{\numberline {2.2}Heterogeneidad Estadística y Client Drift}{29}{section*.30}%
+\contentsline {subsection}{\numberline {2.2.1}Datos IID y non-IID en aprendizaje federado}{29}{subsection*.31}%
+\contentsline {subsection}{\numberline {2.2.2}Taxonomía de la heterogeneidad}{30}{subsection*.32}%
+\contentsline {subsection}{\numberline {2.2.3}Partición de Dirichlet para non-IID}{31}{subsection*.33}%
+\contentsline {subsection}{\numberline {2.2.4}Client drift: definición y mecanismo}{32}{subsection*.35}%
+\contentsline {subsection}{\numberline {2.2.5}Impacto del drift sobre la convergencia}{33}{subsection*.38}%
+\contentsline {section}{\numberline {2.3}Algoritmos de Optimización Federada}{35}{section*.40}%
+\contentsline {subsection}{\numberline {2.3.1}FedAvg}{35}{subsection*.41}%
+\contentsline {subsection}{\numberline {2.3.2}FedProx}{36}{subsection*.43}%
+\contentsline {subsection}{\numberline {2.3.3}SCAFFOLD}{36}{subsection*.45}%
+\contentsline {section}{\numberline {2.4}Arquitecturas de Visión por Computadora}{37}{section*.47}%
+\contentsline {subsection}{\numberline {2.4.1}Redes Neuronales Convolucionales}{38}{subsection*.49}%
+\contentsline {subsubsection}{\numberline {2.4.1.1}Principios y sesgos inductivos}{38}{subsubsection*.50}%
+\contentsline {subsubsection}{\numberline {2.4.1.2}EfficientNet-B1 y la familia EfficientNet}{39}{subsubsection*.52}%
+\contentsline {subsubsection}{\numberline {2.4.1.3}Batch Normalization y su interacción con FL}{41}{subsubsection*.54}%
+\contentsline {subsection}{\numberline {2.4.2}Vision Transformers}{42}{subsection*.56}%
+\contentsline {subsubsection}{\numberline {2.4.2.1}Mecanismo de autoatención y tokenización}{42}{subsubsection*.57}%
+\contentsline {subsubsection}{\numberline {2.4.2.2}ViT-Tiny}{43}{subsubsection*.60}%
+\contentsline {subsubsection}{\numberline {2.4.2.3}Layer Normalization}{44}{subsubsection*.62}%
+\contentsline {subsection}{\numberline {2.4.3}State Space Models: Vision Mamba}{46}{subsection*.64}%
+\contentsline {subsubsection}{\numberline {2.4.3.1}State Space Models y la ecuación de espacio de estados}{46}{subsubsection*.65}%
+\contentsline {subsubsection}{\numberline {2.4.3.2}Vision Mamba (Vim-Tiny)}{47}{subsubsection*.69}%
+\contentsline {subsection}{\numberline {2.4.4}Vision Graph Neural Networks}{48}{subsection*.71}%
+\contentsline {subsubsection}{\numberline {2.4.4.1}Graph Neural Networks: propagación de mensajes}{48}{subsubsection*.72}%
+\contentsline {subsubsection}{\numberline {2.4.4.2}Vision GNN (ViG-Tiny)}{50}{subsubsection*.75}%
+\contentsline {subsection}{\numberline {2.4.5}Estrategias de normalización y sus propiedades en FL}{51}{subsection*.78}%
+\contentsline {section}{\numberline {2.5}M\'etricas de An\'alisis del Client Drift}{53}{section*.80}%
+\contentsline {subsection}{\numberline {2.5.1}Divergencia de pesos por capa ($L_2$ drift)}{54}{subsection*.81}%
+\contentsline {subsection}{\numberline {2.5.2}Alineación de gradientes entre clientes (similitud coseno)}{55}{subsection*.83}%
+\contentsline {subsection}{\numberline {2.5.3}Centered Kernel Alignment (CKA)}{56}{subsection*.85}%
+\contentsline {subsubsection}{\numberline {2.5.3.1}Similitud de representaciones neurales}{56}{subsubsection*.86}%
+\contentsline {subsubsection}{\numberline {2.5.3.2}Definición formal del CKA lineal}{56}{subsubsection*.87}%
+\contentsline {subsection}{\numberline {2.5.4}Taxonomía de capas para el análisis por tipo}{58}{subsection*.91}%
+\contentsline {section}{\numberline {2.6}M\'etricas de Evaluaci\'on del Rendimiento}{59}{section*.92}%
+\contentsline {subsection}{\numberline {2.6.1}Métricas de clasificación}{59}{subsection*.93}%
+\contentsline {subsection}{\numberline {2.6.2}Convergencia y estabilidad}{60}{subsection*.94}%
+\contentsline {subsection}{\numberline {2.6.3}Equidad entre clientes (fairness)}{60}{subsection*.95}%
+\contentsline {chapter}{\numberline {III}MARCO METODOL\'OGICO}{62}{chapter*.97}%
+\contentsline {section}{\numberline {3.1}Diseño del Estudio}{62}{section*.98}%
+\contentsline {subsection}{\numberline {3.1.1}Variables del estudio}{62}{subsection*.99}%
+\contentsline {section}{\numberline {3.2}Conjuntos de Datos}{64}{section*.100}%
+\contentsline {subsection}{\numberline {3.2.1}Brain Tumor MRI}{64}{subsection*.101}%
+\contentsline {subsection}{\numberline {3.2.2}CIFAR-10}{64}{subsection*.103}%
+\contentsline {subsection}{\numberline {3.2.3}Configuración del DataLoader}{66}{subsection*.105}%
+\contentsline {section}{\numberline {3.3}Particionamiento Federado No-IID}{66}{section*.106}%
+\contentsline {subsection}{\numberline {3.3.1}Estrategia Dirichlet}{66}{subsection*.107}%
+\contentsline {subsection}{\numberline {3.3.2}Reproducibilidad de las particiones}{67}{subsection*.110}%
+\contentsline {section}{\numberline {3.4}Modelos Evaluados}{69}{section*.111}%
+\contentsline {subsection}{\numberline {3.4.1}Especificaciones de las arquitecturas}{69}{subsection*.112}%
+\contentsline {subsection}{\numberline {3.4.2}Ablación de normalización sobre EfficientNet-B1}{70}{subsection*.114}%
+\contentsline {subsection}{\numberline {3.4.3}Registro en FL-bench}{70}{subsection*.115}%
+\contentsline {section}{\numberline {3.5}Protocolo de Aprendizaje Federado}{71}{section*.116}%
+\contentsline {subsection}{\numberline {3.5.1}Configuración experimental}{71}{subsection*.117}%
+\contentsline {subsection}{\numberline {3.5.2}Ciclo de una ronda de comunicación}{72}{subsection*.119}%
+\contentsline {section}{\numberline {3.6}Taxonomía de Capas para el Análisis de Drift}{73}{section*.126}%
+\contentsline {section}{\numberline {3.7}Métricas de Drift Paramétrico}{75}{section*.128}%
+\contentsline {subsection}{\numberline {3.7.1}Divergencia de pesos $L_2$ por grupo de capas}{75}{subsection*.129}%
+\contentsline {subsection}{\numberline {3.7.2}Alineación de gradientes inter-cliente}{76}{subsection*.132}%
+\contentsline {section}{\numberline {3.8}Análisis de Representaciones mediante CKA}{77}{section*.134}%
+\contentsline {subsection}{\numberline {3.8.1}Arquitectura del pipeline offline}{77}{subsection*.135}%
+\contentsline {subsection}{\numberline {3.8.2}Mapa de capas por arquitectura}{78}{subsection*.136}%
+\contentsline {subsection}{\numberline {3.8.3}Análisis CKA global-vs-cliente}{78}{subsection*.138}%
+\contentsline {subsection}{\numberline {3.8.4}Análisis CKA pairwise inter-cliente}{79}{subsection*.140}%
+\contentsline {subsection}{\numberline {3.8.5}Gestión de memoria}{79}{subsection*.141}%
+\contentsline {section}{\numberline {3.9}Métricas de Evaluación del Rendimiento}{80}{section*.142}%
+\contentsline {subsection}{\numberline {3.9.1}Métricas de clasificación}{80}{subsection*.143}%
+\contentsline {subsection}{\numberline {3.9.2}Velocidad de convergencia}{80}{subsection*.144}%
+\contentsline {subsection}{\numberline {3.9.3}Equidad inter-cliente}{80}{subsection*.145}%
+\contentsline {subsection}{\numberline {3.9.4}Agregación estadística}{80}{subsection*.146}%
+\contentsline {section}{\numberline {3.10}Estudios de Ablación}{81}{section*.147}%
+\contentsline {section}{\numberline {3.11}Procedimiento Experimental}{82}{section*.148}%
+\contentsline {section}{\numberline {3.12}Infraestructura Tecnológica}{83}{section*.149}%
+\contentsline {subsection}{\numberline {3.12.1}Hardware}{83}{subsection*.150}%
+\contentsline {subsection}{\numberline {3.12.2}Software}{84}{subsection*.151}%
+\contentsline {chapter}{\numberline {IV}RESULTADOS Y DISCUSI\'ON}{85}{chapter*.153}%
+\contentsline {section}{\numberline {4.1}Primer subtítulo}{85}{section*.154}%
+\contentsline {section}{\bfseries CONCLUSIONES }{86}{chapter*.155}%
+\contentsline {section}{\bfseries RECOMENDACIONES}{87}{chapter*.156}%
+\contentsline {section}{\bfseries ANEXOS}{97}{chapter*.158}%

@@ -1,0 +1,952 @@
+% Encoding: UTF-8
+
+% ----------------------
+% ---- ARCHITECTURE ----
+% ----------------------
+
+% The first research on architecture design
+@inproceedings{qu2022rethinking,
+  title={Rethinking architecture design for tackling data heterogeneity in federated learning},
+  author={Qu, Liangqiong and Zhou, Yuyin and Liang, Paul Pu and Xia, Yingda and Wang, Feifei and Adeli, Ehsan and Fei-Fei, Li and Rubin, Daniel},
+  booktitle={Proceedings of the IEEE/CVF conference on computer vision and pattern recognition},
+  pages={10061--10071},
+  year={2022}
+}
+
+@article{siomos2024architecture,
+  title={An Architecture Built for Federated Learning: Addressing Data Heterogeneity through Adaptive Normalization-Free Feature Recalibration},
+  author={Siomos, Vasilis and Passerat-Palmbach, Jonathan and Tarroni, Giacomo},
+  journal={arXiv preprint arXiv:2410.02006},
+  year={2024}
+}
+
+@misc{pieri2023handlingdataheterogeneityarchitectural,
+      title={Handling Data Heterogeneity via Architectural Design for Federated Visual Recognition}, 
+      author={Sara Pieri and Jose Renato Restom and Samuel Horvath and Hisham Cholakkal},
+      year={2023},
+      eprint={2310.15165},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2310.15165}, 
+}
+
+% FEDCONV
+% Analysis of architectural components
+@article{xu2023fedconv,
+  title={Fedconv: Enhancing convolutional neural networks for handling data heterogeneity in federated learning},
+  author={Xu, Peiran and Wang, Zeyu and Mei, Jieru and Qu, Liangqiong and Yuille, Alan and Xie, Cihang and Zhou, Yuyin},
+  journal={arXiv preprint arXiv:2310.04412},
+  year={2023}
+}
+
+
+
+
+
+% ---------------------
+% ---- COMPARISONS ----
+% ---------------------
+
+@article{jimenez2503thorough,
+  title={A thorough assessment of the non-iid data impact in federated learning. arXiv 2025},
+  author={Jimenez-Gutierrez, DM and Hassanzadeh, M and Anagnostopoulos, A and Chatzigiannakis, I and Vitaletti, A},
+  journal={arXiv preprint arXiv:2503.17070},
+  year={2025}
+}
+
+@misc{yanar2025comparative,
+  title={A Comparative Analysis of the Mamba, Transformer, and CNN Architectures for Multi-Label Chest X-Ray Anomaly Detection in the NIH ChestX-Ray14 Dataset. Diagnostics 15 (17), 2215},
+  author={Yanar, E and Kutan, F and Ayturan, K and Kutbay, U and Alg{\i}n, O and Hardala{\c{c}}, F and A{\u{g}}{\i}ldere, AM},
+  year={2025}
+}
+
+
+@article{li2025comparison,
+  author  = {Y. Li},
+  title   = {Comparison of Vision Transformer and ResNet under Federated Learning in Human Action Recognition},
+  journal = {Applied and Computational Engineering},
+  volume  = {166},
+  pages   = {160--168},
+  year    = {2025}
+}
+
+% Thesis CNNs vs Transformers vs Mamba :) 
+@phdthesis{biswas2025comparative,
+  title     = {Comparative analysis of attention-based, convolutional, and SSM-based models for multi-domain image classification},
+  author    = {Biswas, M and Rahman, S and Tarannum, SF and Nishanto, D and Safwaan, MA},
+  year      = {2025},
+  school    = {BRAC University},
+  type      = {Doctoral dissertation}
+}
+
+
+@inproceedings{zuo2022empirical,
+  title={An empirical analysis of vision transformer and cnn in resource-constrained federated learning},
+  author={Zuo, Xiaojiang and Zhang, Qinglong and Han, Rui},
+  booktitle={Proceedings of the 2022 5th International Conference on Machine Learning and Machine Intelligence},
+  pages={8--13},
+  year={2022}
+}
+
+@article{son2022comparisons,
+  title={Comparisons where it matters: Using layer-wise regularization to improve federated learning on heterogeneous data},
+  author={Son, Ha Min and Kim, Moon Hyun and Chung, Tai-Myoung},
+  journal={Applied Sciences},
+  volume={12},
+  number={19},
+  pages={9943},
+  year={2022},
+  publisher={MDPI}
+}
+
+
+@inproceedings{buyuktacs2024transformer,
+  title={Transformer-based federated learning for multi-label remote sensing image classification},
+  author={B{\"u}y{\"u}kta{\c{s}}, Bar{\i}{\c{s}} and Weitzel, Kenneth and V{\"o}lkers, Sebastian and Zailskas, Felix and Demir, Beg{\"u}m},
+  booktitle={IGARSS 2024-2024 IEEE International Geoscience and Remote Sensing Symposium},
+  pages={8726--8730},
+  year={2024},
+  organization={IEEE}
+}
+
+
+
+
+% -------------------------------
+% -------- VISION MODELS --------
+% -------------------------------
+
+% ---------------
+% ---- CNN ------
+% ---------------
+
+@article{DBLP:journals/corr/abs-1905-11946,
+  author       = {Mingxing Tan and
+                  Quoc V. Le},
+  title        = {EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks},
+  journal      = {CoRR},
+  volume       = {abs/1905.11946},
+  year         = {2019},
+  url          = {http://arxiv.org/abs/1905.11946},
+  eprinttype   = {arXiv},
+  eprint       = {1905.11946},
+  timestamp    = {Mon, 03 Jun 2019 13:42:33 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1905-11946.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{wang2025vision,
+  title={Vision transformers for image classification: A comparative survey},
+  author={Wang, Yaoli and Deng, Yaojun and Zheng, Yuanjin and Chattopadhyay, Pratik and Wang, Lipo},
+  journal={Technologies},
+  volume={13},
+  number={1},
+  pages={32},
+  year={2025},
+  publisher={MDPI}
+}
+
+
+@Article{app13063403,
+AUTHOR = {Dong, Zhiang and Xie, Miao and Li, Xiaoqiang},
+TITLE = {Multi-Scale Receptive Fields Convolutional Network for Action Recognition},
+JOURNAL = {Applied Sciences},
+VOLUME = {13},
+YEAR = {2023},
+NUMBER = {6},
+ARTICLE-NUMBER = {3403},
+URL = {https://www.mdpi.com/2076-3417/13/6/3403},
+ISSN = {2076-3417},
+ABSTRACT = {Extracting good action representations from video frames is an intricate challenge due to the presence of moving objects of various sizes across current action recognition datasets. Most of the current action recognition methodologies have paid scant attention to this characteristic and have relied on deep learning models to automatically solve it. In this paper, we introduce a multi-scale receptive fields convolutional network (MSRFNet), which is fashioned after the pseudo-3D residual network architecture to mitigate the impact of scale variation in moving objects. The crux of MSRFNet is the integration of a multi-scale receptive fields block, which incorporates multiple dilated convolution layers that share identical convolutional parameters, but feature different receptive fields. MSRFNet leverages three scales of receptive fields to extract features from moving objects of diverse sizes, striving to produce scale-specific feature maps with a uniform representational power. Through visualization of the attention of MSRFNet, we analyze how the model re-allocates its attention to moving objects after implementing the multi-scale receptive fields approach. Experimental results on the benchmark dataset demonstrate that MSRFNet achieves improvement of 3.2% on UCF101, improvement of 5.8% on HMDB51, and improvement of 7.7% on Kinetics-400 compared with the baseline. Compared with state-of-the-art techniques, MSRFNet gets comparable or superior results, thereby affirming the effectiveness of the proposed approach.},
+DOI = {10.3390/app13063403}
+}
+
+
+% ------------------------
+% ---- TRANSFORMERS ------
+% ------------------------
+
+
+@article{DBLP:journals/corr/abs-2010-11929,
+  author       = {Alexey Dosovitskiy and
+                  Lucas Beyer and
+                  Alexander Kolesnikov and
+                  Dirk Weissenborn and
+                  Xiaohua Zhai and
+                  Thomas Unterthiner and
+                  Mostafa Dehghani and
+                  Matthias Minderer and
+                  Georg Heigold and
+                  Sylvain Gelly and
+                  Jakob Uszkoreit and
+                  Neil Houlsby},
+  title        = {An Image is Worth 16x16 Words: Transformers for Image Recognition
+                  at Scale},
+  journal      = {CoRR},
+  volume       = {abs/2010.11929},
+  year         = {2020},
+  url          = {https://arxiv.org/abs/2010.11929},
+  eprinttype   = {arXiv},
+  eprint       = {2010.11929},
+  timestamp    = {Fri, 20 Nov 2020 14:04:05 +0100},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-2010-11929.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+% ---------------
+% ---- MAMBA ----
+% ---------------
+
+
+% Surveys
+@article{bansal2024comprehensive,
+  title={A comprehensive survey of mamba architectures for medical image analysis: Classification, segmentation, restoration and beyond},
+  author={Bansal, Shubhi and Madisetty, Sreekanth and Rehman, Mohammad Zia Ur and Raghaw, Chandravardhan Singh and Duggal, Gaurav and Kumar, Nagendra and others},
+  journal={arXiv preprint arXiv:2410.02362},
+  year={2024}
+}
+
+@inproceedings{latibari2026mamba,
+  title={Is Mamba Reliable for Medical Imaging?},
+  author={Latibari, Banafsheh Saber and Nazari, Najmeh and Brignac, Daniel and Sayadi, Hossein and Homayoun, Houman and Mahalanobis, Abhijit},
+  booktitle={2026 27th International Symposium on Quality Electronic Design (ISQED)},
+  pages={1--6},
+  year={2026},
+  organization={IEEE}
+}
+
+@article{qu2024survey,
+  title={A survey of mamba},
+  author={Qu, Haohao and Ning, Liangbo and An, Rui and Fan, Wenqi and Derr, Tyler and Liu, Hui and Xu, Xin and Li, Qing},
+  journal={ACM Transactions on Intelligent Systems and Technology},
+  year={2024},
+  publisher={ACM New York, NY}
+}
+
+% Mamba in Centralized Learning
+
+@article{zhu2024vision,
+  title={Vision mamba: Efficient visual representation learning with bidirectional state space model},
+  author={Zhu, Lianghui and Liao, Bencheng and Zhang, Qian and Wang, Xinlong and Liu, Wenyu and Wang, Xinggang},
+  journal={arXiv preprint arXiv:2401.09417},
+  year={2024}
+}
+
+@inproceedings{yu2025mambaout,
+  title={Mambaout: Do we really need mamba for vision?},
+  author={Yu, Weihao and Wang, Xinchao},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={4484--4496},
+  year={2025}
+}
+
+@article{yue2024medmamba,
+  title={Medmamba: Vision mamba for medical image classification},
+  author={Yue, Yubiao and Li, Zhenzhang},
+  journal={arXiv preprint arXiv:2403.03849},
+  year={2024}
+}
+
+% Mamba in Federated Learning
+
+@inproceedings{wu2024mamba,
+  title={Mamba-based federated learning architecture for privacy-preserving machine learning},
+  author={Wu, Chenfan},
+  booktitle={2024 IEEE 6th International Conference on Civil Aviation Safety and Information Technology (ICCASIT)},
+  pages={314--317},
+  year={2024},
+  organization={IEEE}
+}
+
+@inproceedings{chen2024mamaba,
+  title={Mamaba-Based Federated Learning for Medical X-Ray Detection},
+  author={Chen, Yanyun},
+  booktitle={2024 4th International Conference on Electronic Information Engineering and Computer (EIECT)},
+  pages={388--391},
+  year={2024},
+  organization={IEEE}
+}
+
+@article{guo2026mamba,
+  title={Mamba-based personalized federated learning for PV fault diagnosis},
+  author={Guo, Hongle and Zhang, Wencheng and Zhao, Qi and Shang, Hongli and Chen, Wanghu},
+  journal={Electric Power Systems Research},
+  volume={257},
+  pages={113037},
+  year={2026},
+  publisher={Elsevier}
+}
+
+
+
+
+% -------------------------------
+% ---- GRAPH NEURAL NETWORKs ----
+% -------------------------------
+
+% (1)
+% First paper introducing Graph Neural Networks
+@article{Gori2005ANM,
+  title={A new model for learning in graph domains},
+  author={Marco Gori and Gabriele Monfardini and Franco Scarselli},
+  journal={Proceedings. 2005 IEEE International Joint Conference on Neural Networks, 2005.},
+  year={2005},
+  volume={2},
+  pages={729-734 vol. 2},
+  url={https://api.semanticscholar.org/CorpusID:275758328}
+}
+% (2)
+% Formal definition of Graph Neural Networks
+@article{Scarselli:2009ku,
+  added-at = {2021-06-20T23:48:07.000+0200},
+  author = {Scarselli, Franco and Gori, Marco and Tsoi, Ah Chung and Hagenbuchner, Markus and Monfardini, Gabriele},
+  biburl = {https://www.bibsonomy.org/bibtex/206187abc8dc58e64cb1e041f11279e96/kherud},
+  doi = {10.1109/TNN.2008.2005605},
+  interhash = {b0e36c813ce7a57f01d66d26bcc314e5},
+  intrahash = {06187abc8dc58e64cb1e041f11279e96},
+  issn = {1045-9227},
+  journal = {IEEE Transactions on Neural Networks (TNN)},
+  keywords = {},
+  number = 1,
+  pages = {61--80},
+  publisher = {IEEE},
+  timestamp = {2021-06-20T23:48:07.000+0200},
+  title = {{The Graph Neural Network Model}},
+  url = {http://ieeexplore.ieee.org/document/4700287/},
+  volume = 20,
+  year = 2009
+}
+
+% (3)
+% Vision GNN
+@article{han2022vision,
+  title={Vision gnn: An image is worth graph of nodes},
+  author={Han, Kai and Wang, Yunhe and Guo, Jianyuan and Tang, Yehui and Wu, Enhua},
+  journal={Advances in neural information processing systems},
+  volume={35},
+  pages={8291--8303},
+  year={2022}
+}
+
+% (4)
+% Federated GNNs
+@article{liu2024federated,
+  title={Federated graph neural networks: Overview, techniques, and challenges},
+  author={Liu, Rui and Xing, Pengwei and Deng, Zichao and Li, Anran and Guan, Cuntai and Yu, Han},
+  journal={IEEE transactions on neural networks and learning systems},
+  year={2024},
+  publisher={IEEE}
+}
+
+% (5)
+% Survey GNNs
+% Graphs provide a natural way to represent the relational arrangement between objects in an image [...]
+@article{senior2023graph,
+  title={Graph neural networks in vision-language image understanding: a survey},
+  author={Senior, Henry and Slabaugh, Gregory and Yuan, Shanxin and Rossi, Luca},
+  journal={arXiv preprint arXiv:2303.03761},
+  year={2023}
+}
+
+
+% (6)
+% GNN-FL applied in healthcare
+@article{NOOR2025100500,
+title = {A privacy-preserving federated learning framework with graph neural networks for enhanced heart attack risk prediction},
+journal = {Array},
+volume = {27},
+pages = {100500},
+year = {2025},
+issn = {2590-0056},
+doi = {https://doi.org/10.1016/j.array.2025.100500},
+url = {https://www.sciencedirect.com/science/article/pii/S2590005625001274},
+author = {Mohammad Ashiqur Noor and Samia Binta Hassan and Md. Sakib {Bin Alam} and Aiman Lameesa and Md Anonno Rahman Siddique},
+keywords = {Federated learning, Graph neural networks, Heart disease prediction, Privacy-preserving machine learning, Healthcare data security},
+abstract = {Cardiovascular disease, a predominant global cause of death, underlines the critical need for sophisticated and privacy-conserving predictive systems for early risk assessment. This paper introduces a novel federated learning (FL) architecture that incorporates graph neural networks (GNNs) to facilitate secure and efficient heart attack risk prediction utilizing decentralized healthcare data. Our methodology generates graph-structured representations from preprocessed client data, dispersed among three clients to maintain data locality and safeguard patient privacy. The GNN models are trained locally, with only the acquired weights transmitted to a central server for secure aggregation. The proposed framework attains a classification accuracy of 96.79 % through comprehensive ablation studies and hyperparameter optimization, exceeding baseline models such as Graph Attention Networks (GAT), 1D Convolutional Neural Networks (1D-CNN), conventional machine learning, and ensemble techniques. Additional validation using an external dataset supports the model's robustness, with an accuracy of 98.77 %. Furthermore, trials conducted on a consolidated dataset demonstrate consistent performance, hence strengthening the framework's generalizability. These findings illustrate the potential of integrating GNNs with federated learning for privacy-preserving, high-performance prediction of heart attack risk in practical healthcare contexts.}
+}
+
+% (7)
+% GNNs in classification
+@inproceedings{cui2025fedvig,
+  title={FedVIG: Federated Vision GNN for Privacy-Preserving Image Classification},
+  author={Cui, Yingchun and Xu, Wei and Zhu, Jinghua and Li, Jinbao},
+  booktitle={2025 IEEE International Symposium on Parallel and Distributed Processing with Applications (ISPA)},
+  pages={355--362},
+  year={2025},
+  organization={IEEE}
+}
+
+% (8)
+% First benchmarking platform
+@article{DBLP:journals/corr/abs-2104-07145,
+  author       = {Chaoyang He and
+                  Keshav Balasubramanian and
+                  Emir Ceyani and
+                  Yu Rong and
+                  Peilin Zhao and
+                  Junzhou Huang and
+                  Murali Annavaram and
+                  Salman Avestimehr},
+  title        = {FedGraphNN: {A} Federated Learning System and Benchmark for Graph
+                  Neural Networks},
+  journal      = {CoRR},
+  volume       = {abs/2104.07145},
+  year         = {2021},
+  url          = {https://arxiv.org/abs/2104.07145},
+  eprinttype   = {arXiv},
+  eprint       = {2104.07145},
+  timestamp    = {Thu, 30 Jan 2025 17:05:03 +0100},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-2104-07145.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+% (9)
+% Another newest benchmark platform
+@article{yao2024fedgraph,
+  title={Fedgraph: A research library and benchmark for federated graph learning},
+  author={Yao, Yuhang and Li, Yuan and Fan, Xinyi and Li, Junhao and Liu, Kay and Jin, Weizhao and Yang, Yu and Ravi, Srivatsan and Yu, Philip S and Joe-Wong, Carlee},
+  journal={arXiv preprint arXiv:2410.06340},
+  year={2024}
+}
+
+% (10) non-IID
+@article{shaikh2025federated,
+  title={Federated graph neural networks in non-IID scenarios-A comprehensive survey},
+  author={Shaikh, Abdullah Abdul Sattar and Samet, Saeed},
+  journal={Neurocomputing},
+  pages={131007},
+  year={2025},
+  publisher={Elsevier}
+}
+
+
+
+% Centralized Learning on Brain Tumor MRI Dataset
+@article{gursoy2024brain,
+  title={Brain-gcn-net: Graph-convolutional neural network for brain tumor identification},
+  author={G{\"u}rsoy, Ercan and Kaya, Yasin},
+  journal={Computers in Biology and Medicine},
+  volume={180},
+  pages={108971},
+  year={2024},
+  publisher={Elsevier}
+}
+
+
+@article{elhamzi2026braingraphnet,
+  title={BrainGraphNet-ViT model: a hybrid model combining vision transformers and graph convolutional networks for brain tumor diagnosis},
+  author={Elhamzi, Wajdi and Mokni, Raouia},
+  journal={Scientific Reports},
+  year={2026},
+  publisher={Nature Publishing Group UK London}
+}
+
+
+
+
+% ---------------------------------
+% ---- Brain Tumor MRI Dataset ----
+% ---------------------------------
+
+
+@misc{chenfederated,
+  title={Federated learning-based efficientnet in brain tumor classification},
+  author={Chen, Baicheng}
+}
+
+@article{lai2025advancing,
+  title={Advancing Efficient Brain Tumor Multi-Class Classification: New Insights From the Vision Mamba Model in Transfer Learning},
+  author={Lai, Yinyi and Cao, Anbo and Gao, Yuan and Shang, Jiaqi and Li, Zongyu},
+  journal={International Journal of Imaging Systems and Technology},
+  volume={35},
+  number={5},
+  pages={e70177},
+  year={2025},
+  publisher={Wiley Online Library}
+}
+
+
+
+@article{anoosha2025federated,
+  title={Federated Learning-Based ResNet-18 Model for Brain Tumor Classification in MRI Scans.},
+  author={Anoosha, Shaga and Seetharamulu, B},
+  journal={Ing{\'e}nierie des Syst{\`e}mes d'Information},
+  volume={30},
+  number={8},
+  year={2025}
+}
+
+@misc{zhou2024distributedfederatedlearningbaseddeep,
+      title={Distributed Federated Learning-Based Deep Learning Model for Privacy MRI Brain Tumor Detection}, 
+      author={Lisang Zhou and Meng Wang and Ning Zhou},
+      year={2024},
+      eprint={2404.10026},
+      archivePrefix={arXiv},
+      primaryClass={eess.IV},
+      url={https://arxiv.org/abs/2404.10026}, 
+}
+
+@article{appasami2025federated,
+  title={Federated learning for secure medical MRI brain tumor image classification},
+  author={Appasami, G and Savarimuthu, Nickolas},
+  journal={The European Physical Journal Special Topics},
+  volume={234},
+  number={15},
+  pages={4813--4827},
+  year={2025},
+  publisher={Springer}
+}
+
+
+
+
+
+% --------------------------------
+% ---- AGGREGATION ALGORITHMS ----
+% --------------------------------
+
+% FedAvg
+@article{DBLP:journals/corr/McMahanMRA16,
+  author       = {H. Brendan McMahan and
+                  Eider Moore and
+                  Daniel Ramage and
+                  Blaise Ag{\"{u}}era y Arcas},
+  title        = {Federated Learning of Deep Networks using Model Averaging},
+  journal      = {CoRR},
+  volume       = {abs/1602.05629},
+  year         = {2016},
+  url          = {http://arxiv.org/abs/1602.05629},
+  eprinttype   = {arXiv},
+  eprint       = {1602.05629},
+  timestamp    = {Mon, 13 Aug 2018 16:48:01 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/McMahanMRA16.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+% FedProx
+@article{DBLP:journals/corr/abs-1812-06127,
+  author       = {Anit Kumar Sahu and
+                  Tian Li and
+                  Maziar Sanjabi and
+                  Manzil Zaheer and
+                  Ameet Talwalkar and
+                  Virginia Smith},
+  title        = {On the Convergence of Federated Optimization in Heterogeneous Networks},
+  journal      = {CoRR},
+  volume       = {abs/1812.06127},
+  year         = {2018},
+  url          = {http://arxiv.org/abs/1812.06127},
+  eprinttype   = {arXiv},
+  eprint       = {1812.06127},
+  timestamp    = {Wed, 23 Dec 2020 09:35:18 +0100},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1812-06127.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+% SCAFFOLD
+@article{DBLP:journals/corr/abs-1910-06378,
+  author       = {Sai Praneeth Karimireddy and
+                  Satyen Kale and
+                  Mehryar Mohri and
+                  Sashank J. Reddi and
+                  Sebastian U. Stich and
+                  Ananda Theertha Suresh},
+  title        = {{SCAFFOLD:} Stochastic Controlled Averaging for On-Device Federated
+                  Learning},
+  journal      = {CoRR},
+  volume       = {abs/1910.06378},
+  year         = {2019},
+  url          = {http://arxiv.org/abs/1910.06378},
+  eprinttype   = {arXiv},
+  eprint       = {1910.06378},
+  timestamp    = {Wed, 16 Oct 2019 16:25:53 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1910-06378.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+
+% -----------------------
+% ---- NORMALIZATION ----
+% -----------------------
+
+@article{wang2023batch,
+  title={Why batch normalization damage federated learning on non-IID data?},
+  author={Wang, Yanmeng and Shi, Qingjiang and Chang, Tsung-Hui},
+  journal={IEEE transactions on neural networks and learning systems},
+  volume={36},
+  number={1},
+  pages={1692--1706},
+  year={2023},
+  publisher={IEEE}
+}
+
+@inproceedings{du2022rethinking,
+  title={Rethinking normalization methods in federated learning},
+  author={Du, Zhixu and Sun, Jingwei and Li, Ang and Chen, Pin-Yu and Zhang, Jianyi and Li, Hai" Helen" and Chen, Yiran},
+  booktitle={Proceedings of the 3rd International Workshop on Distributed Machine Learning},
+  pages={16--22},
+  year={2022}
+}
+
+@misc{casella2023experimentingnormalizationlayersfederated,
+      title={Experimenting with Normalization Layers in Federated Learning on non-IID scenarios}, 
+      author={Bruno Casella and Roberto Esposito and Antonio Sciarappa and Carlo Cavazzoni and Marco Aldinucci},
+      year={2023},
+      eprint={2303.10630},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2303.10630}, 
+}
+
+
+% Batch normalization
+@article{DBLP:journals/corr/IoffeS15,
+  author       = {Sergey Ioffe and
+                  Christian Szegedy},
+  title        = {Batch Normalization: Accelerating Deep Network Training by Reducing
+                  Internal Covariate Shift},
+  journal      = {CoRR},
+  volume       = {abs/1502.03167},
+  year         = {2015},
+  url          = {http://arxiv.org/abs/1502.03167},
+  eprinttype   = {arXiv},
+  eprint       = {1502.03167},
+  timestamp    = {Mon, 13 Aug 2018 16:47:06 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/IoffeS15.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+% Layer normalization
+@misc{ba2016layernormalization,
+      title={Layer Normalization}, 
+      author={Jimmy Lei Ba and Jamie Ryan Kiros and Geoffrey E. Hinton},
+      year={2016},
+      eprint={1607.06450},
+      archivePrefix={arXiv},
+      primaryClass={stat.ML},
+      url={https://arxiv.org/abs/1607.06450}, 
+}
+
+% Group normalization
+@article{DBLP:journals/corr/abs-1803-08494,
+  author       = {Yuxin Wu and
+                  Kaiming He},
+  title        = {Group Normalization},
+  journal      = {CoRR},
+  volume       = {abs/1803.08494},
+  year         = {2018},
+  url          = {http://arxiv.org/abs/1803.08494},
+  eprinttype   = {arXiv},
+  eprint       = {1803.08494},
+  timestamp    = {Thu, 09 Apr 2026 09:04:05 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1803-08494.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+
+% -----------------
+% ---- METRICS ----
+% -----------------
+
+% Centered Kernel Alignment (CKA)
+
+@article{DBLP:journals/corr/abs-1905-00414,
+  author       = {Simon Kornblith and
+                  Mohammad Norouzi and
+                  Honglak Lee and
+                  Geoffrey E. Hinton},
+  title        = {Similarity of Neural Network Representations Revisited},
+  journal      = {CoRR},
+  volume       = {abs/1905.00414},
+  year         = {2019},
+  url          = {http://arxiv.org/abs/1905.00414},
+  eprinttype   = {arXiv},
+  eprint       = {1905.00414},
+  timestamp    = {Mon, 27 May 2019 13:15:00 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1905-00414.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+
+
+
+
+
+
+
+% ---------------------
+% ------ BACKUPS ------
+% ---------------------
+
+@article{kairouz2021advances,
+  title={Advances and Open Problems in Federated Learning},
+  author={Kairouz, Peter and others},
+  journal={Foundations and Trends in Machine Learning},
+  volume={14},
+  number={1--2},
+  pages={1--210},
+  year={2021}
+}
+
+@article{mahmud2026survey,
+  title={A Survey of Federated Learning: Advances in Architecture, Synchronization, and Security Threats.},
+  author={Mahmud, Faisal and Mahmud, Fahim and Rahman, Rashedur M},
+  journal={Computers, Materials \& Continua},
+  volume={86},
+  number={3},
+  year={2026}
+}
+
+@article{noor2026federated,
+  title={Federated learning in healthcare: A comprehensive survey on privacy, scalability and clinical applications},
+  author={Noor, Abtahi and Chaman, Ummay Maimona and Kabir, Md Saif},
+  journal={ICT Express},
+  year={2026},
+  publisher={Elsevier}
+}
+
+@article{al2502principles,
+  title={Principles and Components of Federated Learning Architectures. arXiv 2025},
+  author={Al Nasim, MA and Soshi, FTJ and Biswas, P and Ferdous, ASA and Rashid, A and Biswas, A and Gupta, KD},
+  journal={arXiv preprint arXiv:2502.05273},
+  year={2025}
+}
+
+
+
+@article{Arbaoui_2024,
+   title={Federated Learning Survey: A Multi-Level Taxonomy of Aggregation Techniques, Experimental Insights, and Future Frontiers},
+   volume={15},
+   ISSN={2157-6912},
+   url={http://dx.doi.org/10.1145/3678182},
+   DOI={10.1145/3678182},
+   number={6},
+   journal={ACM Transactions on Intelligent Systems and Technology},
+   publisher={Association for Computing Machinery (ACM)},
+   author={Arbaoui, Meriem and Brahmia, Mohamed-el-Amine and Rahmoun, Abdellatif and Zghal, Mourad},
+   year={2024},
+   month=Nov, pages={1--69} 
+}
+
+@misc{g2024noniiddatafederatedlearning,
+      title={Non-IID data in Federated Learning: A Survey with Taxonomy, Metrics, Methods, Frameworks and Future Directions}, 
+      author={Daniel M. Jimenez G. and David Solans and Mikko Heikkila and Andrea Vitaletti and Nicolas Kourtellis and Aris Anagnostopoulos and Ioannis Chatzigiannakis},
+      year={2024},
+      eprint={2411.12377},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2411.12377}, 
+}
+
+@article{seo2025understanding,
+  title={Understanding federated learning from IID to non-IID dataset: An experimental study},
+  author={Seo, Jungwon and Catak, Ferhat Ozgur and Rong, Chunming},
+  journal={arXiv preprint arXiv:2502.00182},
+  year={2025}
+}
+
+@article{DBLP:journals/corr/abs-1912-04977,
+  author       = {Peter Kairouz and
+                  H. Brendan McMahan and
+                  Brendan Avent and
+                  Aur{\'{e}}lien Bellet and
+                  Mehdi Bennis and
+                  Arjun Nitin Bhagoji and
+                  Kallista A. Bonawitz and
+                  Zachary Charles and
+                  Graham Cormode and
+                  Rachel Cummings and
+                  Rafael G. L. D'Oliveira and
+                  Salim El Rouayheb and
+                  David Evans and
+                  Josh Gardner and
+                  Zachary Garrett and
+                  Adri{\`{a}} Gasc{\'{o}}n and
+                  Badih Ghazi and
+                  Phillip B. Gibbons and
+                  Marco Gruteser and
+                  Za{\"{\i}}d Harchaoui and
+                  Chaoyang He and
+                  Lie He and
+                  Zhouyuan Huo and
+                  Ben Hutchinson and
+                  Justin Hsu and
+                  Martin Jaggi and
+                  Tara Javidi and
+                  Gauri Joshi and
+                  Mikhail Khodak and
+                  Jakub Kone{\v{c}}n{\'y} and
+                  Aleksandra Korolova and
+                  Farinaz Koushanfar and
+                  Sanmi Koyejo and
+                  Tancr{\`{e}}de Lepoint and
+                  Yang Liu and
+                  Prateek Mittal and
+                  Mehryar Mohri and
+                  Richard Nock and
+                  Ayfer {\"{O}}zg{\"{u}}r and
+                  Rasmus Pagh and
+                  Mariana Raykova and
+                  Hang Qi and
+                  Daniel Ramage and
+                  Ramesh Raskar and
+                  Dawn Song and
+                  Weikang Song and
+                  Sebastian U. Stich and
+                  Ziteng Sun and
+                  Ananda Theertha Suresh and
+                  Florian Tram{\`{e}}r and
+                  Praneeth Vepakomma and
+                  Jianyu Wang and
+                  Li Xiong and
+                  Zheng Xu and
+                  Qiang Yang and
+                  Felix X. Yu and
+                  Han Yu and
+                  Sen Zhao},
+  title        = {Advances and Open Problems in Federated Learning},
+  journal      = {CoRR},
+  volume       = {abs/1912.04977},
+  year         = {2019},
+  url          = {http://arxiv.org/abs/1912.04977},
+  eprinttype   = {arXiv},
+  eprint       = {1912.04977},
+  timestamp    = {Mon, 02 Sep 2024 16:44:37 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1912-04977.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+-- ON THE CONVERGENCE OF FEDAVG ON NON-IID DATA
+@misc{li2020convergencefedavgnoniiddata,
+      title={On the Convergence of FedAvg on Non-IID Data}, 
+      author={Xiang Li and Kaixuan Huang and Wenhao Yang and Shusen Wang and Zhihua Zhang},
+      year={2020},
+      eprint={1907.02189},
+      archivePrefix={arXiv},
+      primaryClass={stat.ML},
+      url={https://arxiv.org/abs/1907.02189}, 
+}
+
+% Federated Learning: Challenges, Methods, and Future Directions
+@article{DBLP:journals/corr/abs-1908-07873,
+  author       = {Tian Li and
+                  Anit Kumar Sahu and
+                  Ameet Talwalkar and
+                  Virginia Smith},
+  title        = {Federated Learning: Challenges, Methods, and Future Directions},
+  journal      = {CoRR},
+  volume       = {abs/1908.07873},
+  year         = {2019},
+  url          = {http://arxiv.org/abs/1908.07873},
+  eprinttype   = {arXiv},
+  eprint       = {1908.07873},
+  timestamp    = {Wed, 23 Dec 2020 09:35:18 +0100},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1908-07873.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+% How To Backdoor Federated Learning
+@article{DBLP:journals/corr/abs-1807-00459,
+  author       = {Eugene Bagdasaryan and
+                  Andreas Veit and
+                  Yiqing Hua and
+                  Deborah Estrin and
+                  Vitaly Shmatikov},
+  title        = {How To Backdoor Federated Learning},
+  journal      = {CoRR},
+  volume       = {abs/1807.00459},
+  year         = {2018},
+  url          = {http://arxiv.org/abs/1807.00459},
+  eprinttype   = {arXiv},
+  eprint       = {1807.00459},
+  timestamp    = {Mon, 13 Aug 2018 16:48:10 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1807-00459.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{heaton2018ian,
+  title={Ian goodfellow, yoshua bengio, and aaron courville: Deep learning: The mit press, 2016, 800 pp, isbn: 0262035618},
+  author={Heaton, Jeff},
+  journal={Genetic programming and evolvable machines},
+  volume={19},
+  number={1},
+  pages={305--307},
+  year={2018},
+  publisher={Springer}
+}
+
+@article{le2024exploring,
+  title={Exploring the practicality of federated learning: A survey towards the communication perspective},
+  author={Le, Khiem and Luong-Ha, Nhan and Nguyen-Duc, Manh and Le-Phuoc, Danh and Do, Cuong and Wong, Kok-Seng},
+  journal={arXiv preprint arXiv:2405.20431},
+  year={2024}
+}
+
+@article{dai2025image,
+  title={Image classification for sub-surface crack identification in concrete dam based on borehole CCTV images using deep dense hybrid model},
+  author={Dai, Qianwei and Ishfaque, Muhammad and Khan, Saif Ur Rehman and Luo, Yu-Long and Lei, Yi and Zhang, Bin and Zhou, Wei},
+  journal={Stochastic Environmental Research and Risk Assessment},
+  volume={39},
+  number={10},
+  pages={4637--4654},
+  year={2025},
+  publisher={Springer}
+}
+
+@article{sokolova2009systematic,
+  title={A systematic analysis of performance measures for classification tasks},
+  author={Sokolova, Marina and Lapalme, Guy},
+  journal={Information processing \& management},
+  volume={45},
+  number={4},
+  pages={427--437},
+  year={2009},
+  publisher={Elsevier}
+}
+
+@article{li2023fedtp,
+  title   = {{FedTP}: Federated Learning by Transformer Personalization},
+  author  = {Hongxia Li and Zhongyi Cai and Jingya Wang and Jiangnan Tang
+             and Weiping Ding and Chin-Teng Lin and Ye Shi},
+  journal = {IEEE Transactions on Neural Networks and Learning Systems},
+  year    = {2023},
+  volume  = {35},
+  pages   = {13426--13440},
+  doi     = {10.1109/TNNLS.2023.3269859}
+}
+
+
+% ---------------------
+% ------ DATASETS -----
+% ---------------------
+
+@misc{msoud_nickparvar_2026,
+	title={Brain Tumor MRI Dataset},
+	url={https://www.kaggle.com/dsv/14832123},
+	DOI={10.34740/KAGGLE/DSV/14832123},
+	publisher={Kaggle},
+	author={Msoud Nickparvar},
+	year={2026}
+}
+
+@techreport{krizhevsky2009learning,
+  author      = {Alex Krizhevsky},
+  title       = {Learning multiple layers of features from tiny images},
+  institution = {University of Toronto},
+  year        = {2009},
+  type        = {Technical Report},
+  url         = {https://toronto.edu}
+}
+
+
+% ---------------------
+% ------ SOFTWARE -----
+% ---------------------
+
+@misc{Tan_FL-bench,
+  author = {Tan, Jiahao and Wang, Xinpeng},
+  title = {FL-bench: A federated learning benchmark for solving image classification tasks},
+  howpublished = {\url{https://github.com/KarhouTam/FL-bench}},
+  note = {GPL-3.0 licensed software},
+  year = {2024}
+}

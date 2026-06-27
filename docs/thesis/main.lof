@@ -1,0 +1,21 @@
+\babel@toc {spanish}{}\relax 
+\babel@toc {spanish}{}\relax 
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Ciclo de comunicación en aprendizaje federado.}}{27}{figure.caption.26}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces Distribución de etiquetas por cliente bajo distintos valores de $\alpha $ — Brain Tumor MRI ($K=10$, semilla 42).}}{32}{figure.caption.34}%
+\contentsline {figure}{\numberline {2.3}{\ignorespaces Mecanismo del client drift en el espacio de parámetros.}}{34}{figure.caption.37}%
+\contentsline {figure}{\numberline {2.4}{\ignorespaces Comparación de los sesgos inductivos en cuatro familias de arquitecturas de visión por computador.}}{38}{figure.caption.48}%
+\contentsline {figure}{\numberline {2.5}{\ignorespaces Convolución discreta de un filtro \textit {$3\times 3$} sobre un mapa de activación. Una pila de tres capas convolucionales de \textit {$3\times 3$} tiene un campo receptivo efectivo de \textit {$7\times 7$}.}}{40}{figure.caption.51}%
+\contentsline {figure}{\numberline {2.6}{\ignorespaces Arquitectura EfficientNet-B1.}}{41}{figure.caption.53}%
+\contentsline {figure}{\numberline {2.7}{\ignorespaces Arquitectura de Vision Transformer.}}{44}{figure.caption.59}%
+\contentsline {figure}{\numberline {2.8}{\ignorespaces Estructura completa de ViT-Tiny (\texttt {vit\_tiny\_patch16\_224})}}{45}{figure.caption.61}%
+\contentsline {figure}{\numberline {2.9}{\ignorespaces Evolución del SSM — lineal, discreto y selectivo (Mamba).}}{47}{figure.caption.68}%
+\contentsline {figure}{\numberline {2.10}{\ignorespaces Bloque bidireccional de Vision Mamba (Vim).}}{49}{figure.caption.70}%
+\contentsline {figure}{\numberline {2.11}{\ignorespaces Propagación de mensajes en una Graph Neural Network.}}{50}{figure.caption.74}%
+\contentsline {figure}{\numberline {2.12}{\ignorespaces Arquitectura de Arquitectura ViG-Tiny.}}{52}{figure.caption.77}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Muestras representativas del dataset Brain Tumor MRI, ilustrando la variabilidad visual intra-clase e inter-clase entre las cuatro categorías diagnósticas.}}{65}{figure.caption.102}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces Muestras representativas del dataset CIFAR-10 (una imagen por clase, resolución original $32\times 32$ px). Las diez clases cubren objetos cotidianos de transporte, animales y vehículos.}}{65}{figure.caption.104}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Particiones Dirichlet — Brain Tumor MRI}}{68}{figure.caption.109}%
+\addvspace {10\p@ }

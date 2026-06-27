@@ -1,0 +1,401 @@
+\chapter{REVISI\'ON CR\'ITICA DE LA LITERATURA}
+
+Este capítulo revisa críticamente el estado del arte en las líneas temáticas que estructuran esta 
+investigación: estudios comparativos de arquitecturas de visión bajo condiciones
+federadas heterogéneas, el papel de la arquitectura como variable de diseño en FL, la integración
+de modelos basados en State Space Models (SSM/Mamba) y de Vision GNNs en sistemas federados,
+y los enfoques de análisis por capas que fundamentan las métricas de drift adoptadas.
+El objetivo no es enumerar estudios, sino identificar tendencias, vacíos y la cadena de conocimiento
+que justifica las decisiones metodológicas de esta tesis.
+
+
+\section{Estudios comparativos de arquitecturas de visión en FL}
+
+La pregunta de si la elección de arquitectura afecta de forma sistemática el comportamiento de los
+modelos bajo condiciones no-IID fue formulada con rigor por primera vez por Qu et al.\
+\cite{qu2022rethinking}, en lo que constituyó la primera investigación empírica exhaustiva de
+múltiples familias arquitectónicas bajo distintos algoritmos federados, \textit{benchmarks} reales
+y particiones heterogéneas.
+Sus experimentos, que abarcaron CNNs (ResNet, EfficientNet) y Vision Transformers (ViT, Swin)
+sobre CIFAR-10, Retina y CelebA, evidenciaron que las arquitecturas basadas en autoatención eran
+sistemáticamente más robustas ante \textit{distributional shifts} no-IID, con mejoras de hasta 37
+puntos porcentuales sobre las CNNs equivalentes bajo alta heterogeneidad.
+Los autores argumentaron que el mecanismo de autoatención global, al no depender de estadísticas
+de mini-batch locales para su normalización, mitigaba de forma inherente la divergencia entre
+actualizaciones de distintos clientes.
+Sin embargo, el trabajo no desagregaba las fuentes de esa ventaja: no se distinguía entre el
+efecto del sesgo inductivo (convolución local frente a atención global) y el efecto de la estrategia
+de normalización (BatchNorm en CNNs frente a LayerNorm en ViTs), ni se proporcionaba ningún
+análisis por capa que permitiera localizar dónde se concentraba la divergencia.
+
+En la misma dirección, Zuo et al.\ \cite{zuo2022empirical} realizaron una comparación temprana
+entre CNNs ligeras y variantes compactas de ViT bajo restricciones de memoria y tiempo propias
+de dispositivos de borde, confirmando que los ViTs entrenados desde cero con imágenes de baja
+resolución podían superar a sus homólogos CNN en precisión global tanto en escenarios IID como
+no-IID con un coste computacional comparable.
+No obstante, el estudio operó exclusivamente a nivel de métricas de rendimiento final, sin
+descomponer el comportamiento por capa ni explorar el efecto de la normalización.
+
+Las comparaciones más recientes han ido ampliando progresivamente el espectro de arquitecturas
+evaluadas.
+Büyüktaş et al.\ \cite{buyuktacs2024transformer} examinaron arquitecturas del estilo MetaFormer
+---MLP-Mixer, ConvMixer y PoolFormer--- frente a ResNet-50 en clasificación multietiqueta de
+teledetección bajo FL con FedAvg y MOON.
+Bajo alta heterogeneidad, PoolFormer superó a ResNet-50 en 12.53 puntos de F1, mientras que MOON
+apenas mejoró a las arquitecturas Transformer, lo que sugería que su robustez intrínseca ante el
+drift reducía el beneficio marginal de los algoritmos de regularización contrastiva.
+Li et al.\ \cite{li2025comparison} obtuvieron conclusiones análogas al comparar ViT-Base con
+ResNet-50 en reconocimiento de acciones humanas bajo FL: el ViT federado alcanzó 87.30\% de
+precisión frente al 79.29\% del ResNet, con una brecha de generalización cuatro veces menor,
+atribuida al desarrollo de capacidad de abstracción transversal a los clientes a través del
+mecanismo de autoatención.
+
+Jiménez-Gutiérrez et al.\ \cite{jimenez2503thorough} aportaron una de las evaluaciones más
+sistemáticas sobre el impacto diferencial de los tipos de heterogeneidad no-IID.
+Mediante la Distancia de Hellinger como métrica unificada, demostraron que el sesgo de etiquetas
+producía caídas de precisión de entre 10 y 40 puntos sobre la línea base centralizada, con umbrales
+críticos de degradación a $\text{HD} > 0.5$ y $\text{HD} > 0.75$, mientras que los sesgos de
+cantidad y características resultaban prácticamente inocuos.
+Los modelos de transferencia como EfficientNet-B0 mostraron mayor sensibilidad al sesgo de etiquetas
+que las CNNs entrenadas desde cero, y ninguno de los cinco algoritmos de agregación evaluados
+---FedAvg, FedProx, MOON, POC y selección aleatoria--- logró reducir la brecha de forma sustancial
+bajo alta heterogeneidad.
+Este resultado constituye un punto de referencia empírico directo para la presente investigación:
+los valores $\alpha \in \{1000.0, 1.0, 0.3, 0.1, 0.03\}$ empleados en las particiones de Dirichlet
+se corresponden aproximadamente con los niveles HD analizados en dicho trabajo, y la incapacidad
+algorítmica para resolver el problema bajo alta heterogeneidad refuerza la motivación de examinar
+la arquitectura como variable independiente.
+Sin embargo, el estudio se limitó exclusivamente a CNNs y no incorporó análisis por capas,
+familias Transformer, SSMs ni Vision GNNs.
+
+Estudios comparativos más recientes que incluyen SSMs han aportado evidencia complementaria,
+aunque en entornos centralizados.
+Biswas et al.\ \cite{biswas2025comparative} compararon diecisiete modelos de tres familias
+---CNN, Transformer y SSM (Vision Mamba)--- en tres dominios de imágenes, concluyendo que los
+modelos CNN alcanzaban mayor precisión bruta mientras que los basados en Mamba presentaban la
+menor huella de memoria y la convergencia más rápida.
+Yanar et al.\ \cite{yanar2025comparative} llegaron a una conclusión más matizada en el dominio
+de rayos X de tórax: los modelos híbridos CNN-Transformer (ConvFormer, CaFormer) y EfficientNet
+superaron consistentemente a las variantes de Mamba (MedMamba, VMamba) en 14 categorías de
+patologías, advirtiendo que la competitividad de los SSMs no es universal y depende del dominio.
+Ambos estudios se desarrollaron en entornos centralizados, sin federación ni análisis de drift,
+por lo que sus conclusiones no son directamente transferibles a escenarios no-IID.
+
+En el dominio de imagenología cerebral, varios estudios han aplicado arquitecturas de visión sobre
+el dataset Brain Tumor MRI.
+Trabajos como los de Chen et al.\ \cite{chenfederated} y Lai et al.\ \cite{lai2025advancing}
+realizaron el entrenamiento de forma centralizada.
+Quienes sí incorporaron FL ---Anoosha y Seetharamulu \cite{anoosha2025federated}, Zhou et al.\
+\cite{zhou2024distributedfederatedlearningbaseddeep} y Appasami y Savarimuthu
+\cite{appasami2025federated}--- lo hicieron empleando exclusivamente variantes CNN, sin realizar
+ningún análisis de comportamiento por capas ni comparación entre familias arquitectónicas.
+Ninguno de estos estudios abordó la dinámica de drift paramétrico o representacional a lo largo
+de las rondas de comunicación.
+
+En conclusión, los trabajos previos presentan las siguientes limitaciones: primero, las evaluaciones se centran predominantemente en métricas de rendimiento
+final, sin medir los procesos internos que las generan; segundo,
+el espacio arquitectónico comparado raramente ha superado dos familias de modelos, ignorando sistemáticamente los SSMs
+y los Vision GNNs en contextos federados; y tercero, la heterogeneidad ha sido poco estudiada como un parámetro controlado que permita comparaciones rigurosas.
+La presente investigación responde a las tres limitaciones de forma directa.
+
+
+\section{Arquitectura como variable de diseño en FL}
+
+El trabajo de Pieri et al.\ \cite{pieri2023handlingdataheterogeneityarchitectural} representa el
+estudio de mayor alcance en términos de diversidad arquitectónica evaluada dentro de un marco
+federado.
+En él se compararon 19 modelos pertenecientes a cinco familias ---CNNs, Transformers, MLP-Mixers,
+modelos híbridos y MetaFormers--- sobre cuatro conjuntos de datos FL con distintos tipos de
+heterogeneidad, evaluando además el efecto ortogonal de cuatro algoritmos de optimización:
+FedAvg, FedAVGM, FedProx y SCAFFOLD.
+Los autores reportaron que las arquitecturas tipo MetaFormer (CAFormer, ConvFormer, PoolFormer)
+exhibían la mayor robustez ante distribuciones heterogéneas, y que el cambio de arquitectura
+producía mejoras más consistentes y de mayor magnitud que la elección del algoritmo de agregación.
+El hallazgo más relevante para la presente investigación fue la ablación de normalización: al
+sustituir BatchNorm por LayerNorm en modelos CNN, la brecha de rendimiento entre CNNs y
+Transformers se reducía de forma considerable, sugiriendo que BatchNorm ---y no el sesgo
+inductivo convolucional \textit{per se}--- era el factor determinante de la inferioridad de las
+CNNs bajo FL heterogéneo.
+Sin embargo, el trabajo presentó dos vacíos fundamentales: no incluyó ninguna arquitectura SSM
+ni Vision GNN, y no incorporó métricas de drift paramétrico o representacional por capa.
+
+Xu et al.\ \cite{xu2023fedconv} ofrecieron una perspectiva complementaria: mediante ablación
+sistemática sobre componentes micro-arquitectónicos de una CNN pura, demostraron que con
+modificaciones dirigidas ---función de activación SiLU, entrenamiento libre de normalización con
+\textit{Adaptive Gradient Clipping}, \textit{stem} convolucional solapado y \textit{kernels}
+de tamaño 9--- la arquitectura resultante (FedConv) superaba a ViT-Small en precisión FL bajo
+alta heterogeneidad.
+Este hallazgo matizó la conclusión de Qu et al.: la inferioridad de las CNNs no era inherente a
+la convolución, sino que derivaba de decisiones micro-arquitectónicas corregibles, siendo la
+eliminación de BatchNorm la modificación de mayor impacto individual.
+No obstante, FedConv evaluó únicamente métricas de precisión y eficiencia de comunicación, sin
+medir la divergencia de pesos por capa ni la alineación de gradientes entre clientes.
+
+Siomos et al.\ \cite{siomos2024architecture} profundizaron en la dirección
+\textit{normalization-free} mediante ANFR, una arquitectura que combina \textit{Scaled Weight
+Standardization} (SWS) con mecanismos de atención de canal.
+Al estandarizar los pesos en lugar de las activaciones, ANFR eliminó la dependencia del paso
+hacia adelante de las estadísticas de mini-batch del cliente, logrando coherencia de los
+descriptores de canal entre participantes heterogéneos.
+Evaluada bajo siete algoritmos de agregación y cinco conjuntos de datos, ANFR alcanzó el mejor
+rendimiento en todas las configuraciones, incluyendo escenarios de privacidad diferencial donde
+otras estrategias de normalización degradaban fuertemente.
+El trabajo confirmó que BatchNorm era el principal vector de inestabilidad federada en CNNs,
+proporcionando base empírica sólida para la ablación de normalización planteada en esta tesis.
+Sin embargo, como en el caso de Pieri et al. \cite{pieri2023handlingdataheterogeneityarchitectural}, el estudio se restringió a CNNs y no realizó
+mediciones de drift por capa, gradiente o representación.
+
+En conjunto, existe evidencia que la arquitectura es un eje de diseño primario en FL,
+potencialmente más determinante que la elección del algoritmo de agregación, e identificó a
+BatchNorm como el principal confusor entre el efecto del sesgo inductivo y el de la normalización.
+No obstante, todos los estudios midieron el impacto arquitectónico exclusivamente a través de
+precisión final, ninguno trazó la evolución del drift con granularidad por capa, y ninguno
+extendió el análisis a las familias SSM o Vision GNN.
+
+
+\section{State Space Models y Vision Mamba en FL}
+
+Los modelos de espacio de estados selectivos irrumpieron en el dominio de la visión por computadora
+con Vision Mamba (Vim) \cite{zhu2024vision}, que introdujo un bloque SSM bidireccional capaz de
+procesar secuencias de parches de imagen con complejidad lineal en memoria y tiempo.
+En comparación directa con DeiT, Vim-Tiny superó al Transformer equivalente en ImageNet-1K en
+3.9 puntos de \textit{top-1 accuracy}, alcanzando una velocidad 2.8$\times$ mayor y un consumo
+de memoria 86.8\% inferior a resoluciones elevadas.
+El diseño emplea LayerNorm al inicio de cada bloque ---en contraste con la BatchNorm de las CNNs
+clásicas---, lo que lo sitúa, desde la perspectiva de la normalización, en una posición análoga a
+los ViTs.
+La naturaleza secuencial del SSM implica, no obstante, un mecanismo de integración de la
+información fundamentalmente distinto al de la autoatención: mientras los ViTs establecen
+dependencias globales simultáneas entre todos los parches, los SSMs integran la información a
+través de transiciones de estado selectivas dependientes del contenido, cuyo comportamiento bajo
+distribuciones de clases heterogéneas entre clientes no había sido caracterizado.
+
+La idoneidad de los SSMs para tareas de visión fue matizada por Yu y Wang \cite{yu2025mambaout},
+quienes demostraron que MambaOut ---un modelo que elimina el componente SSM reemplazándolo por
+convoluciones \textit{depthwise} con \textit{kernel} grande--- superaba a todas las variantes
+visuales de Mamba en clasificación de ImageNet-1K, aunque no en tareas densas.
+Los autores argumentaron que la clasificación estándar no satisface las condiciones de secuencia
+larga ni de procesamiento autorregresivo para las cuales el SSM fue diseñado.
+En el entorno federado, donde el mini-batch local puede ser reducido y la distribución de clases
+local puede ser muy sesgada, no está claro \textit{a priori} si el mecanismo SSM aportará ventajas
+o desventajas en términos de drift paramétrico y representacional.
+
+En el dominio médico, MedMamba \cite{yue2024medmamba} y la revisión de Bansal et al.\
+\cite{bansal2024comprehensive} documentaron que las variantes híbridas SSM-CNN ofrecen rendimiento
+competitivo en clasificación de imágenes de múltiples modalidades, aunque en entornos centralizados.
+La integración de Mamba en FL fue abordada por primera vez por Wu \cite{wu2024mamba}, quien
+demostró mayor precisión y eficiencia de entrenamiento respecto a \textit{baselines} convolucionales,
+concluyendo que los SSMs eran viables para aplicaciones distribuidas y sensibles a la privacidad.
+No obstante, el estudio no exploró particiones no-IID sistematizadas ni ofreció análisis de drift
+por capa.
+Trabajos posteriores como los de Chen \cite{chen2024mamaba} y Guo et al.\ \cite{guo2026mamba}
+aplicaron Mamba en FL a dominios específicos ---detección de rayos X y diagnóstico fotovoltaico,
+respectivamente--- con el mismo foco en precisión final y sin estudiar los mecanismos de divergencia
+paramétrica inducidos por la heterogeneidad.
+La comprensión del comportamiento de los SSMs ante condiciones no-IID controladas, con análisis
+por capa y a lo largo de las rondas de comunicación, permanece como un vacío no abordado.
+
+
+\section{Vision GNNs en FL}
+
+Los modelos de redes neuronales en grafos se originaron como herramientas para el procesamiento
+de datos estructurados de forma irregular \cite{Gori2005ANM, Scarselli:2009ku}.
+Han et al.\ \cite{han2022vision} introdujeron Vision GNN (ViG), la primera arquitectura de visión
+pura basada en grafos para clasificación de imágenes a escala de ImageNet, demostrando que el
+mecanismo de propagación de mensajes sobre un grafo de parches podía aprender representaciones
+competitivas con las obtenidas por CNNs y ViTs.
+El sesgo inductivo de ViG es cualitativamente distinto: mientras las CNNs explotan la localidad
+espacial mediante filtros compartidos y los ViTs establecen dependencias globales a través de la
+autoatención, ViG construye dinámicamente una topología de conectividad entre regiones de la imagen
+y refina las representaciones nodales iterativamente, lo que puede resultar en una sensibilidad
+diferente a la distribución de clases local de cada cliente bajo federación.
+
+La interacción entre GNNs y FL fue sistematizada por He et al.\ \cite{DBLP:journals/corr/abs-2104-07145},
+quienes presentaron FedGraphNN como la primera plataforma de \textit{benchmarking} para FL con
+GNNs sobre datos nativamente graficados, abarcando 36 conjuntos de datos en siete dominios.
+Sus experimentos revelaron que el rendimiento federado era sistemáticamente inferior al centralizado
+y que la arquitectura GNN con mejor desempeño centralizado no mantenía necesariamente su ventaja
+bajo federación ---resultado que anticipa la relevancia de estudiar el efecto moderador de la
+arquitectura también para modelos basados en grafos.
+Sin embargo, FedGraphNN operó exclusivamente sobre datos estructurados como grafos (moléculas,
+redes de citas, sistemas de recomendación), sin considerar \textit{backbones} de visión sobre
+imágenes.
+Plataformas más recientes como FedGraph \cite{yao2024fedgraph} ampliaron la infraestructura
+disponible pero mantuvieron el foco en eficiencia y seguridad del software, sin estudiar los
+mecanismos de drift paramétrico o representacional.
+
+La revisión sistemática de Shaikh y Samet \cite{shaikh2025federated} proporcionó una taxonomía
+de la heterogeneidad en FedGNNs e identificó la heterogeneidad estructural/topológica como el
+tipo más descuidado en la literatura, confirmando la ausencia de métricas estandarizadas para
+cuantificar la no-IID-ness en grafos.
+Más relevante para esta tesis, el survey no incluyó ningún estudio que empleara el \textit{backbone}
+de Vision GNN en tareas de clasificación de imágenes bajo FL.
+El trabajo de Cui et al.\ \cite{cui2025fedvig} fue el primero en integrar explícitamente una
+arquitectura Vision GNN en un marco federado (FedVIG), empleando perturbación de datos mediante
+modelos de difusión y aprendizaje contrastivo estructural para mejorar la generalización y la
+privacidad.
+Sin embargo, el trabajo no estudió el comportamiento del modelo ante particiones no-IID
+sistematizadas, y su foco primario fue la privacidad, no la caracterización del drift.
+Estudios que emplearon GNNs sobre el dataset de tumores cerebrales, como los de Gürsoy y Kaya
+\cite{gursoy2024brain} o Elhamzi y Mokni \cite{elhamzi2026braingraphnet}, lo hicieron en entornos
+centralizados con modelos híbridos o variantes de GCN ---no el \textit{backbone} de Vision GNN---
+y sin ninguna consideración federada.
+
+En consecuencia, la literatura no contiene ningún estudio que analice el comportamiento de Vision
+GNN bajo datos heterogéneos en un entorno federado, ni que compare Vision GNN con Vision Mamba
+en ese contexto.
+Este vacío ---la ausencia de análisis de drift para Vision GNN bajo FL y la inexistencia de
+comparaciones entre las cuatro familias (CNN, ViT, SSM, GNN) bajo condiciones no-IID controladas---
+representa la brecha central que aborda la presente investigación.
+
+
+\section{Análisis por capas y métricas de drift}
+
+La evidencia empírica que motivó el análisis granular del drift provino inicialmente de trabajos
+que utilizaron el Centered Kernel Alignment (CKA) como herramienta de diagnóstico representacional.
+Son et al.\ \cite{son2022comparisons} fueron los primeros en aplicar CKA en un contexto de FL,
+realizando experimentos con una CNN de siete capas y ResNet-50 bajo condiciones IID para identificar
+qué capas exhibían similitud inter-cliente natural.
+Sus resultados confirmaron que las capas tempranas convergían espontáneamente a representaciones
+similares entre clientes incluso sin regularización explícita, mientras que las capas finales
+---especialmente el clasificador--- mostraban alta disimilitud inter-cliente.
+A partir de esta observación, propusieron FedCKA, un método que añade una penalización de
+regularización basada en CKA únicamente sobre las capas naturalmente similares, con una eficiencia
+computacional casi constante respecto de la profundidad de la red.
+El trabajo estableció dos contribuciones metodológicas directamente relevantes para esta tesis:
+la validación de CKA como métrica de divergencia representacional en FL y la constatación empírica
+de que el drift no es uniforme a lo largo de la profundidad de la red.
+Sin embargo, el análisis se realizó solo bajo IID como línea base y únicamente sobre arquitecturas
+CNN, sin explorar cómo varían estos patrones entre familias arquitectónicas distintas ni bajo
+diferentes niveles de heterogeneidad no-IID.
+
+La base teórica del CKA lineal fue formalizada por Kornblith et al.\ \cite{DBLP:journals/corr/abs-1905-00414},
+quienes demostraron que la métrica CKA es invariante a transformaciones ortogonales e isotropías de escala, propiedad fundamental para comparar representaciones aprendidas de forma independiente por distintos clientes.
+Esta invarianza hace del CKA lineal el candidato natural para comparar las representaciones
+internas de los modelos locales entre sí y respecto del modelo global a lo largo de las rondas de
+comunicación, sin que las diferencias métricas sean artefactos de distintas bases de representación.
+
+Desde la perspectiva del análisis de divergencia paramétrica y de gradientes, Li et al.\
+introdujeron en el contexto de FedPVR dos diagnósticos de gran relevancia: la
+\textit{drift diversity}
+$\xi^r = \sum_i \|\mathbf{m}_i^r\|^2 / \|\sum_i \mathbf{m}_i^r\|^2$
+---que mide el grado en que las actualizaciones de los clientes apuntan en direcciones
+contradictorias--- y la similitud CKA por capa a lo largo del entrenamiento \cite{son2022comparisons}.
+Empleando ambas métricas sobre VGG-11 con CIFAR-10 bajo dos niveles de heterogeneidad Dirichlet
+($\alpha = 100$ e $\alpha = 0.1$), los autores demostraron que las capas de extracción de
+características mostraban invarianza a la heterogeneidad, mientras que las capas profundas
+---especialmente el clasificador--- exhibían fuerte sensibilidad.
+Esta asimetría por profundidad sustentó el algoritmo FedPVR, que aplica corrección de varianza
+solo sobre el clasificador, obteniendo convergencia más rápida que FedAvg, FedProx y SCAFFOLD
+con menor sobrecarga de comunicación.
+El trabajo validó metodológicamente la combinación de CKA con similitud de gradientes por capa
+como herramienta de diagnóstico, aunque su alcance quedó restringido a una sola arquitectura CNN
+y no consideró la variación de la asimetría entre familias arquitectónicas distintas.
+
+Yasar et al.\ propusieron L-DAWA, un método de agregación por capas que ponderaba la contribución
+de cada capa de cada cliente mediante la divergencia angular (similitud coseno) entre los
+parámetros locales y el modelo global: $\delta_k^{(l)} = (\mathbf{w}_g^{(l)} \cdot \mathbf{w}_k^{(l)}) /
+(\|\mathbf{w}_g^{(l)}\| \|\mathbf{w}_k^{(l)}\|)$ \cite{son2022comparisons}.
+Sus experimentos sobre ResNet-18 en aprendizaje auto-supervisado mostraron que la divergencia
+angular variaba drásticamente entre capas y no podía ser capturada por un escalar a nivel de
+modelo, lo que apoya el diseño de esta investigación de registrar métricas por capa de forma
+continua a lo largo de las rondas.
+
+Los trabajos de personalización por capas en FL aportaron una perspectiva adicional.
+Tan et al.\ demostraron mediante un hipernetwork por cliente (pFedLA) que los pesos de agregación
+óptimos eran distintos para cada capa, confirmando que la utilidad de cada capa para el modelo
+global variaba de forma heterogénea \cite{son2022comparisons}.
+Nguyen et al.\ mostraron con FedLAG que los conflictos de gradiente entre capas no seguían un
+patrón monótono de entrada a salida ---como asumían trabajos anteriores--- sino una distribución
+compleja determinada por el tipo de capa y el grado de heterogeneidad, y que la personalización
+selectiva de las capas con mayor conflicto producía mejoras de 5--40\% sobre los métodos de
+agregación uniforme bajo alta heterogeneidad \cite{DBLP:journals/corr/abs-1910-06378}.
+
+En conjunto, la literatura sobre análisis por capas ha demostrado que: (1) el drift es
+estructuralmente no uniforme a lo largo de la profundidad de la red; (2) las capas de normalización
+y clasificación son sistemáticamente las más susceptibles bajo no-IID en CNNs; y (3) CKA y la
+similitud coseno de gradientes son instrumentos complementarios para caracterizar la divergencia
+representacional y paramétrica, respectivamente.
+No obstante, todos los estudios revisados se circunscribieron a arquitecturas CNN.
+La extensión de estos diagnósticos a ViTs, SSMs y Vision GNNs ---donde la noción de capa de
+características versus clasificador no es directamente equiparable--- permanece como un vacío no
+explorado, que constituye la contribución metodológica central de esta tesis.
+
+
+\section{Normalización en FL heterogéneo}
+
+La relación entre la estrategia de normalización y el comportamiento del modelo bajo heterogeneidad
+estadística fue formalizada teóricamente por Wang et al.\ \cite{wang2023batch}, quienes demostraron
+analíticamente que BatchNorm introduce un sesgo de gradiente en FL no-IID: cada cliente computa
+estadísticas de media y varianza sobre un mini-batch sesgado respecto a la distribución global,
+lo que produce correcciones de normalización inconsistentes que se propagan durante la agregación
+y corrompen el modelo global.
+Du et al.\ \cite{du2022rethinking} extendieron este análisis de forma empírica, comparando BN,
+LN, GN e IN sobre múltiples configuraciones federadas y concluyendo que las estrategias basadas
+en la muestra individual ---LN y GN--- ofrecían mayor estabilidad.
+Casella et al.\ \cite{casella2023experimentingnormalizationlayersfederated} confirmaron este
+resultado de forma sistemática: LN y GN mantuvieron precisión competitiva bajo particiones no-IID
+donde BN degradaba sensiblemente el rendimiento, mientras que el impacto del número de grupos en
+GN era secundario frente a la dicotomía entre normalización por batch y por muestra.
+
+La formulación original de Group Normalization \cite{DBLP:journals/corr/abs-1803-08494} propuso
+dividir los canales de activación en grupos y normalizar dentro de cada grupo, eliminando la
+dependencia estadística entre muestras del batch.
+Esta propiedad hace de GN una alternativa directamente sustituible en redes convolucionales:
+conserva el sesgo inductivo de la convolución mientras elimina la principal fuente de inestabilidad
+identificada bajo FL heterogéneo.
+GN con un único grupo equivale a Layer Normalization, caso límite de máxima independencia
+respecto al batch.
+
+La síntesis de esta línea muestra consenso en torno a la superioridad de LN y GN sobre BN en
+condiciones no-IID.
+Sin embargo, ninguno de los estudios citados ha medido cómo el reemplazo de BatchNorm modifica
+específicamente el perfil de divergencia de parámetros por capa a lo largo de las rondas de
+comunicación, ni ha comparado ese perfil modificado con el de arquitecturas que emplean LN de
+forma nativa (ViT, Vim, ViG).
+Esta ablación controlada ---que la presente investigación realiza sobre EfficientNet-B1---
+constituye la pieza metodológica que permite aislar la contribución de la normalización respecto
+del sesgo inductivo convolucional como fuentes independientes de inestabilidad federada.
+
+
+\section{Síntesis y posicionamiento de la investigación}
+
+La revisión de la literatura permite trazar un mapa preciso de lo que se conoce y lo que permanece
+abierto.
+La arquitectura es un moderador primario del \textit{client drift} bajo no-IID
+\cite{qu2022rethinking, pieri2023handlingdataheterogeneityarchitectural, buyuktacs2024transformer}:
+las familias basadas en normalización por muestra y mecanismos de integración global son
+sistemáticamente más robustas que las CNNs con BatchNorm, y esta diferencia supera en magnitud a
+la producida por la elección del algoritmo de agregación.
+BatchNorm ha sido identificada como el principal vector de inestabilidad federada en CNNs
+\cite{wang2023batch, du2022rethinking, xu2023fedconv, siomos2024architecture}, aunque la evidencia
+disponible no desagrega su contribución respecto del sesgo inductivo convolucional en términos de
+divergencia de parámetros por capa.
+
+El análisis por capas ha demostrado que el drift tiene estructura interna compleja: se concentra
+en las capas de clasificación y normalización, mientras que las capas de extracción de bajo nivel
+muestran mayor estabilidad relativa \cite{son2022comparisons}.
+CKA y la similitud coseno de gradientes inter-cliente han emergido como las métricas más
+informativas para caracterizar esta estructura, complementando las medidas paramétricas con
+información sobre la divergencia representacional funcional
+\cite{DBLP:journals/corr/abs-1905-00414, son2022comparisons}.
+No obstante, todos estos diagnósticos han sido validados exclusivamente sobre CNNs.
+
+Las familias SSM han demostrado viabilidad técnica en contextos federados \cite{wu2024mamba} y
+competitividad en dominios médicos \cite{yue2024medmamba}, pero ningún estudio ha caracterizado
+su drift bajo condiciones no-IID controladas.
+Vision GNN ha sido integrado en FL por primera vez en FedVIG \cite{cui2025fedvig}, pero sin
+análisis de heterogeneidad sistemática.
+No existe ningún estudio que haya comparado simultáneamente las cuatro familias ---CNN, ViT, SSM,
+Vision GNN--- bajo un protocolo experimental controlado con métricas de drift por capa.
+
+La presente investigación cierra estas brechas mediante: (1) una evaluación transversal de las
+cuatro familias arquitectónicas bajo particiones de Dirichlet con cinco niveles de heterogeneidad
+sobre Brain Tumor MRI y CIFAR-10; (2) el registro continuo de divergencia de pesos ($L_2$),
+alineación de gradientes (similitud coseno) y divergencia representacional (CKA) por tipo de capa
+y por ronda de comunicación; y (3) una ablación de normalización sobre EfficientNet-B1 que disocia
+la contribución de BatchNorm del sesgo inductivo convolucional como fuentes independientes de
+inestabilidad federada.
+Este diseño es el primero en combinar la amplitud de familias arquitectónicas con la profundidad
+del análisis por capa y el rigor de una parametrización continua de la heterogeneidad,
+posicionando la investigación como una extensión natural y necesaria del estado del arte revisado.

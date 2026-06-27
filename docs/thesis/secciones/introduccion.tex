@@ -1,0 +1,220 @@
+\customchapter{INTRODUCCI\'ON}
+
+En los últimos años, el aprendizaje automático distribuido ha cobrado una importancia 
+creciente debido al aumento de dispositivos conectados y a la gran cantidad de datos 
+generados y almacenados por distintas organizaciones \cite{kairouz2021advances, mahmud2026survey}. 
+Esta situación ha impulsado el desarrollo de modelos capaces de aprender a partir de información 
+distribuida y de adaptarse a poblaciones con características diversas \cite{DBLP:journals/corr/abs-1908-07873}. 
+Sin embargo, en sectores como la salud, la educación y las finanzas, el uso de estos datos está
+limitado por normativas de privacidad como HIPAA (\textit{Health Insurance Portability and 
+Accountability Act}) y GDPR (\textit{General Data Protection Regulation}), que restringen el 
+intercambio de información sensible entre instituciones \cite{noor2026federated}. Frente a este 
+desafío, el \textit{Federated Learning} (FL) se ha consolidado como una alternativa viable 
+\cite{kairouz2021advances}, ya que permite entrenar modelos de manera local en cada entidad y 
+compartir únicamente las actualizaciones de los parámetros con un servidor central encargado de 
+combinarlas, evitando así la transferencia directa de los datos originales 
+\cite{al2502principles,DBLP:journals/corr/McMahanMRA16}.
+
+
+A pesar de su elegancia conceptual, el FL enfrenta un desafío fundamental en escenarios reales:
+las distribuciones de datos locales difieren significativamente entre clientes, ya sea por 
+diferencias en las poblaciones atendidas, en los protocolos de recolección o en los equipos 
+utilizados. Esta condición, conocida como \textit{non-IID} (\textit{non-Independent and 
+Identically Distributed}), viola el supuesto de homogeneidad subyacente a los análisis de 
+convergencia originales del FL. Su consecuencia directa es el fenómeno central que motiva 
+esta investigación: el \textit{client drift} \cite{DBLP:journals/corr/abs-1910-06378}. 
+Durante el entrenamiento local sobre datos sesgados, el modelo de cada cliente converge hacia 
+un óptimo local que puede encontrarse significativamente alejado de la solución global. A 
+medida que avanzan las rondas de comunicación, esta divergencia acumulada genera actualizaciones 
+que, al promediarse en el servidor, ubican al modelo global en una región de alta pérdida para 
+todos los participantes. El resultado es que el progreso de aprendizaje obtenido en cada ronda 
+se anula sistemáticamente \cite{seo2025understanding}.
+
+
+La comunidad investigadora ha respondido a este problema principalmente mediante el desarrollo 
+de algoritmos de agregación más robustos, como FedProx \cite{DBLP:journals/corr/abs-1812-06127}, 
+SCAFFOLD \cite{DBLP:journals/corr/abs-1910-06378} y sus variantes, que incorporan términos de 
+regularización o mecanismos de corrección de varianza para contener la divergencia entre clientes. 
+Estos enfoques han logrado mejoras sustanciales en escenarios de heterogeneidad moderada, pero 
+su efectividad depende de supuestos sobre el paisaje de pérdida del modelo que no siempre se cumplen 
+en la práctica. En particular, la relación entre la \textit{arquitectura} del modelo y la severidad 
+con que se manifiesta el \textit{client drift} ha recibido atención considerablemente menor 
+\cite{qu2022rethinking, siomos2024architecture}, pese a ser una variable de diseño que los 
+profesionales deben definir antes de cualquier elección algorítmica.
+
+
+Las \textit{Convolutional Neural Networks} (CNNs) explotan filtros espaciales locales; los 
+\textit{Vision Transformers} (ViTs) emplean mecanismos de autoatención global; los 
+\textit{State-Space Models} (SSMs) modelan dependencias mediante transiciones de estado sobre 
+secuencias de parches de la imagen; y los \textit{Vision Graph Neural Networks} (Vision GNNs) 
+propagan información mediante mensajes entre regiones de la imagen organizadas en grafos. Estas 
+diferencias en los sesgos inductivos implican que cada familia procesa la información de entrada 
+de formas radicalmente distintas, lo que debería traducirse en perfiles de drift igualmente 
+distintos bajo condiciones de federación heterogénea. Sin embargo, hasta la fecha no existen 
+estudios que hayan caracterizado sistemáticamente cómo estas diferencias arquitectónicas se 
+manifiestan a nivel de capa a lo largo de las rondas de comunicación, bajo protocolos 
+experimentales controlados y comparables entre familias.
+
+
+Una parte importante de esta brecha es la relacionada con las estrategias de normalización. 
+Las CNNs convencionales dependen de la \textit{Batch Normalization} (BN), cuya 
+estabilidad requiere estadísticas de mini-batch representativas de la distribución conjunta de 
+los datos \cite{DBLP:journals/corr/abs-1803-08494}. En un entorno federado con datos non-IID, 
+cada cliente computa estas estadísticas sobre un subconjunto sesgado y reducido, lo que introduce 
+una discrepancia entre las estadísticas locales y las globales. Esta discrepancia se propaga 
+durante la agregación y puede dominar el comportamiento de convergencia de todo el modelo 
+\cite{du2022rethinking}. Por el contrario, las estrategias de normalización independientes del 
+tamaño del batch, como \textit{Layer Normalization} (LN) y \textit{Group Normalization} (GN), 
+no dependen de las estadísticas entre clientes y se espera que sean inherentemente más estables 
+en este contexto \cite{wang2023batch, casella2023experimentingnormalizationlayersfederated}. 
+Esta diferencia sugiere que parte de la inestabilidad observada en las CNNs federadas podría 
+ser atribuible a la normalización, y no al sesgo inductivo convolucional en sí mismo, pero esta 
+hipótesis no ha sido verificada empíricamente a nivel de capa de forma sistemática.
+
+
+Frente a esta situación, esta investigación propone una caracterización empírica a nivel de capa 
+del \textit{client drift} en cuatro familias arquitectónicas de visión: EfficientNet-B1 como 
+representante de las CNNs, ViT-Tiny como representante de los Vision Transformers, Vim-Tiny como 
+representante de los State-Space Models, y ViG-Tiny (\textit{Vision GNN}) como representante de 
+los modelos basados en grafos. Todas las arquitecturas son evaluadas a escala de parámetros 
+comparable, bajo condiciones de federación idénticas, en dos conjuntos de datos complementarios: 
+Brain Tumor MRI, que representa un escenario realista de imagenología médica con heterogeneidad 
+natural entre instituciones, y CIFAR-10, que constituye un punto de referencia estándar en la 
+literatura de FL. El grado de heterogeneidad no-IID es controlado mediante particiones de 
+Dirichlet con $\alpha \in \{1000.0, 1.0, 0.3, 0.1, 0.03\}$, y se evalúan dos algoritmos de 
+agregación: FedAvg y FedProx.
+
+
+Para caracterizar el drift, se emplean tres métricas complementarias registradas por capa y por 
+ronda de comunicación. La divergencia de pesos ($L_2$) mide la distancia entre los parámetros 
+locales de cada cliente y el modelo global antes de la agregación, cuantificando la magnitud del 
+drift acumulado por tipo de capa. La alineación de gradientes (similitud coseno entre pares de 
+clientes) evalúa si las direcciones de actualización de distintos participantes son constructivas 
+o destructivas, identificando las capas con mayor interferencia entre clientes durante la 
+agregación. El \textit{Centered Kernel Alignment} (CKA) \cite{DBLP:journals/corr/abs-1905-00414} 
+compara las representaciones internas aprendidas entre clientes a lo largo del entrenamiento, 
+permitiendo determinar si el drift en los pesos se traduce en una divergencia funcional en las 
+representaciones, o si los modelos convergen a representaciones similares a pesar de la 
+disparidad paramétrica. La combinación de estas tres métricas permite desarrollar un perfil de 
+deriva (\textit{drift profile}) para cada arquitectura.
+
+
+Adicionalmente, se realiza una ablación de normalización sobre EfficientNet, reemplazando su 
+BatchNorm por GroupNorm y LayerNorm, con el objetivo de determinar si la inestabilidad federada 
+observada en las CNNs es atribuible a la divergencia de estadísticas de lote —un efecto propio 
+de la normalización— o al sesgo inductivo convolucional como factor independiente.
+
+
+Se espera que esta investigación contribuya con: (1) la primera caracterización empírica 
+transversal entre familias CNN, ViT, SSM y Vision GNN, con granularidad por capa, sobre cómo 
+los sesgos inductivos modulan el \textit{client drift} bajo condiciones non-IID controladas; y 
+(2) la incorporación de CKA como métrica de análisis representacional que complementa las medidas 
+paramétricas existentes, permitiendo distinguir entre drift en pesos y divergencia funcional en 
+las representaciones. Adicionalmente, se aportan: (3) una ablación de normalización que disocia 
+la inestabilidad de BatchNorm del sesgo inductivo convolucional; y (4) recomendaciones prácticas, 
+fundamentadas en evidencia empírica a nivel de capa, para la selección de arquitecturas y 
+estrategias de normalización en escenarios de FL con datos heterogéneos.
+
+
+\introsection{Descripci\'on del problema}
+
+% -----------------------------------------------------------------------
+% CAMBIO: "mecanismos de selección de contenido secuenciales" →
+% "transiciones de estado sobre secuencias de parches de la imagen"
+% (consistencia con la intro general y más intuitivo para visión).
+% "filtrar características" → "privilegiar características"
+% ("filtrar" era ambiguo: podía leerse como seleccionar o descartar).
+% "practicantes" → "profesionales".
+% -----------------------------------------------------------------------
+A pesar de su relevancia práctica, la literatura no ha examinado sistemáticamente 
+cómo la arquitectura del modelo influye en el \textit{client drift} durante el entrenamiento 
+federado con datos heterogéneos \cite{pieri2023handlingdataheterogeneityarchitectural, li2023fedtp}. 
+La investigación existente ha abordado este problema casi exclusivamente desde la perspectiva 
+del algoritmo de agregación \cite{siomos2024architecture}, asumiendo implícitamente que la 
+arquitectura es un factor neutral. Sin embargo, la manera en que cada familia arquitectónica 
+procesa la información local determina de forma directa cuánto y de qué manera diverge el 
+modelo local del modelo global a lo largo de las rondas de comunicación.
+
+Las CNNs procesan la información mediante filtros locales con pesos compartidos y dependen de 
+estadísticas de mini-batch para su normalización, lo que las expone al sesgo local de los datos 
+y a la incompatibilidad de estadísticas entre clientes. Los Vision Transformers procesan la 
+imagen mediante autoatención global, lo que puede derivar en cabezales de atención fuertemente 
+especializados hacia las clases locales bajo distribuciones heterogéneas. Los State-Space Models 
+modelan dependencias espaciales mediante transiciones de estado sobre secuencias de parches de 
+la imagen; bajo distribuciones non-IID, dichos mecanismos podrían aprender a privilegiar 
+características representativas de las clases locales, acumulando sesgo progresivamente a lo 
+largo de la secuencia de parches. Los Vision GNNs construyen grafos dinámicos sobre regiones 
+de la imagen y propagan información mediante mensajes entre nodos; bajo distribuciones 
+heterogéneas, la topología del grafo local podría divergir sistemáticamente entre clientes, 
+amplificando el \textit{drift} a través de las capas de propagación. Estos mecanismos 
+distintos sugieren que el \textit{drift} varía entre familias no solo en 
+magnitud, sino también en su distribución interna por capas y representaciones aprendidas.
+
+A pesar de estas diferencias, no existe un estudio que compare sistemáticamente cómo estas cuatro 
+familias experimentan el \textit{client drift}, cómo la 
+divergencia se distribuye entre los distintos tipos de capas dentro de cada arquitectura, y 
+si la divergencia paramétrica se traduce en una divergencia representacional medible mediante 
+CKA. Esta ausencia limita la capacidad de los profesionales de FL para tomar decisiones 
+informadas sobre la arquitectura más apropiada para un escenario dado, y restringe el diseño 
+de estrategias de agregación que aprovechen la estructura específica del modelo.
+
+
+\introsection{Justificaci\'on}
+
+La presente investigación responde a una necesidad concreta en el campo del aprendizaje 
+federado aplicado a visión por computadora: comprender cómo la elección de arquitectura 
+afecta la estabilidad del entrenamiento distribuido bajo condiciones de heterogeneidad 
+estadística. Desde una perspectiva científica, contribuye con evidencia empírica que permite 
+distinguir entre el efecto del sesgo inductivo y el efecto de la estrategia de normalización 
+sobre el \textit{drift}, dos factores que la literatura ha tratado de manera conjunta sin 
+separarlos experimentalmente. La incorporación de CKA como métrica complementaria representa 
+además un aporte metodológico que enriquece el marco de análisis disponible para estudiar la 
+evolución de representaciones internas en sistemas federados.
+
+Desde una perspectiva aplicada, los resultados de esta investigación tienen implicaciones 
+directas para cualquier organización que deba implementar FL en entornos con datos heterogéneos 
+(como centros de salud, sistemas educativos distribuidos o redes de sensores industriales). 
+En estos contextos, seleccionar una arquitectura de visión sin evidencia sobre su comportamiento 
+bajo heterogeneidad estadística implica un riesgo de diseño no trivial. Los perfiles de 
+\textit{drift} por familia arquitectónica, combinados con los resultados de la ablación de 
+normalización, proporcionarán recomendaciones concretas para esas decisiones de diseño.
+
+
+\introsection{Objetivos}
+
+
+\introsubsection{Objetivo general}
+
+Desarrollar y comparar perfiles de \textit{drift} a nivel de capa para las familias CNN, 
+ViT, SSM y Vision GNN bajo condiciones de federación non-IID controladas, con el fin de 
+identificar cómo los sesgos inductivos de cada familia modulan la divergencia de parámetros, 
+la alineación de gradientes y la similitud de representaciones internas durante el 
+entrenamiento federado.
+
+
+\introsubsection{Objetivos espec\'ificos}
+
+\begin{enumerate}
+    \item \sloppy Medir la divergencia de pesos ($L_2$) por tipo de capa para EfficientNet-B1, 
+    ViT-Tiny, Vim-Tiny y ViG-Tiny bajo particiones Dirichlet con 
+    $\alpha \in \{1000.0, 1.0, 0.3, 0.1, 0.03\}$, empleando FedAvg y FedProx sobre los 
+    conjuntos de datos Brain Tumor MRI y CIFAR-10.
+
+    \item Evaluar la alineación de gradientes entre pares de clientes mediante similitud 
+    coseno por capa, identificando las familias y tipos de capa más propensos a interferencia 
+    destructiva durante la agregación.
+
+    \item Analizar la evolución de las representaciones internas de cada arquitectura mediante 
+    CKA entre pares de clientes a lo largo de las rondas de comunicación, determinando si el 
+    \textit{drift} paramétrico implica necesariamente una divergencia funcional en las 
+    representaciones aprendidas.
+
+    \item Aislar la contribución de la estrategia de normalización al \textit{drift} 
+    observado en EfficientNet mediante una variante experimental que sustituye BatchNorm 
+    por GroupNorm y LayerNorm, manteniendo fija la arquitectura base y la configuración 
+    de federación.
+
+    \item Formular recomendaciones prácticas para la selección de arquitecturas y estrategias 
+    de normalización en escenarios de FL con datos heterogéneos, fundamentadas en los perfiles 
+    de \textit{drift} empíricos obtenidos.
+\end{enumerate}
