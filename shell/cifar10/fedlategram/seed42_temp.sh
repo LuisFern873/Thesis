@@ -126,6 +126,28 @@ run_experiment \
     fedlategram.lam=0.15 \
     fedlategram.lam_adaptive=true
 
+# freeze_strategy=slow_update
+# freq_early=1
+run_experiment \
+  "cifar10 | vim_tiny | alpha=0.3 | seed=42" \
+  "logs/runs/cifar10/fedlategram/vim_tiny/alpha0.3/seed42_sixth" \
+  python main.py --config-name fedlategram \
+    dataset.name=cifar10 \
+    dataset.partition_dir=partitions/alpha_0.3/seed_42 \
+    model.name=vim_tiny \
+    common.seed=42 \
+    common.global_epoch=50 \
+    mode=serial \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/vim_tiny/alpha0.3/seed42_sixth" \
+    fedlategram.tau_cka=0.85 \
+    fedlategram.late_fraction=0.45 \
+    fedlategram.freeze_strategy=slow_update \
+    fedlategram.freq_early=1 \
+    fedlategram.alpha_early_lr=0.05 \
+    fedlategram.T_warm=15 \
+    fedlategram.lam=0.15 \
+    fedlategram.lam_adaptive=true
+
 # ── Alpha 0.1  (non-IID) ──────────────────────────
 
 # freeze_strategy=slow_update
@@ -155,7 +177,7 @@ run_experiment \
 
 run_experiment \
   "cifar10 | vim_tiny | alpha=0.1 | seed=42" \
-  "logs/runs/cifar10/fedlategram/vim_tiny/alpha0.1/seed42_fourth" \
+  "logs/runs/cifar10/fedlategram/vim_tiny/alpha0.1/seed42_fifth" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
     dataset.partition_dir=partitions/alpha_0.1/seed_42 \
@@ -192,6 +214,31 @@ run_experiment \
 #     fedlategram.T_warm=15 \
 #     fedlategram.lam=0.15 \
 #     fedlategram.lam_adaptive=true
+
+
+# ──────────────────────────────────────────────────
+# ── res9 ──────────────────────────────────────
+# ──────────────────────────────────────────────────
+
+run_experiment \
+  "cifar10 | res9 | alpha=0.3 | seed=42" \
+  "logs/runs/cifar10/fedlategram/res9/alpha0.3/seed42_second" \
+  python main.py --config-name fedlategram \
+    dataset.name=cifar10 \
+    dataset.partition_dir=partitions/alpha_0.3/seed_42 \
+    model.name=res9 \
+    common.seed=42 \
+    common.global_epoch=50 \
+    mode=serial \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/res9/alpha0.3/seed42_second" \
+    fedlategram.tau_cka=0.85 \
+    fedlategram.late_fraction=0.45 \
+    fedlategram.freeze_strategy=slow_update \
+    fedlategram.freq_early=1 \
+    fedlategram.alpha_early_lr=0.05 \
+    fedlategram.T_warm=20 \
+    fedlategram.lam=0.15 \
+    fedlategram.lam_adaptive=true
 
 echo ""
 echo "========================================"
