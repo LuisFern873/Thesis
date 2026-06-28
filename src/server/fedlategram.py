@@ -54,8 +54,12 @@ class FedLateGramServer(CKADriftFedAvgServer):
         )
         parser.add_argument(
             "--freeze_strategy", type=str, default="warm_then_freeze",
-            choices=["full_freeze", "slow_update", "warm_then_freeze"],
-            help="How to handle early layers after warm-up",
+            choices=["full_freeze", "slow_update", "warm_then_freeze", "warm_then_slow_update"],
+            help=(
+                "How to handle early layers after warm-up. "
+                "'warm_then_slow_update': like warm_then_freeze but applies slow_update "
+                "(scaled gradients + infrequent aggregation) instead of freezing."
+            ),
         )
         parser.add_argument(
             "--T_warm", type=int, default=10,
@@ -104,9 +108,9 @@ class FedLateGramServer(CKADriftFedAvgServer):
         # random numbers during __init__ and displacing client_sample_stream.
         self._proxy_loader = None
 
-        # Warm-up state
-        self._warming_up = (
-            self.args.fedlategram.freeze_strategy == "warm_then_freeze"
+        # Warm-up state — both warm_then_* strategies start in warm-up mode
+        self._warming_up = self.args.fedlategram.freeze_strategy in (
+            "warm_then_freeze", "warm_then_slow_update"
         )
 
     # ------------------------------------------------------------------
@@ -250,16 +254,22 @@ class FedLateGramServer(CKADriftFedAvgServer):
         self._update_client_lr()
 
         # 2. Warm-up flag management.
-        #    warm_then_freeze: warming_up=True for rounds 0..(T_warm-1),
-        #    i.e. the first T_warm communication rounds use plain FedAvg.
+        #    warm_then_freeze / warm_then_slow_update: warming_up=True for
+        #    rounds 0..(T_warm-1); after that, switch to full_freeze or
+        #    slow_update respectively.
         #    Any other strategy activates gram penalty from round 0.
-        if self.args.fedlategram.freeze_strategy == "warm_then_freeze":
+        if self.args.fedlategram.freeze_strategy in ("warm_then_freeze", "warm_then_slow_update"):
             was_warming = self._warming_up
             self._warming_up = self.current_epoch < self.args.fedlategram.T_warm
             if was_warming and not self._warming_up:
+                active_strategy = (
+                    "full_freeze"
+                    if self.args.fedlategram.freeze_strategy == "warm_then_freeze"
+                    else "slow_update"
+                )
                 self.logger.log(
                     f"[FedLateGram] Warm-up complete at round {self.current_epoch + 1}. "
-                    "Activating gram penalty and early-layer freezing."
+                    f"Activating gram penalty and '{active_strategy}' for early layers."
                 )
         else:
             self._warming_up = False
@@ -393,7 +403,7 @@ class FedLateGramServer(CKADriftFedAvgServer):
                 )
                 global_param.data = torch.sum(stacked * weights, dim=-1)
 
-            elif self.args.fedlategram.freeze_strategy == "slow_update":
+            elif self.args.fedlategram.freeze_strategy in ("slow_update", "warm_then_slow_update"):
                 # Early layers: aggregate only every freq_early rounds
                 if self.current_epoch % self.args.fedlategram.freq_early == 0:
                     stacked = torch.stack(

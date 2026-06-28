@@ -199,11 +199,11 @@ class FedLateGramClient(FedAvgClient):
 
                 # ---- Gradient modification for early layers ----
                 if not self.warming_up:
-                    if self.freeze_strategy == "full_freeze":
+                    if self.freeze_strategy in ("full_freeze", "warm_then_freeze"):
                         for pname, param in self.model.named_parameters():
                             if not self._is_late_param(pname) and param.grad is not None:
                                 param.grad = None
-                    elif self.freeze_strategy == "slow_update":
+                    elif self.freeze_strategy in ("slow_update", "warm_then_slow_update"):
                         for pname, param in self.model.named_parameters():
                             if not self._is_late_param(pname) and param.grad is not None:
                                 param.grad.mul_(self.alpha_early_lr)
