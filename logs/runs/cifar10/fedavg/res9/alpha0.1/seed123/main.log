@@ -1,0 +1,110 @@
+==================== CKADriftFedAvg ====================                                                                                                    
+Experiment Arguments:                                                                                                                                       
+{
+│   'method': 'ckadriftfedavg',
+│   'dataset': {
+│   │   'name': 'cifar10',
+│   │   'partition_dir': 'partitions/alpha_0.1/seed_123',
+│   │   'client_num': 10,
+│   │   'test_ratio': 0.25,
+│   │   'val_ratio': 0.0,
+│   │   'seed': 123,
+│   │   'split': 'sample',
+│   │   'IID_ratio': 0.0,
+│   │   'alpha': 0.1,
+│   │   'min_samples_per_client': 10,
+│   │   'sample_fraction': 0.1,
+│   │   'subset_seed': 42,
+│   │   'monitor_window_name_suffix': 'cifar10-10clients-0%IID-Dir(0.1)-seed123-10pct'
+│   },
+│   'model': {
+│   │   'name': 'res9',
+│   │   'use_torchvision_pretrained_weights': False,
+│   │   'external_model_weights_path': None
+│   },
+│   'optimizer': {
+│   │   'lr': 0.01,
+│   │   'dampening': 0,
+│   │   'weight_decay': 0.0001,
+│   │   'momentum': 0.9,
+│   │   'nesterov': False,
+│   │   'name': 'sgd'
+│   },
+│   'mode': 'serial',
+│   'parallel': {
+│   │   'ray_cluster_addr': None,
+│   │   'num_cpus': 40,
+│   │   'num_gpus': 0,
+│   │   'num_workers': 5
+│   },
+│   'common': {
+│   │   'seed': 123,
+│   │   'join_ratio': 1.0,
+│   │   'global_epoch': 50,
+│   │   'local_epoch': 5,
+│   │   'batch_size': 32,
+│   │   'reset_optimizer_on_global_epoch': True,
+│   │   'straggler_ratio': 0,
+│   │   'straggler_min_local_epoch': 0,
+│   │   'buffers': 'global',
+│   │   'client_side_evaluation': True,
+│   │   'test': {
+│   │   │   'client': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'finetune_epoch': 0,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True
+│   │   │   },
+│   │   │   'server': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True,
+│   │   │   │   'model_in_train_mode': False
+│   │   │   }
+│   │   },
+│   │   'verbose_gap': 10,
+│   │   'monitor': 'tensorboard',
+│   │   'use_cuda': True,
+│   │   'save_log': True,
+│   │   'save_model': False,
+│   │   'save_learning_curve_plot': True,
+│   │   'save_metrics': True,
+│   │   'delete_useless_run': True,
+│   │   'dataloader_num_workers': 2,
+│   │   'resume_checkpoint': None
+│   },
+│   'cka': {
+│   │   'rounds': [
+│   │   │   1,
+│   │   │   2,
+│   │   │   5,
+│   │   │   10,
+│   │   │   20,
+│   │   │   30,
+│   │   │   40,
+│   │   │   50
+│   │   ],
+│   │   'client_sample': 10,
+│   │   'probe_batches': 20,
+│   │   'probe_batch_size': 16
+│   },
+│   'ckadriftfedavg': {},
+│   'driftfedavg': {}
+}
+---------------------------- ROUND 1/50 START ----------------------------                                                                                  
+Selected clients: [0, 4, 1, 6, 3, 2, 9, 5, 7, 8]                                                                                                            
+  [Client 0] Starting local training...                                                                                                                     
+  [Client 0] Finished training in 9.17s                                                                                                                     
+  [Client 4] Starting local training...                                                                                                                     
+  [Client 4] Finished training in 15.50s                                                                                                                    
+  [Client 1] Starting local training...                                                                                                                     
+  [Client 1] Finished training in 12.57s                                                                                                                    
+  [Client 6] Starting local training...                                                                                                                     
+  [Client 6] Finished training in 16.62s                                                                                                                    
+  [Client 3] Starting local training...                                                                                                                     
+  [Client 3] Finished training in 15.17s                                                                                                                    
+  [Client 2] Starting local training...                                                                                                                     
+  [Client 2] Finished training in 4.17s                                                                                                                     
+  [Client 9] Starting local training...                                                                                                                     

@@ -76,3 +76,7 @@ Vim
 
 CLAUDE.md
 .kiro
+
+# checkpoints
+logs/runs/cifar10/**/checkpoints
+logs/runs/brain_tumor/**/checkpoints
