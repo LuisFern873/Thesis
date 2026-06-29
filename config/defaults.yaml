@@ -172,5 +172,7 @@ fedlategram:
   freq_early: 5                   # Aggregate early layers every N rounds (slow_update only)
   gram_ref: proxy                 # [proxy, avg_local]
   proxy_size: 256                 # Number of proxy samples for global gram reference
+  mu_clf: 0.0                     # FedProx weight on classifier head: μ/2·‖W_clf^k − W_clf^global‖²
+                                  # 0.0 = disabled; orthogonal to gram penalty (parameter space, not activation space)
   lam_adaptive: true              # If true, compute λ_ℓ from gram divergences each round.
                                   # If false, behaviour is identical to before this change.

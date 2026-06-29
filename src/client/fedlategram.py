@@ -36,6 +36,9 @@ class FedLateGramClient(FedAvgClient):
         self.warming_up: bool = package["warming_up"]
         self.alpha_early_lr: float = package["alpha_early_lr"]
         self.layer_lambdas: dict[str, float] = package.get("layer_lambdas", {})
+        self.mu_clf: float = package.get("mu_clf", 0.0)
+        # global_clf_params: {param_name: tensor} for W_clf^global, CPU
+        self.global_clf_params: dict[str, torch.Tensor] = package.get("global_clf_params", {})
 
     def _is_late_param(self, name: str) -> bool:
         return any(name.startswith(prefix) for prefix in self.late_layer_names)
@@ -46,11 +49,11 @@ class FedLateGramClient(FedAvgClient):
 
     def _register_gram_hooks(self) -> tuple[dict, list]:
         """
-        Register forward hooks on all late submodules, including classifier.
+        Register forward hooks on late submodules (excluding classifier).
         Returns (activations_dict, handles_list).
         Caller is responsible for removing handles after the forward.
         """
-        target_names = list(self.late_layer_names)
+        target_names = [n for n in self.late_layer_names if n != "classifier"]
         activations: dict[str, torch.Tensor] = {}
         handles = []
 
@@ -106,6 +109,26 @@ class FedLateGramClient(FedAvgClient):
             grams[name] = G
         return grams
 
+    def _prox_clf_loss(self) -> torch.Tensor:
+        """
+        FedProx-style proximal penalty on the classifier head:
+
+            μ/2 · Σ_p ‖W_clf_p^k − W_clf_p^global‖²
+
+        Operates in parameter space (not activation space), so it does not
+        interfere with cross-entropy the same way gram penalty would.
+        Returns 0 when mu_clf == 0 or global_clf_params is empty.
+        """
+        if self.mu_clf == 0.0 or not self.global_clf_params:
+            return torch.tensor(0.0, device=self.device)
+
+        loss = torch.tensor(0.0, device=self.device)
+        for name, param in self.model.classifier.named_parameters():
+            if name in self.global_clf_params:
+                w_global = self.global_clf_params[name].to(self.device).detach()
+                loss = loss + torch.sum((param - w_global) ** 2)
+        return (self.mu_clf / 2.0) * loss
+
     def _gram_loss(
         self,
         grams_local: dict[str, torch.Tensor],
@@ -159,10 +182,12 @@ class FedLateGramClient(FedAvgClient):
 
         loss_task_accum = 0.0
         loss_gram_accum = 0.0
+        loss_prox_accum = 0.0
         steps = 0
         last_local_grams: dict[str, torch.Tensor] = {}
 
         active_gram = self.lam > 0.0 and bool(self.global_grams)
+        active_prox = self.mu_clf > 0.0 and bool(self.global_clf_params)
 
         for _ in range(self.local_epoch):
             pbar = tqdm(
@@ -200,7 +225,10 @@ class FedLateGramClient(FedAvgClient):
                             k: v.detach().cpu() for k, v in grams_local.items()
                         }
 
-                loss = loss_task + loss_gram
+                # ---- FedProx penalty on classifier (parameter space) ----
+                loss_prox = self._prox_clf_loss() if active_prox else torch.tensor(0.0, device=self.device)
+
+                loss = loss_task + loss_gram + loss_prox
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -219,11 +247,13 @@ class FedLateGramClient(FedAvgClient):
 
                 loss_task_accum += loss_task.item()
                 loss_gram_accum += loss_gram.item()
+                loss_prox_accum += loss_prox.item()
                 steps += 1
 
                 pbar.set_postfix(
                     task=f"{loss_task.item():.4f}",
                     gram=f"{loss_gram.item():.6f}",
+                    prox=f"{loss_prox.item():.6f}",
                 )
 
             if self.lr_scheduler is not None:
@@ -232,6 +262,7 @@ class FedLateGramClient(FedAvgClient):
         self._steps = max(steps, 1)
         self._loss_task_accum = loss_task_accum
         self._loss_gram_accum = loss_gram_accum
+        self._loss_prox_accum = loss_prox_accum
         self._last_local_grams = last_local_grams
 
     # ------------------------------------------------------------------
@@ -243,5 +274,6 @@ class FedLateGramClient(FedAvgClient):
         steps = getattr(self, "_steps", 1)
         pkg["loss_task_mean"] = getattr(self, "_loss_task_accum", 0.0) / steps
         pkg["loss_gram_mean"] = getattr(self, "_loss_gram_accum", 0.0) / steps
+        pkg["loss_prox_mean"] = getattr(self, "_loss_prox_accum", 0.0) / steps
         pkg["local_grams"] = getattr(self, "_last_local_grams", {})
         return pkg

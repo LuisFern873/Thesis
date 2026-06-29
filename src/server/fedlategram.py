@@ -82,6 +82,16 @@ class FedLateGramServer(CKADriftFedAvgServer):
             "--proxy_size", type=int, default=256,
             help="Number of samples for proxy gram reference (gram_ref=proxy)",
         )
+        parser.add_argument(
+            "--mu_clf", type=float, default=0.0,
+            help=(
+                "FedProx penalty weight on the classifier head. "
+                "Adds μ/2 · ‖W_clf^k − W_clf^global‖² to the client loss. "
+                "Orthogonal to gram penalty: operates in parameter space, "
+                "not activation space, so it does not interfere with CE. "
+                "Set to 0.0 (default) to disable."
+            ),
+        )
         return parser.parse_args(args_list)
 
     def __init__(self, args: DictConfig):
@@ -111,6 +121,13 @@ class FedLateGramServer(CKADriftFedAvgServer):
         # Warm-up state — both warm_then_* strategies start in warm-up mode
         self._warming_up = self.args.fedlategram.freeze_strategy in (
             "warm_then_freeze", "warm_then_slow_update"
+        )
+
+        # Snapshot of global classifier weights sent to clients each round
+        # for the FedProx-on-classifier term (mu_clf > 0 only).
+        # Stored on CPU; clients move to their device as needed.
+        self._global_clf_params: dict[str, torch.Tensor] = (
+            self._snapshot_classifier() if self.args.fedlategram.mu_clf > 0.0 else {}
         )
 
     # ------------------------------------------------------------------
@@ -167,6 +184,13 @@ class FedLateGramServer(CKADriftFedAvgServer):
     def _is_late_param(self, param_name: str) -> bool:
         return any(param_name.startswith(p) for p in self.late_layer_names)
 
+    def _snapshot_classifier(self) -> dict[str, torch.Tensor]:
+        """Return a CPU copy of the global classifier parameters."""
+        return {
+            name: param.detach().cpu().clone()
+            for name, param in self.model.classifier.named_parameters()
+        }
+
     # ------------------------------------------------------------------
     # Proxy dataloader
     # ------------------------------------------------------------------
@@ -189,16 +213,12 @@ class FedLateGramServer(CKADriftFedAvgServer):
 
     @torch.no_grad()
     def _compute_global_grams(self) -> dict[str, torch.Tensor]:
-        """Compute (D,D) gram matrices from global model on proxy dataset.
-        Includes all late layers — among them self.classifier (nn.Linear),
-        whose output is (N, num_classes). The resulting gram is
-        (num_classes, num_classes), small but valid.
-        """
+        """Compute (D,D) gram matrices from global model on proxy dataset."""
         self.model.to(self.device)
         self.model.eval()
         self.dataset.eval()
 
-        target_names = list(self.late_layer_names)
+        target_names = [n for n in self.late_layer_names if n != "classifier"]
         activations: dict[str, list[torch.Tensor]] = {n: [] for n in target_names}
         handles = []
 
@@ -285,15 +305,21 @@ class FedLateGramServer(CKADriftFedAvgServer):
                 self._proxy_loader = self._build_proxy_loader()
             self.global_grams = self._compute_global_grams()
 
-        # 4. Client training — clients receive warming_up flag via package()
+        # 4. Refresh global classifier snapshot for FedProx-on-classifier term.
+        #    Done every round (warm-up or not) so clients always anchor to the
+        #    current global classifier, matching standard FedProx semantics.
+        if self.args.fedlategram.mu_clf > 0.0:
+            self._global_clf_params = self._snapshot_classifier()
+
+        # 5. Client training — clients receive warming_up flag via package()
         #    and behave identically to FedAvgClient during warm-up.
         client_packages = self.trainer.train()
 
-        # 5. avg_local gram reference update (no-op during warm-up)
+        # 6. avg_local gram reference update (no-op during warm-up)
         if self.args.fedlategram.gram_ref == "avg_local" and not self._warming_up:
             self._aggregate_local_grams(client_packages)
 
-        # 6. Adaptive per-layer lambdas — computed after grams are updated.
+        # 7. Adaptive per-layer lambdas — computed after grams are updated.
         if (
             self.args.fedlategram.get("lam_adaptive", True)
             and not self._warming_up
@@ -309,17 +335,19 @@ class FedLateGramServer(CKADriftFedAvgServer):
         else:
             self.layer_lambdas = {}   # empty → client falls back to scalar lam
 
-        # 7. Log gram losses (only meaningful after warm-up)
+        # 8. Log gram + prox losses (only meaningful after warm-up)
         gram_losses = [pkg.get("loss_gram_mean", 0.0) for pkg in client_packages.values()]
         task_losses = [pkg.get("loss_task_mean", 0.0) for pkg in client_packages.values()]
-        if any(g > 0 for g in gram_losses):
+        prox_losses = [pkg.get("loss_prox_mean", 0.0) for pkg in client_packages.values()]
+        if any(g > 0 for g in gram_losses) or any(p > 0 for p in prox_losses):
             self.logger.log(
                 f"[FedLateGram Round {self.current_epoch + 1}] "
                 f"avg task: {sum(task_losses)/len(task_losses):.4f} | "
-                f"avg gram: {sum(gram_losses)/len(gram_losses):.4f}"
+                f"avg gram: {sum(gram_losses)/len(gram_losses):.4f} | "
+                f"avg prox_clf: {sum(prox_losses)/len(prox_losses):.4f}"
             )
 
-        # 8. Aggregate — goes through FedLateGramServer.aggregate_client_updates
+        # 9. Aggregate — goes through FedLateGramServer.aggregate_client_updates
         #    which handles CKA checkpoint + drift metrics + selective FedAvg.
         self.aggregate_client_updates(client_packages)
 
@@ -434,6 +462,9 @@ class FedLateGramServer(CKADriftFedAvgServer):
         pkg["warming_up"] = self._warming_up
         pkg["alpha_early_lr"] = self.args.fedlategram.alpha_early_lr
         pkg["layer_lambdas"] = dict(self.layer_lambdas)   # plain float dict, safe to serialize
+        pkg["mu_clf"] = self.args.fedlategram.mu_clf
+        # global_clf_params is {} when mu_clf == 0 (no overhead)
+        pkg["global_clf_params"] = {k: v.clone() for k, v in self._global_clf_params.items()}
         return pkg
 
     # ------------------------------------------------------------------
@@ -462,18 +493,30 @@ class FedLateGramServer(CKADriftFedAvgServer):
     ) -> dict[str, float]:
         """
         Compute per-layer λ proportional to mean gram divergence across clients.
-        Returns a dict {layer_name: lambda_value} for all late layers that have
-        a gram matrix, including classifier (whose gram is (num_classes, num_classes)).
+        Returns a dict {layer_name: lambda_value} for gram-tracked late layers only
+        (i.e. late_layer_names excluding 'classifier').
 
         Invariant: Σ λ_ℓ ≈ λ_0 (scalar lam), so the hyperparameter remains
         interpretable without retuning.
+
+        The classifier is intentionally excluded:
+        - It is in late_layer_names solely for selective FedAvg aggregation.
+        - It has no gram matrix (gram penalty on logits is redundant with
+          cross-entropy and conceptually inconsistent with representation
+          regularisation).
+        - Assigning it a fixed lam0 weight (previous behaviour) broke the
+          Σ λ_ℓ ≈ λ_0 invariant by adding an unnormalised constant on top of
+          the normalised gram-layer weights.
         """
         lam0 = self.args.fedlategram.lam
         weights = [pkg["weight"] for pkg in client_packages.values()]
         total_w = sum(weights) + 1e-8
 
+        # Only consider layers that actually have gram matrices.
+        gram_names = [n for n in self.late_layer_names if n != "classifier"]
+
         divergences: dict[str, float] = {}
-        for name in self.late_layer_names:
+        for name in gram_names:
             if name not in self.global_grams:
                 divergences[name] = 0.0
                 continue
@@ -489,10 +532,10 @@ class FedLateGramServer(CKADriftFedAvgServer):
 
         total_d = sum(divergences.values()) + 1e-8
 
-        # Normalise so Σ λ_ℓ = λ_0 across all gram-tracked late layers.
+        # Normalise so Σ λ_ℓ = λ_0 across gram-tracked layers only.
         return {
             name: float(lam0 * divergences[name] / total_d)
-            for name in self.late_layer_names
+            for name in gram_names
         }
 
     # ------------------------------------------------------------------
@@ -519,6 +562,7 @@ class FedLateGramServer(CKADriftFedAvgServer):
             "global_grams": {k: v.cpu() for k, v in self.global_grams.items()},
             "_warming_up": self._warming_up,
             "layer_lambdas": dict(self.layer_lambdas),
+            "_global_clf_params": {k: v.cpu() for k, v in self._global_clf_params.items()},
         }
         dest = checkpoint_dir / "training_state.pt"
         tmp  = checkpoint_dir / "training_state.pt.tmp"
@@ -552,6 +596,7 @@ class FedLateGramServer(CKADriftFedAvgServer):
         self.global_grams  = state.get("global_grams", {})
         self._warming_up   = state.get("_warming_up", self._warming_up)
         self.layer_lambdas = state.get("layer_lambdas", {})
+        self._global_clf_params = state.get("_global_clf_params", {})
 
         resume_from = self.current_epoch + 1
         self.logger.log(
