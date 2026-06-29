@@ -142,6 +142,18 @@ class FedLateGramClient(FedAvgClient):
     # ------------------------------------------------------------------
 
     def fit(self):
+        # During warm-up, delegate entirely to FedAvgClient.fit() so that
+        # the executed bytecode is bit-for-bit identical to the FedAvg
+        # baseline (no tqdm wrapper, no extra state, same RNG progression).
+        if self.warming_up:
+            super().fit()
+            # Zero-fill accumulators so package() sends consistent fields.
+            self._steps = 1
+            self._loss_task_accum = 0.0
+            self._loss_gram_accum = 0.0
+            self._last_local_grams = {}
+            return
+
         self.model.train()
         self.dataset.train()
 
@@ -150,11 +162,7 @@ class FedLateGramClient(FedAvgClient):
         steps = 0
         last_local_grams: dict[str, torch.Tensor] = {}
 
-        active_gram = (
-            not self.warming_up
-            and self.lam > 0.0
-            and bool(self.global_grams)
-        )
+        active_gram = self.lam > 0.0 and bool(self.global_grams)
 
         for _ in range(self.local_epoch):
             pbar = tqdm(
@@ -198,15 +206,14 @@ class FedLateGramClient(FedAvgClient):
                 loss.backward()
 
                 # ---- Gradient modification for early layers ----
-                if not self.warming_up:
-                    if self.freeze_strategy in ("full_freeze", "warm_then_freeze"):
-                        for pname, param in self.model.named_parameters():
-                            if not self._is_late_param(pname) and param.grad is not None:
-                                param.grad = None
-                    elif self.freeze_strategy in ("slow_update", "warm_then_slow_update"):
-                        for pname, param in self.model.named_parameters():
-                            if not self._is_late_param(pname) and param.grad is not None:
-                                param.grad.mul_(self.alpha_early_lr)
+                if self.freeze_strategy in ("full_freeze", "warm_then_freeze"):
+                    for pname, param in self.model.named_parameters():
+                        if not self._is_late_param(pname) and param.grad is not None:
+                            param.grad = None
+                elif self.freeze_strategy in ("slow_update", "warm_then_slow_update"):
+                    for pname, param in self.model.named_parameters():
+                        if not self._is_late_param(pname) and param.grad is not None:
+                            param.grad.mul_(self.alpha_early_lr)
 
                 self.optimizer.step()
 
