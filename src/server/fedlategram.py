@@ -189,12 +189,16 @@ class FedLateGramServer(CKADriftFedAvgServer):
 
     @torch.no_grad()
     def _compute_global_grams(self) -> dict[str, torch.Tensor]:
-        """Compute (D,D) gram matrices from global model on proxy dataset."""
+        """Compute (D,D) gram matrices from global model on proxy dataset.
+        Includes all late layers — among them self.classifier (nn.Linear),
+        whose output is (N, num_classes). The resulting gram is
+        (num_classes, num_classes), small but valid.
+        """
         self.model.to(self.device)
         self.model.eval()
         self.dataset.eval()
 
-        target_names = [n for n in self.late_layer_names if n != "classifier"]
+        target_names = list(self.late_layer_names)
         activations: dict[str, list[torch.Tensor]] = {n: [] for n in target_names}
         handles = []
 
@@ -458,22 +462,18 @@ class FedLateGramServer(CKADriftFedAvgServer):
     ) -> dict[str, float]:
         """
         Compute per-layer λ proportional to mean gram divergence across clients.
-        Returns a dict {layer_name: lambda_value} for all names in self.late_layer_names.
+        Returns a dict {layer_name: lambda_value} for all late layers that have
+        a gram matrix, including classifier (whose gram is (num_classes, num_classes)).
 
-        The total penalty is preserved: Σ λ_ℓ ≈ λ_0 (scalar lam) so the
-        hyperparameter remains interpretable without retuning.
+        Invariant: Σ λ_ℓ ≈ λ_0 (scalar lam), so the hyperparameter remains
+        interpretable without retuning.
         """
         lam0 = self.args.fedlategram.lam
         weights = [pkg["weight"] for pkg in client_packages.values()]
         total_w = sum(weights) + 1e-8
 
         divergences: dict[str, float] = {}
-
         for name in self.late_layer_names:
-            if name == "classifier":
-                # Classifier head has no gram matrix; assign lam0 as default.
-                divergences[name] = lam0
-                continue
             if name not in self.global_grams:
                 divergences[name] = 0.0
                 continue
@@ -485,21 +485,15 @@ class FedLateGramServer(CKADriftFedAvgServer):
                 if G_k is None:
                     continue
                 layer_divergence += (w / total_w) * (G_k.cpu() - G_global).norm(p="fro").item()
-
             divergences[name] = layer_divergence
 
-        # Normalise gram-tracked layers (exclude the classifier default)
-        gram_names = [n for n in self.late_layer_names if n != "classifier"]
-        total_d = sum(divergences.get(n, 0.0) for n in gram_names) + 1e-8
+        total_d = sum(divergences.values()) + 1e-8
 
-        layer_lambdas: dict[str, float] = {}
-        for name in self.late_layer_names:
-            if name == "classifier":
-                layer_lambdas[name] = lam0
-            else:
-                layer_lambdas[name] = float(lam0 * divergences.get(name, 0.0) / total_d)
-
-        return layer_lambdas
+        # Normalise so Σ λ_ℓ = λ_0 across all gram-tracked late layers.
+        return {
+            name: float(lam0 * divergences[name] / total_d)
+            for name in self.late_layer_names
+        }
 
     # ------------------------------------------------------------------
     # Resume checkpoint — extend base with FedLateGram-specific state

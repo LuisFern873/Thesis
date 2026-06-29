@@ -46,11 +46,11 @@ class FedLateGramClient(FedAvgClient):
 
     def _register_gram_hooks(self) -> tuple[dict, list]:
         """
-        Register forward hooks on late submodules (excluding classifier).
+        Register forward hooks on all late submodules, including classifier.
         Returns (activations_dict, handles_list).
         Caller is responsible for removing handles after the forward.
         """
-        target_names = [n for n in self.late_layer_names if n != "classifier"]
+        target_names = list(self.late_layer_names)
         activations: dict[str, torch.Tensor] = {}
         handles = []
 
