@@ -4,9 +4,11 @@
 - common.seed=42
 - common.global_epoch=50
 - mode=serial
-- fedlategram.tau_cka=0.87
-- fedlategram.late_fraction=0.20
-- fedlategram.freeze_strategy=full_freeze
-- fedlategram.T_warm=20
-- fedlategram.lam=0.08
+- fedlategram.tau_cka=0.85
+- fedlategram.late_fraction=0.1
+- fedlategram.freeze_strategy=warm_then_slow_update
+- fedlategram.freq_early=2
+- fedlategram.alpha_early_lr=0.05
+- fedlategram.T_warm=30
+- fedlategram.lam=0.15
 - fedlategram.lam_adaptive=true

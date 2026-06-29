@@ -1,0 +1,245 @@
+==================== CKADriftFedProx ====================                                                                                                                                                                                  
+Experiment Arguments:                                                                                                                                                                                                                      
+{
+│   'method': 'ckadriftfedprox',
+│   'dataset': {
+│   │   'name': 'cifar10',
+│   │   'partition_dir': 'partitions/alpha_0.1/seed_123',
+│   │   'client_num': 10,
+│   │   'test_ratio': 0.25,
+│   │   'val_ratio': 0.0,
+│   │   'seed': 123,
+│   │   'split': 'sample',
+│   │   'IID_ratio': 0.0,
+│   │   'alpha': 0.1,
+│   │   'min_samples_per_client': 10,
+│   │   'sample_fraction': 0.1,
+│   │   'subset_seed': 42,
+│   │   'monitor_window_name_suffix': 'cifar10-10clients-0%IID-Dir(0.1)-seed123-10pct'
+│   },
+│   'model': {
+│   │   'name': 'vim_tiny',
+│   │   'use_torchvision_pretrained_weights': False,
+│   │   'external_model_weights_path': None
+│   },
+│   'optimizer': {
+│   │   'lr': 0.01,
+│   │   'dampening': 0,
+│   │   'weight_decay': 0.0001,
+│   │   'momentum': 0.9,
+│   │   'nesterov': False,
+│   │   'name': 'sgd'
+│   },
+│   'mode': 'serial',
+│   'parallel': {
+│   │   'ray_cluster_addr': None,
+│   │   'num_cpus': 40,
+│   │   'num_gpus': 0,
+│   │   'num_workers': 5
+│   },
+│   'common': {
+│   │   'seed': 123,
+│   │   'join_ratio': 1.0,
+│   │   'global_epoch': 50,
+│   │   'local_epoch': 5,
+│   │   'batch_size': 32,
+│   │   'reset_optimizer_on_global_epoch': True,
+│   │   'straggler_ratio': 0,
+│   │   'straggler_min_local_epoch': 0,
+│   │   'buffers': 'global',
+│   │   'client_side_evaluation': True,
+│   │   'test': {
+│   │   │   'client': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'finetune_epoch': 0,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True
+│   │   │   },
+│   │   │   'server': {
+│   │   │   │   'interval': 1,
+│   │   │   │   'train': False,
+│   │   │   │   'val': False,
+│   │   │   │   'test': True,
+│   │   │   │   'model_in_train_mode': False
+│   │   │   }
+│   │   },
+│   │   'verbose_gap': 10,
+│   │   'monitor': 'tensorboard',
+│   │   'use_cuda': True,
+│   │   'save_log': True,
+│   │   'save_model': False,
+│   │   'save_learning_curve_plot': True,
+│   │   'save_metrics': True,
+│   │   'delete_useless_run': True,
+│   │   'dataloader_num_workers': 2,
+│   │   'resume_checkpoint': None
+│   },
+│   'cka': {
+│   │   'rounds': [
+│   │   │   1,
+│   │   │   2,
+│   │   │   5,
+│   │   │   10,
+│   │   │   20,
+│   │   │   30,
+│   │   │   40,
+│   │   │   50
+│   │   ],
+│   │   'client_sample': 10,
+│   │   'probe_batches': 20,
+│   │   'probe_batch_size': 16
+│   },
+│   'ckadriftfedprox': {
+│   │   'mu': 0.01
+│   },
+│   'driftfedprox': {
+│   │   'mu': 0.01
+│   }
+}
+---------------------------- ROUND 1/50 START ----------------------------                                                                                                                                                                 
+Selected clients: [0, 4, 1, 6, 3, 2, 9, 5, 7, 8]                                                                                                                                                                                           
+  [Client 0] Starting local training...                                                                                                                                                                                                    
+  [Client 0] Finished training in 16.33s                                                                                                                                                                                                   
+  [Client 4] Starting local training...                                                                                                                                                                                                    
+  [Client 4] Finished training in 17.73s                                                                                                                                                                                                   
+  [Client 1] Starting local training...                                                                                                                                                                                                    
+  [Client 1] Finished training in 14.20s                                                                                                                                                                                                   
+  [Client 6] Starting local training...                                                                                                                                                                                                    
+  [Client 6] Finished training in 19.08s                                                                                                                                                                                                   
+  [Client 3] Starting local training...                                                                                                                                                                                                    
+  [Client 3] Finished training in 14.11s                                                                                                                                                                                                   
+  [Client 2] Starting local training...                                                                                                                                                                                                    
+  [Client 2] Finished training in 4.79s                                                                                                                                                                                                    
+  [Client 9] Starting local training...                                                                                                                                                                                                    
+  [Client 9] Finished training in 35.17s                                                                                                                                                                                                   
+  [Client 5] Starting local training...                                                                                                                                                                                                    
+  [Client 5] Finished training in 34.27s                                                                                                                                                                                                   
+  [Client 7] Starting local training...                                                                                                                                                                                                    
+  [Client 7] Finished training in 7.13s                                                                                                                                                                                                    
+  [Client 8] Starting local training...                                                                                                                                                                                                    
+  [Client 8] Finished training in 11.12s                                                                                                                                                                                                   
+  [CKA] Saved checkpoints for round 1 (10 clients) → /home/luis.mendezl/Thesis/logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123/checkpoints/round_0001                                                                                  
+  Starting weight aggregation...                                                                                                                                                                                                           
+  Aggregation completed in 0.05s                                                                                                                                                                                                           
+ROUND 1 FINISHED in 176.30s (Avg: 176.30s)                                                                                                                                                                                                 
+  [Resume] Saved training checkpoint after round 1 → /home/luis.mendezl/Thesis/logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123/checkpoints/training_state.pt                                                                           
+---------------------------- ROUND 2/50 START ----------------------------                                                                                                                                                                 
+Selected clients: [5, 0, 2, 1, 7, 4, 9, 3, 8, 6]                                                                                                                                                                                           
+  [Client 5] Starting local training...                                                                                                                                                                                                    
+  [Client 5] Finished training in 34.25s                                                                                                                                                                                                   
+  [Client 0] Starting local training...                                                                                                                                                                                                    
+  [Client 0] Finished training in 9.54s                                                                                                                                                                                                    
+  [Client 2] Starting local training...                                                                                                                                                                                                    
+  [Client 2] Finished training in 5.02s                                                                                                                                                                                                    
+  [Client 1] Starting local training...                                                                                                                                                                                                    
+  [Client 1] Finished training in 14.30s                                                                                                                                                                                                   
+  [Client 7] Starting local training...                                                                                                                                                                                                    
+  [Client 7] Finished training in 7.81s                                                                                                                                                                                                    
+  [Client 4] Starting local training...                                                                                                                                                                                                    
+  [Client 4] Finished training in 18.87s                                                                                                                                                                                                   
+  [Client 9] Starting local training...                                                                                                                                                                                                    
+  [Client 9] Finished training in 36.36s                                                                                                                                                                                                   
+  [Client 3] Starting local training...                                                                                                                                                                                                    
+  [Client 3] Finished training in 19.33s                                                                                                                                                                                                   
+  [Client 8] Starting local training...                                                                                                                                                                                                    
+  [Client 8] Finished training in 10.55s                                                                                                                                                                                                   
+  [Client 6] Starting local training...                                                                                                                                                                                                    
+  [Client 6] Finished training in 19.17s                                                                                                                                                                                                   
+  [CKA] Saved checkpoints for round 2 (10 clients) → /home/luis.mendezl/Thesis/logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123/checkpoints/round_0002                                                                                  
+  Starting weight aggregation...                                                                                                                                                                                                           
+  Aggregation completed in 0.10s                                                                                                                                                                                                           
+ROUND 2 FINISHED in 178.55s (Avg: 177.43s)                                                                                                                                                                                                 
+  [Resume] Saved training checkpoint after round 2 → /home/luis.mendezl/Thesis/logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123/checkpoints/training_state.pt                                                                           
+---------------------------- ROUND 3/50 START ----------------------------                                                                                                                                                                 
+Selected clients: [0, 6, 1, 4, 3, 9, 8, 7, 2, 5]                                                                                                                                                                                           
+  [Client 0] Starting local training...                                                                                                                                                                                                    
+  [Client 0] Finished training in 12.98s                                                                                                                                                                                                   
+  [Client 6] Starting local training...                                                                                                                                                                                                    
+  [Client 6] Finished training in 17.70s                                                                                                                                                                                                   
+  [Client 1] Starting local training...                                                                                                                                                                                                    
+  [Client 1] Finished training in 14.58s                                                                                                                                                                                                   
+  [Client 4] Starting local training...                                                                                                                                                                                                    
+  [Client 4] Finished training in 19.20s                                                                                                                                                                                                   
+  [Client 3] Starting local training...                                                                                                                                                                                                    
+  [Client 3] Finished training in 18.55s                                                                                                                                                                                                   
+  [Client 9] Starting local training...                                                                                                                                                                                                    
+  [Client 9] Finished training in 37.19s                                                                                                                                                                                                   
+  [Client 8] Starting local training...                                                                                                                                                                                                    
+  [Client 8] Finished training in 10.39s                                                                                                                                                                                                   
+  [Client 7] Starting local training...                                                                                                                                                                                                    
+  [Client 7] Finished training in 5.92s                                                                                                                                                                                                    
+  [Client 2] Starting local training...                                                                                                                                                                                                    
+  [Client 2] Finished training in 4.07s                                                                                                                                                                                                    
+  [Client 5] Starting local training...                                                                                                                                                                                                    
+  [Client 5] Finished training in 32.90s                                                                                                                                                                                                   
+  Starting weight aggregation...                                                                                                                                                                                                           
+  Aggregation completed in 0.05s                                                                                                                                                                                                           
+ROUND 3 FINISHED in 174.00s (Avg: 176.28s)                                                                                                                                                                                                 
+  [Resume] Saved training checkpoint after round 3 → /home/luis.mendezl/Thesis/logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123/checkpoints/training_state.pt                                                                           
+---------------------------- ROUND 4/50 START ----------------------------                                                                                                                                                                 
+Selected clients: [0, 1, 2, 8, 9, 7, 3, 4, 6, 5]                                                                                                                                                                                           
+  [Client 0] Starting local training...                                                                                                                                                                                                    
+  [Client 0] Finished training in 12.10s                                                                                                                                                                                                   
+  [Client 1] Starting local training...                                                                                                                                                                                                    
+  [Client 1] Finished training in 14.84s                                                                                                                                                                                                   
+  [Client 2] Starting local training...                                                                                                                                                                                                    
+  [Client 2] Finished training in 5.58s                                                                                                                                                                                                    
+  [Client 8] Starting local training...                                                                                                                                                                                                    
+  [Client 8] Finished training in 10.93s                                                                                                                                                                                                   
+  [Client 9] Starting local training...                                                                                                                                                                                                    
+  [Client 9] Finished training in 35.49s                                                                                                                                                                                                   
+  [Client 7] Starting local training...                                                                                                                                                                                                    
+  [Client 7] Finished training in 8.00s                                                                                                                                                                                                    
+  [Client 3] Starting local training...                                                                                                                                                                                                    
+  [Client 3] Finished training in 15.72s                                                                                                                                                                                                   
+  [Client 4] Starting local training...                                                                                                                                                                                                    
+  [Client 4] Finished training in 21.87s                                                                                                                                                                                                   
+  [Client 6] Starting local training...                                                                                                                                                                                                    
+  [Client 6] Finished training in 19.59s                                                                                                                                                                                                   
+  [Client 5] Starting local training...                                                                                                                                                                                                    
+  [Client 5] Finished training in 38.96s                                                                                                                                                                                                   
+  Starting weight aggregation...                                                                                                                                                                                                           
+  Aggregation completed in 0.38s                                                                                                                                                                                                           
+ROUND 4 FINISHED in 183.91s (Avg: 178.19s)                                                                                                                                                                                                 
+  [Resume] Saved training checkpoint after round 4 → /home/luis.mendezl/Thesis/logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123/checkpoints/training_state.pt                                                                           
+---------------------------- ROUND 5/50 START ----------------------------                                                                                                                                                                 
+Selected clients: [7, 0, 4, 2, 9, 3, 1, 6, 5, 8]                                                                                                                                                                                           
+  [Client 7] Starting local training...                                                                                                                                                                                                    
+  [Client 7] Finished training in 6.85s                                                                                                                                                                                                    
+  [Client 0] Starting local training...                                                                                                                                                                                                    
+  [Client 0] Finished training in 12.04s                                                                                                                                                                                                   
+  [Client 4] Starting local training...                                                                                                                                                                                                    
+  [Client 4] Finished training in 19.32s                                                                                                                                                                                                   
+  [Client 2] Starting local training...                                                                                                                                                                                                    
+  [Client 2] Finished training in 4.66s                                                                                                                                                                                                    
+  [Client 9] Starting local training...                                                                                                                                                                                                    
+  [Client 9] Finished training in 28.39s                                                                                                                                                                                                   
+  [Client 3] Starting local training...                                                                                                                                                                                                    
+  [Client 3] Finished training in 20.86s                                                                                                                                                                                                   
+  [Client 1] Starting local training...                                                                                                                                                                                                    
+  [Client 1] Finished training in 16.62s                                                                                                                                                                                                   
+  [Client 6] Starting local training...                                                                                                                                                                                                    
+  [Client 6] Finished training in 18.28s                                                                                                                                                                                                   
+  [Client 5] Starting local training...                                                                                                                                                                                                    
+  [Client 5] Finished training in 34.57s                                                                                                                                                                                                   
+  [Client 8] Starting local training...                                                                                                                                                                                                    
+  [Client 8] Finished training in 10.08s                                                                                                                                                                                                   
+  [CKA] Saved checkpoints for round 5 (10 clients) → /home/luis.mendezl/Thesis/logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123/checkpoints/round_0005                                                                                  
+  Starting weight aggregation...                                                                                                                                                                                                           
+  Aggregation completed in 0.05s                                                                                                                                                                                                           
+ROUND 5 FINISHED in 174.11s (Avg: 177.37s)                                                                                                                                                                                                 
+  [Resume] Saved training checkpoint after round 5 → /home/luis.mendezl/Thesis/logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123/checkpoints/training_state.pt                                                                           
+---------------------------- ROUND 6/50 START ----------------------------                                                                                                                                                                 
+Selected clients: [6, 8, 9, 5, 4, 7, 3, 2, 1, 0]                                                                                                                                                                                           
+  [Client 6] Starting local training...                                                                                                                                                                                                    
+  [Client 6] Finished training in 14.95s                                                                                                                                                                                                   
+  [Client 8] Starting local training...                                                                                                                                                                                                    
+  [Client 8] Finished training in 9.54s                                                                                                                                                                                                    
+  [Client 9] Starting local training...                                                                                                                                                                                                    
+  [Client 9] Finished training in 34.95s                                                                                                                                                                                                   
+  [Client 5] Starting local training...                                                                                                                                                                                                    
+  [Client 5] Finished training in 37.82s                                                                                                                                                                                                   
+  [Client 4] Starting local training...                                                                                                                                                                                                    
+  [Client 4] Finished training in 17.74s                                                                                                                                                                                                   
+  [Client 7] Starting local training...                                                                                                                                                                                                    
