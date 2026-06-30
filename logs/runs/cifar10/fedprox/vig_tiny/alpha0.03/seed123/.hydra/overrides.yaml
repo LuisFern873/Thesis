@@ -1,0 +1,7 @@
+- method=ckadriftfedprox
+- dataset.name=cifar10
+- dataset.partition_dir=partitions/alpha_0.03/seed_123
+- model.name=vig_tiny
+- common.seed=123
+- common.global_epoch=50
+- mode=serial

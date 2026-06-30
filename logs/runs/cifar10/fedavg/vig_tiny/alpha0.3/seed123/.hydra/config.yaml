@@ -1,0 +1,68 @@
+method: ckadriftfedavg
+dataset:
+  name: cifar10
+  partition_dir: partitions/alpha_0.3/seed_123
+model:
+  name: vig_tiny
+  use_torchvision_pretrained_weights: false
+optimizer:
+  name: sgd
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 0.0001
+  nesterov: false
+lr_scheduler:
+  name: null
+  eta_min: 1.0e-05
+mode: serial
+parallel:
+  ray_cluster_addr: null
+  num_cpus: 40
+  num_gpus: 0
+  num_workers: 5
+common:
+  seed: 123
+  join_ratio: 1.0
+  global_epoch: 50
+  local_epoch: 5
+  batch_size: 32
+  dataloader_num_workers: 2
+  reset_optimizer_on_global_epoch: true
+  buffers: global
+  straggler_ratio: 0
+  client_side_evaluation: true
+  test:
+    client:
+      interval: 1
+      finetune_epoch: 0
+      train: false
+      val: false
+      test: true
+    server:
+      interval: 1
+      train: false
+      val: false
+      test: true
+      model_in_train_mode: false
+  verbose_gap: 10
+  monitor: tensorboard
+  use_cuda: true
+  save_log: true
+  save_model: false
+  save_learning_curve_plot: true
+  save_metrics: true
+  delete_useless_run: true
+  resume_checkpoint: null
+cka:
+  rounds:
+  - 1
+  - 2
+  - 5
+  - 10
+  - 20
+  - 30
+  - 40
+  - 50
+  client_sample: 10
+  probe_batches: 20
+  probe_batch_size: 16

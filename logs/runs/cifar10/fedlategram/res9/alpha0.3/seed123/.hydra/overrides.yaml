@@ -1,0 +1,13 @@
+- dataset.name=cifar10
+- dataset.partition_dir=partitions/alpha_0.3/seed_123
+- model.name=res9
+- common.seed=123
+- common.global_epoch=50
+- mode=serial
+- fedlategram.late_fraction=0.45
+- fedlategram.freeze_strategy=slow_update
+- fedlategram.freq_early=1
+- fedlategram.alpha_early_lr=1
+- fedlategram.lam=0.15
+- fedlategram.lam_adaptive=true
+- fedlategram.mu_clf=0.1
