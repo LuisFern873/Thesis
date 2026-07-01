@@ -119,16 +119,17 @@ hydra:
     - common.seed=42
     - common.global_epoch=50
     - mode=serial
-    - fedlategram.tau_cka=0.85
-    - fedlategram.late_fraction=0.15
-    - fedlategram.freeze_strategy=warm_then_freeze
-    - fedlategram.T_warm=15
-    - fedlategram.lam=0.10
+    - fedlategram.late_fraction=0.45
+    - fedlategram.freeze_strategy=slow_update
+    - fedlategram.freq_early=1
+    - fedlategram.alpha_early_lr=1
+    - fedlategram.lam=0.15
     - fedlategram.lam_adaptive=true
+    - fedlategram.mu_clf=0.01
   job:
     name: main
     chdir: null
-    override_dirname: common.global_epoch=50,common.seed=42,dataset.name=cifar10,dataset.partition_dir=partitions/alpha_1.0/seed_42,fedlategram.T_warm=15,fedlategram.freeze_strategy=warm_then_freeze,fedlategram.lam=0.10,fedlategram.lam_adaptive=true,fedlategram.late_fraction=0.15,fedlategram.tau_cka=0.85,mode=serial,model.name=vim_tiny
+    override_dirname: common.global_epoch=50,common.seed=42,dataset.name=cifar10,dataset.partition_dir=partitions/alpha_1.0/seed_42,fedlategram.alpha_early_lr=1,fedlategram.freeze_strategy=slow_update,fedlategram.freq_early=1,fedlategram.lam=0.15,fedlategram.lam_adaptive=true,fedlategram.late_fraction=0.45,fedlategram.mu_clf=0.01,mode=serial,model.name=vim_tiny
     id: ???
     num: ???
     config_name: fedlategram

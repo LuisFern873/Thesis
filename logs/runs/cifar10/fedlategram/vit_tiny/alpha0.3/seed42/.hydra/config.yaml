@@ -55,16 +55,17 @@ common:
   delete_useless_run: true
   resume_checkpoint: null
 fedlategram:
-  lam: 0.25
-  tau_cka: 0.65
-  late_fraction: 0.75
+  lam: 0.15
+  tau_cka: 0.85
+  late_fraction: 0.2
   freeze_strategy: slow_update
-  T_warm: 5
-  alpha_early_lr: 0.05
-  freq_early: 5
+  T_warm: 10
+  alpha_early_lr: 1
+  freq_early: 1
   gram_ref: proxy
   proxy_size: 256
   lam_adaptive: true
+  mu_clf: 0.1
 cka:
   rounds:
   - 1
