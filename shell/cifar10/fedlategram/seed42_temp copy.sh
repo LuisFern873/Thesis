@@ -36,110 +36,42 @@ run_experiment() {
   echo " Done:    $desc"
 }
 
+# res9
 
-# vim_tiny
-
+# ── Alpha 0.3  (non-IID) ──────────────────────────
 
 run_experiment \
-  "cifar10 | vim_tiny | alpha=0.1 | seed=123" \
-  "logs/runs/cifar10/fedlategram/vim_tiny/alpha0.1/seed123_second" \
+  "cifar10 | res9 | alpha=0.3 | seed=123" \
+  "logs/runs/cifar10/fedlategram/res9/alpha0.3/seed123" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
-    dataset.partition_dir=partitions/alpha_1000.0/seed_42 \
-    model.name=vim_tiny \
-    common.seed=42 \
-    common.global_epoch=50 \
-    mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vim_tiny/alpha1000.0/seed42" \
-    fedlategram.late_fraction=0.45 \
-    fedlategram.freeze_strategy=slow_update \
-    fedlategram.freq_early=1 \
-    fedlategram.alpha_early_lr=1 \
-    fedlategram.lam=0.15 \
-    fedlategram.lam_adaptive=true \
-    fedlategram.mu_clf=0.01
-
-  python main.py --config-name fedlategram \
-    dataset.name=cifar10 \
-    dataset.partition_dir=partitions/alpha_1000.0/seed_123 \
-    model.name=vim_tiny \
-    common.seed=123 \
-    common.global_epoch=50 \
-    mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vim_tiny/alpha1000.0/seed123" \
-    fedlategram.late_fraction=0.45 \
-    fedlategram.freeze_strategy=slow_update \
-    fedlategram.freq_early=1 \
-    fedlategram.alpha_early_lr=1 \
-    fedlategram.lam=0.15 \
-    fedlategram.lam_adaptive=true \
-    fedlategram.mu_clf=0.01
-
-
-  python main.py --config-name fedlategram \
-    dataset.name=cifar10 \
-    dataset.partition_dir=partitions/alpha_1.0/seed_42 \
-    model.name=vim_tiny \
-    common.seed=42 \
-    common.global_epoch=50 \
-    mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vim_tiny/alpha1.0/seed42" \
-    fedlategram.late_fraction=0.45 \
-    fedlategram.freeze_strategy=slow_update \
-    fedlategram.freq_early=1 \
-    fedlategram.alpha_early_lr=1 \
-    fedlategram.lam=0.15 \
-    fedlategram.lam_adaptive=true \
-    fedlategram.mu_clf=0.01
-
-
-  python main.py --config-name fedlategram \
-    dataset.name=cifar10 \
-    dataset.partition_dir=partitions/alpha_1.0/seed_123 \
-    model.name=vim_tiny \
-    common.seed=123 \
-    common.global_epoch=50 \
-    mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vim_tiny/alpha1.0/seed123" \
-    fedlategram.late_fraction=0.45 \
-    fedlategram.freeze_strategy=slow_update \
-    fedlategram.freq_early=1 \
-    fedlategram.alpha_early_lr=1 \
-    fedlategram.lam=0.15 \
-    fedlategram.lam_adaptive=true \
-    fedlategram.mu_clf=0.01
-
-
-  python main.py --config-name fedlategram \
-    dataset.name=cifar10 \
-    dataset.partition_dir=partitions/alpha_1.0/seed_42 \
+    dataset.partition_dir=partitions/alpha_0.3/seed_123 \
     model.name=res9 \
-    common.seed=42 \
+    common.seed=123 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/res9/alpha1.0/seed42" \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/res9/alpha0.3/seed123" \
     fedlategram.late_fraction=0.45 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
     fedlategram.alpha_early_lr=1 \
     fedlategram.lam=0.15 \
     fedlategram.lam_adaptive=true \
-    fedlategram.mu_clf=0.01
-
+    fedlategram.mu_clf=0.1
 
 # ── Alpha 0.1  (non-IID) ──────────────────────────
 
 run_experiment \
-  "cifar10 | vim_tiny | alpha=0.1 | seed=123" \
-  "logs/runs/cifar10/fedlategram/vim_tiny/alpha0.1/seed123_second" \
+  "cifar10 | res9 | alpha=0.1 | seed=42" \
+  "logs/runs/cifar10/fedlategram/res9/alpha0.1/seed42" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
-    dataset.partition_dir=partitions/alpha_0.1/seed_123 \
-    model.name=vim_tiny \
-    common.seed=123 \
+    dataset.partition_dir=partitions/alpha_0.1/seed_42 \
+    model.name=res9 \
+    common.seed=42 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vim_tiny/alpha0.1/seed123_second" \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/res9/alpha0.1/seed42" \
     fedlategram.late_fraction=0.45 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
@@ -147,20 +79,42 @@ run_experiment \
     fedlategram.lam=0.15 \
     fedlategram.lam_adaptive=true \
     fedlategram.mu_clf=0.1
+
+
+run_experiment \
+  "cifar10 | res9 | alpha=0.1 | seed=123" \
+  "logs/runs/cifar10/fedlategram/res9/alpha0.1/seed123" \
+  python main.py --config-name fedlategram \
+    dataset.name=cifar10 \
+    dataset.partition_dir=partitions/alpha_0.1/seed_123 \
+    model.name=res9 \
+    common.seed=123 \
+    common.global_epoch=50 \
+    mode=serial \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/res9/alpha0.1/seed123" \
+    fedlategram.late_fraction=0.45 \
+    fedlategram.freeze_strategy=slow_update \
+    fedlategram.freq_early=1 \
+    fedlategram.alpha_early_lr=1 \
+    fedlategram.lam=0.15 \
+    fedlategram.lam_adaptive=true \
+    fedlategram.mu_clf=0.1
+
+
 
 # ── Alpha 0.03  (non-IID) ──────────────────────────
 
 run_experiment \
-  "cifar10 | vim_tiny | alpha=0.03 | seed=42" \
-  "logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42" \
+  "cifar10 | res9 | alpha=0.03 | seed=42" \
+  "logs/runs/cifar10/fedlategram/res9/alpha0.03/seed42" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
     dataset.partition_dir=partitions/alpha_0.03/seed_42 \
-    model.name=vim_tiny \
+    model.name=res9 \
     common.seed=42 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed42" \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/res9/alpha0.03/seed42" \
     fedlategram.late_fraction=0.45 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
@@ -169,17 +123,18 @@ run_experiment \
     fedlategram.lam_adaptive=true \
     fedlategram.mu_clf=0.1
 
+
 run_experiment \
-  "cifar10 | vim_tiny | alpha=0.03 | seed=123" \
-  "logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed123" \
+  "cifar10 | res9 | alpha=0.03 | seed=123" \
+  "logs/runs/cifar10/fedlategram/res9/alpha0.03/seed123" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
     dataset.partition_dir=partitions/alpha_0.03/seed_123 \
-    model.name=vim_tiny \
+    model.name=res9 \
     common.seed=123 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vim_tiny/alpha0.03/seed123" \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/res9/alpha0.03/seed123" \
     fedlategram.late_fraction=0.45 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
@@ -188,24 +143,29 @@ run_experiment \
     fedlategram.lam_adaptive=true \
     fedlategram.mu_clf=0.1
 
-# vig_tiny
+
+
+
+
+
+# vit_tiny
 
 
 
 # ── Alpha 0.3  (non-IID) ──────────────────────────
 
 run_experiment \
-  "cifar10 | vig_tiny | alpha=0.3 | seed=42" \
-  "logs/runs/cifar10/fedlategram/vig_tiny/alpha0.3/seed42" \
+  "cifar10 | vit_tiny | alpha=0.3 | seed=42" \
+  "logs/runs/cifar10/fedlategram/vit_tiny/alpha0.3/seed42" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
     dataset.partition_dir=partitions/alpha_0.3/seed_42 \
-    model.name=vig_tiny \
+    model.name=vit_tiny \
     common.seed=42 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vig_tiny/alpha0.3/seed42" \
-    fedlategram.late_fraction=0.1 \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/vit_tiny/alpha0.3/seed42" \
+    fedlategram.late_fraction=0.2 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
     fedlategram.alpha_early_lr=1 \
@@ -214,17 +174,17 @@ run_experiment \
     fedlategram.mu_clf=0.1
 
 run_experiment \
-  "cifar10 | vig_tiny | alpha=0.3 | seed=123" \
-  "logs/runs/cifar10/fedlategram/vig_tiny/alpha0.3/seed123" \
+  "cifar10 | vit_tiny | alpha=0.3 | seed=123" \
+  "logs/runs/cifar10/fedlategram/vit_tiny/alpha0.3/seed123" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
     dataset.partition_dir=partitions/alpha_0.3/seed_123 \
-    model.name=vig_tiny \
+    model.name=vit_tiny \
     common.seed=123 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vig_tiny/alpha0.3/seed123" \
-    fedlategram.late_fraction=0.1 \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/vit_tiny/alpha0.3/seed123" \
+    fedlategram.late_fraction=0.2 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
     fedlategram.alpha_early_lr=1 \
@@ -236,17 +196,17 @@ run_experiment \
 # ── Alpha 0.1  (non-IID) ──────────────────────────
 
 run_experiment \
-  "cifar10 | vig_tiny | alpha=0.1 | seed=42" \
-  "logs/runs/cifar10/fedlategram/vig_tiny/alpha0.1/seed42" \
+  "cifar10 | vit_tiny | alpha=0.1 | seed=42" \
+  "logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed42" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
     dataset.partition_dir=partitions/alpha_0.1/seed_42 \
-    model.name=vig_tiny \
+    model.name=vit_tiny \
     common.seed=42 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vig_tiny/alpha0.1/seed42" \
-    fedlategram.late_fraction=0.1 \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed42" \
+    fedlategram.late_fraction=0.2 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
     fedlategram.alpha_early_lr=1 \
@@ -255,17 +215,17 @@ run_experiment \
     fedlategram.mu_clf=0.1
 
 run_experiment \
-  "cifar10 | vig_tiny | alpha=0.1 | seed=123" \
-  "logs/runs/cifar10/fedlategram/vig_tiny/alpha0.1/seed123" \
+  "cifar10 | vit_tiny | alpha=0.1 | seed=123" \
+  "logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed123" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
     dataset.partition_dir=partitions/alpha_0.1/seed_123 \
-    model.name=vig_tiny \
+    model.name=vit_tiny \
     common.seed=123 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vig_tiny/alpha0.1/seed123" \
-    fedlategram.late_fraction=0.1 \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed123" \
+    fedlategram.late_fraction=0.2 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
     fedlategram.alpha_early_lr=1 \
@@ -276,17 +236,17 @@ run_experiment \
 # ── Alpha 0.03  (non-IID) ──────────────────────────
 
 run_experiment \
-  "cifar10 | vig_tiny | alpha=0.03 | seed=42" \
-  "logs/runs/cifar10/fedlategram/vig_tiny/alpha0.03/seed42" \
+  "cifar10 | vit_tiny | alpha=0.03 | seed=42" \
+  "logs/runs/cifar10/fedlategram/vit_tiny/alpha0.03/seed42" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
     dataset.partition_dir=partitions/alpha_0.03/seed_42 \
-    model.name=vig_tiny \
+    model.name=vit_tiny \
     common.seed=42 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vig_tiny/alpha0.03/seed42" \
-    fedlategram.late_fraction=0.1 \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/vit_tiny/alpha0.03/seed42" \
+    fedlategram.late_fraction=0.2 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
     fedlategram.alpha_early_lr=1 \
@@ -295,17 +255,17 @@ run_experiment \
     fedlategram.mu_clf=0.1
 
 run_experiment \
-  "cifar10 | vig_tiny | alpha=0.03 | seed=123" \
-  "logs/runs/cifar10/fedlategram/vig_tiny/alpha0.03/seed123" \
+  "cifar10 | vit_tiny | alpha=0.03 | seed=123" \
+  "logs/runs/cifar10/fedlategram/vit_tiny/alpha0.03/seed123" \
   python main.py --config-name fedlategram \
     dataset.name=cifar10 \
     dataset.partition_dir=partitions/alpha_0.03/seed_123 \
-    model.name=vig_tiny \
+    model.name=vit_tiny \
     common.seed=123 \
     common.global_epoch=50 \
     mode=serial \
-    "hydra.run.dir=logs/runs/cifar10/fedlategram/vig_tiny/alpha0.03/seed123" \
-    fedlategram.late_fraction=0.1 \
+    "hydra.run.dir=logs/runs/cifar10/fedlategram/vit_tiny/alpha0.03/seed123" \
+    fedlategram.late_fraction=0.2 \
     fedlategram.freeze_strategy=slow_update \
     fedlategram.freq_early=1 \
     fedlategram.alpha_early_lr=1 \
