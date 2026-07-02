@@ -1,0 +1,13 @@
+- dataset.name=brain_tumor
+- dataset.partition_dir=partitions/alpha_1.0/seed_123
+- model.name=vim_tiny
+- common.seed=123
+- common.global_epoch=50
+- mode=serial
+- fedlategram.lam=0.15
+- fedlategram.late_fraction=0.40
+- fedlategram.freeze_strategy=slow_update
+- fedlategram.freq_early=1
+- fedlategram.alpha_early_lr=1
+- fedlategram.lam_adaptive=true
+- fedlategram.mu_clf=0.01
