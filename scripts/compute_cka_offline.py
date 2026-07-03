@@ -198,6 +198,57 @@ def build_testset(dataset_name: str) -> object:
 
 
 # ---------------------------------------------------------------------------
+# Memory-budget heuristics
+# ---------------------------------------------------------------------------
+
+# Models with large intermediate spatial feature maps need a reduced probe
+# budget to avoid OOM on GPUs with limited VRAM.  These values are applied
+# automatically when no explicit override is provided via CLI.
+_MEMORY_HEAVY_MODELS: Dict[str, Dict[str, int]] = {
+    # res9 has no stride-reduction before the first three hooked layers:
+    #   base.2  → 224×224×64   base.6  → 112×112×128
+    #   base.11 → 56×56×256    base.15 → 28×28×512
+    # With batch_size=32 × 20 batches the accumulated activation tensor
+    # for base.6 alone is 32×20×128×112×112 ≈ 5 GB — far too large for
+    # a 10 GB GPU running two model copies simultaneously.
+    "res9": {"probe_batches": 5, "probe_batch_size": 8},
+}
+
+_OOM_FALLBACK_BATCH_SIZE = 4   # retry batch size after a CUDA OOM
+_OOM_FALLBACK_BATCHES    = 3   # retry probe_batches after a CUDA OOM
+
+
+def _build_data_iter(
+    probe_loader: DataLoader,
+    probe_batches: int,
+    batch_size: int,
+) -> List:
+    """Collect probe batches as CPU tensors.
+
+    If *batch_size* differs from the loader's own batch_size, a new loader
+    is constructed on the fly so we don't have to rebuild the full dataset.
+    """
+    if probe_loader.batch_size != batch_size:
+        from torch.utils.data import DataLoader as DL
+        loader = DL(
+            probe_loader.dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            drop_last=False,
+            num_workers=probe_loader.num_workers,
+            pin_memory=False,   # CPU destination — no need to pin
+        )
+    else:
+        loader = probe_loader
+
+    with torch.no_grad():
+        if probe_batches >= 1:
+            return [(x.cpu(), *rest) for x, *rest in islice(loader, probe_batches)]
+        else:
+            return [(x.cpu(), *rest) for x, *rest in loader]
+
+
+# ---------------------------------------------------------------------------
 # CKA computation for a single (global, client) pair
 # ---------------------------------------------------------------------------
 
@@ -208,8 +259,15 @@ def compute_cka_for_pair(
     probe_loader: DataLoader,
     probe_batches: int,
     device: torch.device,
+    model_name: str = "",
 ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[List[str]]]:
     """Compute the CKA similarity matrix for one global–client model pair.
+
+    For models with large spatial feature maps (e.g. ``res9``) the probe
+    budget is automatically capped to a memory-safe default when no explicit
+    override has been set.  If a CUDA OOM still occurs the function retries
+    once more with an even smaller batch size and batch count before giving
+    up.
 
     Args:
         global_model:  Global model in ``eval()`` mode.
@@ -218,26 +276,32 @@ def compute_cka_for_pair(
         probe_loader:  Deterministic probe DataLoader.
         probe_batches: Max batches to consume; -1/0 for all.
         device:        Target device for forward passes.
+        model_name:    Used to look up memory-heavy heuristics.
 
     Returns:
         ``(diagonal, matrix, layer_names)`` or ``(None, None, None)`` on error.
     """
-    try:
+    # Apply per-architecture memory budget (only when the caller has not
+    # already overridden to a smaller value via CLI).
+    budget = _MEMORY_HEAVY_MODELS.get(model_name, {})
+    effective_batches   = probe_batches
+    effective_bsz       = probe_loader.batch_size
+
+    if budget:
+        safe_batches = budget["probe_batches"]
+        safe_bsz     = budget["probe_batch_size"]
+        if effective_batches < 0 or effective_batches > safe_batches:
+            effective_batches = safe_batches
+        if effective_bsz > safe_bsz:
+            effective_bsz = safe_bsz
+
+    def _try_compute(batches: int, bsz: int) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[List[str]]]:
+        """Inner attempt; returns (diagonal, matrix, layer_names) or raises."""
+        # Move models to target device
         global_model.to(device).eval()
         client_model.to(device).eval()
 
-        # Build data iterator — move batches to target device inline during
-        # the CKA compute loop (simtorch does X.to(device) internally via
-        # the CKA constructor's model placement, so we just supply raw
-        # CPU tensors here).
-        with torch.no_grad():
-            if probe_batches >= 1:
-                data_iter = [
-                    (x.cpu(), *rest)
-                    for x, *rest in islice(probe_loader, probe_batches)
-                ]
-            else:
-                data_iter = list(probe_loader)
+        data_iter = _build_data_iter(probe_loader, batches, bsz)
 
         try:
             sim_global = SimilarityModel(
@@ -262,10 +326,41 @@ def compute_cka_for_pair(
             if device.type == "cuda":
                 torch.cuda.empty_cache()
 
+    try:
+        result = _try_compute(effective_batches, effective_bsz)
+        return result
+
+    except torch.cuda.OutOfMemoryError:
+        # First OOM: free memory and retry with a smaller budget
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+        global_model.cpu()
+        client_model.cpu()
+
+        fb = _OOM_FALLBACK_BATCHES
+        fb_bsz = _OOM_FALLBACK_BATCH_SIZE
+        print(
+            f"\n    [WARN] CUDA OOM — retrying with "
+            f"probe_batches={fb}, probe_batch_size={fb_bsz}",
+            end="",
+            flush=True,
+        )
+        try:
+            result = _try_compute(fb, fb_bsz)
+            return result
+        except torch.cuda.OutOfMemoryError:
+            if device.type == "cuda":
+                torch.cuda.empty_cache()
+            print(
+                f"\n    [WARN] CUDA OOM again on fallback — skipping this pair",
+                flush=True,
+            )
+            return None, None, None
+
     except (KeyboardInterrupt, SystemExit):
         raise
     except Exception as exc:
-        print(f"    [WARN] CKA computation failed: {type(exc).__name__}: {exc}")
+        print(f"\n    [WARN] CKA computation failed: {type(exc).__name__}: {exc}")
         return None, None, None
 
     finally:
@@ -273,6 +368,8 @@ def compute_cka_for_pair(
         # accumulating GPU memory between clients.
         global_model.cpu()
         client_model.cpu()
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
 
 
 # ---------------------------------------------------------------------------
@@ -448,6 +545,7 @@ def process_run(
                 probe_loader=probe_loader,
                 probe_batches=probe_batches,
                 device=device,
+                model_name=model_name,
             )
 
             if diagonal is None:
