@@ -44,35 +44,35 @@ run_experiment() {
 run_experiment \
   "cifar10 | res9 | alpha=1000.0 | seed=123" \
   "logs/runs/cifar10/fedprox/res9/alpha1000.0/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha1000.0/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha1000.0/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 1.0 ─────────────────────────────────────────────
 run_experiment \
   "cifar10 | res9 | alpha=1.0 | seed=123" \
   "logs/runs/cifar10/fedprox/res9/alpha1.0/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha1.0/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha1.0/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.3 ─────────────────────────────────────────────
 run_experiment \
   "cifar10 | res9 | alpha=0.3 | seed=123" \
   "logs/runs/cifar10/fedprox/res9/alpha0.3/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha0.3/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha0.3/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.1 ────────────────────────────────────────────
 run_experiment \
   "cifar10 | res9 | alpha=0.1 | seed=123" \
   "logs/runs/cifar10/fedprox/res9/alpha0.1/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha0.1/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha0.1/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.03 ────────────────────────────────────────────
 run_experiment \
   "cifar10 | res9 | alpha=0.03 | seed=123" \
   "logs/runs/cifar10/fedprox/res9/alpha0.03/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha0.03/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/res9/alpha0.03/seed123 --device cuda --skip-existing 
 
 # ──────────────────────────────────────────────────
 # ── vim_tiny ──────────────────────────────────────
@@ -82,35 +82,35 @@ run_experiment \
 run_experiment \
   "cifar10 | vim_tiny | alpha=1000.0 | seed=123" \
   "logs/runs/cifar10/fedprox/vim_tiny/alpha1000.0/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha1000.0/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha1000.0/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 1.0 ─────────────────────────────────────────────
 run_experiment \
   "cifar10 | vim_tiny | alpha=1.0 | seed=123" \
   "logs/runs/cifar10/fedprox/vim_tiny/alpha1.0/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha1.0/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha1.0/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.3 ─────────────────────────────────────────────
 run_experiment \
   "cifar10 | vim_tiny | alpha=0.3 | seed=123" \
   "logs/runs/cifar10/fedprox/vim_tiny/alpha0.3/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha0.3/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha0.3/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.1 ────────────────────────────────────────────
 run_experiment \
   "cifar10 | vim_tiny | alpha=0.1 | seed=123" \
   "logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha0.1/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.03 ────────────────────────────────────────────
 run_experiment \
   "cifar10 | vim_tiny | alpha=0.03 | seed=123" \
   "logs/runs/cifar10/fedprox/vim_tiny/alpha0.03/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha0.03/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vim_tiny/alpha0.03/seed123 --device cuda --skip-existing 
 
 
 # ──────────────────────────────────────────────────
@@ -121,35 +121,35 @@ run_experiment \
 run_experiment \
   "cifar10 | vig_tiny | alpha=1000.0 | seed=123" \
   "logs/runs/cifar10/fedprox/vig_tiny/alpha1000.0/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha1000.0/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha1000.0/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 1.0 ─────────────────────────────────────────────
 run_experiment \
   "cifar10 | vig_tiny | alpha=1.0 | seed=123" \
   "logs/runs/cifar10/fedprox/vig_tiny/alpha1.0/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha1.0/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha1.0/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.3 ─────────────────────────────────────────────
 run_experiment \
   "cifar10 | vig_tiny | alpha=0.3 | seed=123" \
   "logs/runs/cifar10/fedprox/vig_tiny/alpha0.3/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha0.3/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha0.3/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.1 ────────────────────────────────────────────
 run_experiment \
   "cifar10 | vig_tiny | alpha=0.1 | seed=123" \
   "logs/runs/cifar10/fedprox/vig_tiny/alpha0.1/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha0.1/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha0.1/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.03 ────────────────────────────────────────────
 run_experiment \
   "cifar10 | vig_tiny | alpha=0.03 | seed=123" \
   "logs/runs/cifar10/fedprox/vig_tiny/alpha0.03/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha0.03/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vig_tiny/alpha0.03/seed123 --device cuda --skip-existing 
 
 
 # ──────────────────────────────────────────────────
@@ -160,35 +160,35 @@ run_experiment \
 run_experiment \
   "cifar10 | vit_tiny | alpha=1000.0 | seed=123" \
   "logs/runs/cifar10/fedprox/vit_tiny/alpha1000.0/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha1000.0/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha1000.0/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 1.0 ─────────────────────────────────────────────
 run_experiment \
   "cifar10 | vit_tiny | alpha=1.0 | seed=123" \
   "logs/runs/cifar10/fedprox/vit_tiny/alpha1.0/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha1.0/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha1.0/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.3 ─────────────────────────────────────────────
 run_experiment \
   "cifar10 | vit_tiny | alpha=0.3 | seed=123" \
   "logs/runs/cifar10/fedprox/vit_tiny/alpha0.3/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha0.3/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha0.3/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.1 ────────────────────────────────────────────
 run_experiment \
   "cifar10 | vit_tiny | alpha=0.1 | seed=123" \
   "logs/runs/cifar10/fedprox/vit_tiny/alpha0.1/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha0.1/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha0.1/seed123 --device cuda --skip-existing 
 
 
 # ── Alpha 0.03 ────────────────────────────────────────────
 run_experiment \
   "cifar10 | vit_tiny | alpha=0.03 | seed=123" \
   "logs/runs/cifar10/fedprox/vit_tiny/alpha0.03/seed123" \
-  python scripts/compute_client_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha0.03/seed123 --device cuda --skip-existing 
+  python scripts/compute_cka_offline.py --run-dir logs/runs/cifar10/fedprox/vit_tiny/alpha0.03/seed123 --device cuda --skip-existing 
 
 
 
