@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed42
+    dir: logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed42_fourth
   sweep:
     dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
     subdir: ${hydra.job.num}
@@ -110,7 +110,7 @@ hydra:
   output_subdir: .hydra
   overrides:
     hydra:
-    - hydra.run.dir=logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed42
+    - hydra.run.dir=logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed42_fourth
     - hydra.mode=RUN
     task:
     - dataset.name=cifar10
@@ -143,18 +143,18 @@ hydra:
   runtime:
     version: 1.3.2
     version_base: '1.3'
-    cwd: /home/ubuntu/Thesis
+    cwd: /home/luis.mendezl/Thesis
     config_sources:
     - path: hydra.conf
       schema: pkg
       provider: hydra
-    - path: /home/ubuntu/Thesis/config
+    - path: /home/luis.mendezl/Thesis/config
       schema: file
       provider: main
     - path: ''
       schema: structured
       provider: schema
-    output_dir: /home/ubuntu/Thesis/logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed42
+    output_dir: /home/luis.mendezl/Thesis/logs/runs/cifar10/fedlategram/vit_tiny/alpha0.1/seed42_fourth
     choices:
       hydra/env: default
       hydra/callbacks: null
